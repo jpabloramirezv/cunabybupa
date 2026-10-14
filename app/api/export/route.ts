@@ -1,4 +1,4 @@
-import { and, asc, gte, lt } from 'drizzle-orm'
+import { and, asc, eq, gte, lt } from 'drizzle-orm'
 import { handle, HttpError } from '@/lib/api'
 import { audit } from '@/lib/audit'
 import { SCREENING_KINDS } from '@/lib/config'
@@ -6,7 +6,7 @@ import { requireCtx } from '@/lib/ctx'
 import { db } from '@/lib/db'
 import { catalogItem, diagnosis, episode } from '@/lib/db/schema'
 import { buildDetails } from '@/lib/server/episodes'
-import { parsePeriod } from '@/lib/server/panel'
+import { parsePanelUnit, parsePeriod } from '@/lib/server/panel'
 
 const cell = (v: unknown) => {
   if (v === null || v === undefined) return ''
@@ -18,14 +18,22 @@ const cell = (v: unknown) => {
 /** Exportación sin datos identificables: solo código interno y variables clínicas. */
 export const GET = handle(async (req) => {
   const ctx = await requireCtx('panel')
-  const period = parsePeriod(new URL(req.url).searchParams)
+  const params = new URL(req.url).searchParams
+  const period = parsePeriod(params)
   if (!period) throw new HttpError(400, 'El período no es válido.')
+  const unit = parsePanelUnit(params.get('unidad'))
 
   const [rows, dx, items] = await Promise.all([
     db
       .select()
       .from(episode)
-      .where(and(gte(episode.createdAt, period.from), lt(episode.createdAt, period.to)))
+      .where(
+        and(
+          gte(episode.createdAt, period.from),
+          lt(episode.createdAt, period.to),
+          unit === 'todos' ? undefined : eq(episode.unit, unit),
+        ),
+      )
       .orderBy(asc(episode.createdAt)),
     db.select().from(diagnosis),
     db.select().from(catalogItem),

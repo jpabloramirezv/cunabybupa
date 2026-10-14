@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { Baby, HeartPulse, Plus, Stethoscope } from 'lucide-react'
 import { PrimaryButton } from '@/components/cuna/ui'
@@ -18,12 +19,32 @@ export function NewEntryButton({
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null)
+
+  // El menú se dibuja en el body para que ningún buscador ni barra fija lo tape.
+  useLayoutEffect(() => {
+    if (!open) return
+    const place = () => {
+      const r = ref.current?.getBoundingClientRect()
+      if (r) setPos({ top: r.bottom + 8, right: Math.max(8, window.innerWidth - r.right) })
+    }
+    place()
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => {
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
+    }
+  }, [open])
 
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
     const onClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      const t = e.target as Node
+      if (ref.current?.contains(t) || menuRef.current?.contains(t)) return
+      setOpen(false)
     }
     document.addEventListener('keydown', onKey)
     document.addEventListener('mousedown', onClick)
@@ -37,7 +58,7 @@ export function NewEntryButton({
     {
       key: 'neo',
       title: 'Ingreso o egreso en UCI',
-      hint: 'Recién nacido hospitalizado en la unidad. Va a la Pizarra.',
+      hint: 'Recién nacido hospitalizado en la unidad. Va a la Pizarra y al Libro de Partos y Abortos.',
       Icon: Baby,
       enabled: canNeonatal,
       run: onNeonatal,
@@ -45,10 +66,10 @@ export function NewEntryButton({
     {
       key: 'nursery',
       title: 'Recién nacido de Nursery',
-      hint: 'Estadía normal, sin hospitalización. Se registra en el Libro de Partos y Abortos.',
+      hint: 'Estadía normal, sin hospitalización. Mismo formulario que UCI; pasa al Libro de Partos y Abortos.',
       Icon: Stethoscope,
       enabled: canNeonatal,
-      run: () => router.push('/libro?nuevo=neo'),
+      run: () => router.push(`/registro/${crypto.randomUUID()}?unidad=nursery`),
     },
     {
       key: 'mat',
@@ -72,11 +93,14 @@ export function NewEntryButton({
         <Plus className="size-5" aria-hidden />
         Nuevo registro
       </PrimaryButton>
-      {open ? (
+      {open && pos
+        ? createPortal(
         <div
+          ref={menuRef}
           role="menu"
           aria-label="¿Qué tipo de registro es?"
-          className="absolute right-0 z-20 mt-2 flex w-full min-w-72 flex-col gap-1 rounded-xl border border-border bg-card p-2 shadow-lg sm:w-80"
+          style={{ top: pos.top, right: pos.right }}
+          className="fixed z-[100] flex w-[min(20rem,calc(100vw-1rem))] flex-col gap-1 rounded-xl border border-border bg-card p-2 shadow-xl"
         >
           <p className="px-3 pb-1 pt-2 text-sm font-semibold text-foreground">¿Qué tipo de registro es?</p>
           {items.map(({ key, title, hint, Icon, enabled, run }) => (
@@ -100,8 +124,10 @@ export function NewEntryButton({
               </span>
             </button>
           ))}
-        </div>
-      ) : null}
+        </div>,
+        document.body,
+      )
+        : null}
     </div>
   )
 }

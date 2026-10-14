@@ -126,6 +126,7 @@ async function main() {
 
   // Datos del libro en papel: ingreso, nivel de cuidado, procedencia, GES y varios médicos.
   for (const stmt of [
+    `ALTER TABLE episode ADD COLUMN IF NOT EXISTS unit text NOT NULL DEFAULT 'uci'`,
     `ALTER TABLE episode ADD COLUMN IF NOT EXISTS admission_at timestamptz`,
     `ALTER TABLE episode ADD COLUMN IF NOT EXISTS care_level text`,
     `ALTER TABLE episode ADD COLUMN IF NOT EXISTS transfer_origin text`,

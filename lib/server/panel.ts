@@ -1,4 +1,4 @@
-import { and, gte, lt, or, inArray, isNotNull } from 'drizzle-orm'
+import { and, eq, gte, lt, or, inArray, isNotNull } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { episode, screening } from '@/lib/db/schema'
 import { SCREENING_KINDS } from '@/lib/config'
@@ -39,14 +39,22 @@ export const WEIGHT_BINS = [
   { key: 'nbw', label: '2.500 g o más', test: (g: number) => g >= 2500 },
 ]
 
-export async function computePanel(from: Date, to: Date): Promise<PanelPayload> {
+export type PanelUnit = 'uci' | 'nursery' | 'todos'
+
+export const parsePanelUnit = (v: string | null): PanelUnit =>
+  v === 'nursery' || v === 'todos' ? v : 'uci'
+
+export async function computePanel(from: Date, to: Date, unit: PanelUnit = 'uci'): Promise<PanelPayload> {
   const rows: Row[] = await db
     .select()
     .from(episode)
     .where(
-      or(
-        and(gte(episode.createdAt, from), lt(episode.createdAt, to)),
-        and(isNotNull(episode.dischargeAt), gte(episode.dischargeAt, from), lt(episode.dischargeAt, to)),
+      and(
+        unit === 'todos' ? undefined : eq(episode.unit, unit),
+        or(
+          and(gte(episode.createdAt, from), lt(episode.createdAt, to)),
+          and(isNotNull(episode.dischargeAt), gte(episode.dischargeAt, from), lt(episode.dischargeAt, to)),
+        ),
       ),
     )
 

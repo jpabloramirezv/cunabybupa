@@ -35,15 +35,38 @@ function BookInput({
   value,
   linked,
   disabled,
+  userName,
   onChange,
 }: {
   field: BookFieldRow
   value: string
   linked?: string
   disabled: boolean
+  userName?: string
   onChange: (v: string) => void
 }) {
   const id = useId()
+  if (field.source === 'user') {
+    const who = value || userName || ''
+    return (
+      <div>
+        <FieldLabel htmlFor={id}>{field.label}</FieldLabel>
+        <input
+          id={id}
+          readOnly
+          tabIndex={-1}
+          value={who}
+          placeholder="Se completa con quien registra"
+          className={cn(inputClass, 'cursor-default bg-muted text-foreground')}
+        />
+        <Hint>
+          {value
+            ? 'Quedó registrada con quien creó este registro. No se edita.'
+            : 'Se completa sola con tu nombre al guardar. No es opcional ni se escribe a mano.'}
+        </Hint>
+      </div>
+    )
+  }
   const fromUci = !value && linked ? linked : null
   const hint = fromUci ? `Viene de UCI: ${fromUci}. Escribe para reemplazarlo.` : undefined
 
@@ -118,6 +141,7 @@ export function BookForm({
   values,
   linked,
   canEdit,
+  userName,
   onChange,
 }: {
   fields: BookFieldRow[]
@@ -125,6 +149,7 @@ export function BookForm({
   values: Record<string, string>
   linked: Record<string, string>
   canEdit: boolean
+  userName?: string
   onChange: (key: string, value: string) => void
 }) {
   const merged = useMemo(() => ({ ...linked, ...values }), [linked, values])
@@ -195,6 +220,7 @@ export function BookForm({
               value={values[f.key] ?? ''}
               linked={linked[f.key]}
               disabled={!canEdit}
+              userName={userName}
               onChange={(v) => onChange(f.key, v)}
             />
           </div>

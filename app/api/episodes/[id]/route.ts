@@ -2,7 +2,7 @@ import { eq, sql } from 'drizzle-orm'
 import { assertEpisodeId, handle, HttpError, readJson } from '@/lib/api'
 import { audit } from '@/lib/audit'
 import { explainChange } from '@/lib/audit-text'
-import { ensureEpisode } from '@/lib/server/create-episode'
+import { ensureEpisode, parseUnit } from '@/lib/server/create-episode'
 import { requireCtx } from '@/lib/ctx'
 import { db } from '@/lib/db'
 import { episode, episodeBlock, episodeIdentity } from '@/lib/db/schema'
@@ -44,7 +44,7 @@ export const PATCH = handle<Params>(async (req, { params }) => {
   let created = false
   if (!row) {
     if (block !== 'ingreso') throw new HttpError(404, 'No encontramos este registro.')
-    ;({ row, created } = await ensureEpisode(id, ctx, now))
+    ;({ row, created } = await ensureEpisode(id, ctx, now, parseUnit((body as { unit?: unknown }).unit)))
   } else if (row.status === 'cerrado' && !ctx.canAdmin) {
     throw new HttpError(403, 'Este registro está cerrado. Solo jefatura puede corregirlo.')
   } else if (row.status === 'cerrado' && reason.length < MIN_REASON_LENGTH) {

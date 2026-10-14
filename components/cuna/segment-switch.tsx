@@ -13,12 +13,12 @@ const OPTIONS: { value: StatsSegment; title: string; hint: string }[] = [
   {
     value: 'nursery',
     title: 'Nursery',
-    hint: 'Recién nacidos con estadía normal, sin hospitalización. Salen del Libro de Partos y Abortos.',
+    hint: 'Recién nacidos con estadía normal, sin hospitalización. Se registran igual que un ingreso UCI.',
   },
   {
     value: 'todos',
-    title: 'Todos los nacimientos',
-    hint: 'Nursery más UCI, según el Libro de Partos y Abortos. Sirve para ver cuántos se hospitalizan.',
+    title: 'UCI Neonatal + Nursery',
+    hint: 'Todos los recién nacidos de la unidad juntos, más el bloque de maternidad del Libro de Partos y Abortos.',
   },
 ]
 

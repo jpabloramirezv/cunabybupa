@@ -127,6 +127,7 @@ export async function buildDetails(rows: EpisodeRow[]): Promise<EpisodeDetail[]>
       seq: r.seq,
       code: episodeCode(r.seq),
       status: computeStatus(core, hasAdmission),
+      unit: r.unit === 'nursery' ? 'nursery' : 'uci',
       readmissionOf: r.readmissionOf,
       createdAt: r.createdAt.toISOString(),
       updatedAt: r.updatedAt.toISOString(),

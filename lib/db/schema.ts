@@ -120,6 +120,8 @@ export const episode = pgTable('episode', {
   id: text('id').primaryKey(),
   seq: serial('seq').notNull(),
   status: text('status').notNull().default('incompleto'),
+  /** Unidad donde se registra el recién nacido: uci (hospitalizado) o nursery (estadía normal). */
+  unit: text('unit').notNull().default('uci'),
   gaWeeks: integer('ga_weeks'),
   gaDays: integer('ga_days'),
   birthWeightG: integer('birth_weight_g'),

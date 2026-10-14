@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { ChevronLeft, ShieldCheck } from 'lucide-react'
 import { useCatalogs, useEpisodeForm, useIdentityForm, useMe, useOutbox } from '@/lib/hooks'
 import { setEditReason } from '@/lib/edit-reason'
 import { identityMissing } from '@/lib/identity-gate'
-import { subscribeSaved } from '@/lib/outbox'
+import { setNewEpisodeUnit, subscribeSaved } from '@/lib/outbox'
 import { MAX_REASON_LENGTH, MIN_REASON_LENGTH } from '@/lib/revisions'
 import { RevisionHistory } from '@/components/cuna/revision-history'
 import { cn } from '@/lib/utils'
@@ -35,6 +36,13 @@ export function EpisodeEditor({ id }: { id: string }) {
   const [reason, setReason] = useState('')
 
   const detail = form.detail
+  const requestedUnit = useSearchParams().get('unidad') === 'nursery' ? 'nursery' : 'uci'
+  const unit: 'uci' | 'nursery' = detail?.unit ?? requestedUnit
+  const isNursery = unit === 'nursery'
+
+  useEffect(() => {
+    if (!detail) setNewEpisodeUnit(id, requestedUnit)
+  }, [id, requestedUnit, detail])
   const closedBySession = detail?.status === 'cerrado' && !!me?.canAdmin
   const lockedByRole = !me?.canWrite || (detail?.status === 'cerrado' && !me?.canAdmin)
   const reasonMissing = closedBySession && reason.trim().length < MIN_REASON_LENGTH
@@ -108,9 +116,17 @@ export function EpisodeEditor({ id }: { id: string }) {
         </Link>
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-bold text-navy sm:text-3xl">
-            {detail ? detail.code : 'Nuevo ingreso'}
+            {detail ? detail.code : isNursery ? 'Nuevo recién nacido de Nursery' : 'Nuevo ingreso'}
           </h1>
           {detail ? <StatusBadge status={uiStatus(detail)} /> : null}
+          <span
+            className={cn(
+              'rounded-full px-3 py-1 text-xs font-semibold',
+              isNursery ? 'bg-secondary text-primary' : 'bg-navy text-primary-foreground',
+            )}
+          >
+            {isNursery ? 'Nursery' : 'UCI Neonatal'}
+          </span>
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
           {detail

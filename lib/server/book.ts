@@ -2,7 +2,7 @@ import { asc, eq, inArray } from 'drizzle-orm'
 import { TZ } from '@/lib/config'
 import { DEFAULT_BOOK_FIELDS, type BookFieldType, type BookSection } from '@/lib/book-fields'
 import { db } from '@/lib/db'
-import { bookField, episode } from '@/lib/db/schema'
+import { bookField, catalogItem, episode } from '@/lib/db/schema'
 import { attachIdentity, buildDetails } from '@/lib/server/episodes'
 import type { EpisodeDetail } from '@/lib/types'
 
@@ -83,7 +83,42 @@ const FEEDING: Record<string, string> = {
 
 const str = (v: unknown) => (v === null || v === undefined ? '' : String(v))
 
-function resolveSource(source: string, d: EpisodeDetail): string {
+const DELIVERY_BOOK: Record<string, string> = { vaginal: 'PARTO VAGINAL', instrumental: 'PARTO INSTRUMENTAL' }
+
+/** Separa "Nombre(s) Paterno Materno": los dos últimos términos son los apellidos. */
+function splitName(full: string | null | undefined) {
+  const parts = (full ?? '').trim().split(/\s+/).filter(Boolean)
+  if (parts.length >= 3) return { nombre: parts.slice(0, -2).join(' '), paterno: parts[parts.length - 2], materno: parts[parts.length - 1] }
+  if (parts.length === 2) return { nombre: parts[0], paterno: parts[1], materno: '' }
+  return { nombre: parts[0] ?? '', paterno: '', materno: '' }
+}
+
+const hmInTz = (iso: string | null | undefined) => {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(d)
+}
+
+type Labels = Map<number, string>
+
+function resolveSource(source: string, d: EpisodeDetail, labels: Labels): string {
+  if (source === 'patient.paterno' || source === 'patient.materno') {
+    const p = splitName(d.identity?.patientName)
+    return source === 'patient.paterno' ? p.paterno : p.materno
+  }
+  if (source.startsWith('mother.')) {
+    const m = splitName(d.identity?.motherName)
+    return m[source.slice('mother.'.length) as 'nombre' | 'paterno' | 'materno'] ?? ''
+  }
+  if (source === 'birth.date') return ymdInTz(d.birthAt)
+  if (source === 'birth.time') return hmInTz(d.birthAt)
+  if (source === 'previsionLabel') return d.previsionId != null ? (labels.get(d.previsionId) ?? '') : ''
+  if (source === 'medicoLabel') {
+    const ids = d.medicoIds?.length ? d.medicoIds : d.medicoId != null ? [d.medicoId] : []
+    return ids.map((i) => labels.get(i)).filter(Boolean).join(', ')
+  }
+  if (source === 'deliveryLabel') return DELIVERY_BOOK[str(d.deliveryType)] ?? ''
   if (source.startsWith('identity.')) {
     const k = source.slice('identity.'.length) as keyof NonNullable<EpisodeDetail['identity']>
     return str(d.identity?.[k])
@@ -105,7 +140,7 @@ function resolveSource(source: string, d: EpisodeDetail): string {
     case 'dischargeAt':
       return ymdInTz(d.dischargeAt)
     case 'hospitalized':
-      return 'SI'
+      return d.unit === 'nursery' ? 'NO' : 'SI'
     default:
       return str((d as unknown as Record<string, unknown>)[source])
   }
@@ -121,11 +156,13 @@ export async function resolveLinked(
   if (ids.length === 0) return out
   const rows = await db.select().from(episode).where(inArray(episode.id, ids))
   const details = await attachIdentity(await buildDetails(rows))
+  const cat = await db.select({ id: catalogItem.id, label: catalogItem.label }).from(catalogItem)
+  const labels: Labels = new Map(cat.map((c) => [c.id, c.label]))
   for (const d of details) {
     const values: Record<string, string> = {}
     for (const f of fields) {
       if (!f.source || f.source === 'user') continue
-      const v = resolveSource(f.source, d)
+      const v = resolveSource(f.source, d, labels)
       if (v !== '') values[f.key] = v
     }
     out.set(d.id, values)
@@ -154,7 +191,7 @@ export function sanitizeData(
   if (!raw || typeof raw !== 'object') return { data, errors }
   const input = raw as Record<string, unknown>
   for (const f of fields) {
-    if (!canEdit[f.section] || !(f.key in input)) continue
+    if (!canEdit[f.section] || !(f.key in input) || f.source === 'user') continue
     const v = input[f.key]
     const s = (v === null || v === undefined ? '' : String(v)).trim().slice(0, 300)
     if (s === '') {

@@ -36,8 +36,8 @@ export function withDefaults(
   const now = nowParts()
   if (!out.fecha) out.fecha = now.date
   if (!out.hora) out.hora = now.time
-  const isNeonatalMatrona = ctx.role === 'matrona' && !ctx.isAdmin && ctx.unit === 'neonatologia'
-  if (isNeonatalMatrona && touchedNeonatal) {
+  // La matrona neo ATI no se escribe a mano: la fija el sistema con quien registra, para no duplicar nombres.
+  if (ctx.canEditNeonatal && (touchedNeonatal || Object.keys(out).some((k) => k !== 'fecha' && k !== 'hora'))) {
     for (const f of fields) {
       if (f.source === 'user' && f.section === 'neonatal' && !out[f.key]) out[f.key] = ctx.name
     }

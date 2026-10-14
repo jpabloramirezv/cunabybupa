@@ -512,6 +512,7 @@ export function BookView() {
                 values={draft.values}
                 linked={draft.linked}
                 canEdit={canEditSection(section)}
+                userName={me?.name}
                 onChange={(k, v) => setDraft((d) => (d ? { ...d, values: { ...d.values, [k]: v } } : d))}
               />
             </div>

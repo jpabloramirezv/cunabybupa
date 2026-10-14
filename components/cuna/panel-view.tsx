@@ -79,7 +79,7 @@ export function PanelView() {
   const query = `from=${encodeURIComponent(from)}`
   const [segment, setSegment] = useState<StatsSegment>('uci')
   const { data, error, isLoading } = useSWR<PanelPayload>(
-    me?.canPanel && segment === 'uci' ? `/api/panel?${query}` : null,
+    me?.canPanel ? `/api/panel?${query}&unidad=${segment}` : null,
     fetcher,
   )
 
@@ -87,7 +87,8 @@ export function PanelView() {
     return <Notice tone="danger" title="Tu rol no tiene acceso al panel." />
   }
 
-  const uci = segment === 'uci'
+  const uci = true
+  const showBook = segment !== 'uci'
 
   return (
     <div className="flex flex-col gap-6">
@@ -96,14 +97,16 @@ export function PanelView() {
           <ScopePill scope="analisis" />
           <h1 className="text-2xl font-bold text-navy sm:text-3xl">Panel de indicadores</h1>
           <p className="text-sm text-muted-foreground">
-            {uci
-              ? 'Calculado sobre los ingresos a UCI del período. Sin datos de identificación.'
-              : 'Calculado sobre el Libro de Partos y Abortos del período. Sin datos de identificación.'}
+            {segment === 'uci'
+              ? 'Calculado sobre los ingresos a UCI Neonatal del período. Sin datos de identificación.'
+              : segment === 'nursery'
+                ? 'Calculado sobre los recién nacidos de Nursery del período. Sin datos de identificación.'
+                : 'Calculado sobre UCI Neonatal y Nursery juntos, más el Libro de Partos y Abortos. Sin datos de identificación.'}
           </p>
         </div>
         {uci ? (
           <a
-            href={`/api/export?${query}`}
+            href={`/api/export?${query}&unidad=${segment}`}
             className="inline-flex h-12 items-center gap-2 rounded-lg border border-primary bg-card px-4 text-sm font-semibold text-primary hover:bg-secondary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
           >
             <Download className="size-4" aria-hidden />
@@ -116,7 +119,7 @@ export function PanelView() {
 
       <Choice label="Período" columns={3} options={RANGES} value={days} onChange={(v) => v && setDays(v)} />
 
-      {!uci ? <BookStatsView segment={segment} days={Number(days)} /> : null}
+      {showBook ? <BookStatsView segment={segment} days={Number(days)} /> : null}
 
       {uci && error ? <Notice tone="danger" title="No pudimos calcular los indicadores." /> : null}
       {uci && isLoading ? <p className="py-10 text-center text-muted-foreground">Calculando…</p> : null}
