@@ -377,7 +377,7 @@ export function BookView() {
           {canCreate ? (
             <PrimaryButton variant="accent" className="h-12 px-4 text-sm" onClick={() => create(me?.canEditMaternity ? 'materno' : 'neonatal')}>
               <Plus className="size-5" aria-hidden />
-              Nueva fila
+              Nuevo Registro
             </PrimaryButton>
           ) : null}
         </div>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState, type KeyboardEvent, type ReactNode } from 'react'
-import { Check, ChevronDown, ChevronUp, ChevronsUpDown, Columns3, EyeOff, Printer } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, ChevronsUpDown, Columns3, EyeOff, Printer, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Highlight } from '@/components/cuna/highlight'
 import { linkCode, SEGMENT_LABEL, type BookSegment, type SectionProgress } from '@/lib/book-flow'
@@ -126,6 +126,22 @@ function FieldCell({ f, v, terms }: { f: BookFieldRow; v: string | undefined; te
   const text = shown(f, v)
   if (FLAGGED.has(v.toUpperCase())) {
     return <span className="rounded-md bg-warning px-1.5 py-0.5 text-xs font-bold text-warning-foreground">{text}</span>
+  }
+  const yesNo = v.trim().toUpperCase()
+  if (yesNo === 'SI' || yesNo === 'NO') {
+    const yes = yesNo === 'SI'
+    const Icon = yes ? Check : X
+    return (
+      <span className={cn('inline-flex items-center gap-1.5 font-semibold', yes ? 'text-success' : 'text-destructive')}>
+        <span
+          aria-hidden
+          className={cn('flex size-5 shrink-0 items-center justify-center rounded-full', yes ? 'bg-success/15' : 'bg-destructive/15')}
+        >
+          <Icon className="size-3.5" strokeWidth={3} />
+        </span>
+        <Highlight text={text} terms={terms} />
+      </span>
+    )
   }
   if (f.type === 'text') {
     return (
