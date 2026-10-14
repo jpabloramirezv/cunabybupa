@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import useSWR from 'swr'
-import { Copy, Download, Info, Plus } from 'lucide-react'
+import { Copy, Download, Info, LayoutList, Plus, Table2 } from 'lucide-react'
 import { ApiError, fetcher, send } from '@/lib/fetcher'
 import { useMe } from '@/lib/hooks'
 import { haystackOf, matchesAll, parseQuery } from '@/lib/search'
@@ -25,6 +25,7 @@ import { ChipToggle, SearchField, useSlashFocus } from '@/components/cuna/search
 import { ScopePill } from '@/components/cuna/unit-banner'
 import { BookForm } from '@/components/cuna/book/book-form'
 import { BookOverview, type BookFilter } from '@/components/cuna/book/book-overview'
+import { BookLedger } from '@/components/cuna/book/book-ledger'
 import { EpisodeLinker } from '@/components/cuna/book/episode-linker'
 import { RecordLinker } from '@/components/cuna/book/record-linker'
 
@@ -93,6 +94,7 @@ export function BookView() {
   const [query, setQuery] = useState('')
   const [year, setYear] = useState<string | null>(null)
   const [filter, setFilter] = useState<BookFilter>('todos')
+  const [view, setView] = useState<'libro' | 'tarjetas'>('libro')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ tone: 'danger' | 'success'; text: string } | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -567,20 +569,60 @@ export function BookView() {
             ))}
           </div>
         ) : null}
-        <p className="text-sm text-muted-foreground" aria-live="polite">
-          {data ? `${visible.length} de ${records.length} filas` : 'Cargando…'}
-          {filter !== 'todos' ? (
-            <button
-              type="button"
-              onClick={() => setFilter('todos')}
-              className="ml-2 rounded px-1 font-semibold text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
-            >
-              Quitar filtro
-            </button>
-          ) : null}
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
+          <p className="text-sm text-muted-foreground" aria-live="polite">
+            {data ? `${visible.length} de ${records.length} filas` : 'Cargando…'}
+            {filter !== 'todos' ? (
+              <button
+                type="button"
+                onClick={() => setFilter('todos')}
+                className="ml-2 rounded px-1 font-semibold text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+              >
+                Quitar filtro
+              </button>
+            ) : null}
+          </p>
+          <div role="group" aria-label="Forma de ver el libro" className="inline-flex gap-1 rounded-xl bg-muted p-1">
+            {(
+              [
+                { id: 'libro', label: 'Libro', Icon: Table2 },
+                { id: 'tarjetas', label: 'Tarjetas', Icon: LayoutList },
+              ] as const
+            ).map(({ id, label, Icon }) => (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={view === id}
+                onClick={() => setView(id)}
+                className={cn(
+                  'flex h-10 items-center gap-2 rounded-lg px-3.5 text-sm font-semibold transition-all',
+                  'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30',
+                  view === id ? 'bg-card text-navy shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <Icon className="size-4" aria-hidden />
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
 
-        <ul className="flex flex-col divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+        {view === 'libro' && data ? (
+          <BookLedger
+            rows={visible}
+            fields={fields}
+            terms={terms}
+            emptyText={records.length === 0 ? 'Aún no hay filas en el libro.' : 'Ninguna fila coincide con la búsqueda o el filtro.'}
+            onOpen={(r) => open(r)}
+          />
+        ) : null}
+
+        <ul
+          className={cn(
+            'flex flex-col divide-y divide-border overflow-hidden rounded-xl border border-border bg-card',
+            view === 'libro' && 'hidden',
+          )}
+        >
           {data && visible.length === 0 ? (
             <li className="p-8 text-center text-sm text-muted-foreground">
               {records.length === 0 ? 'Aún no hay filas en el libro.' : 'Ninguna fila coincide con la búsqueda o el filtro.'}

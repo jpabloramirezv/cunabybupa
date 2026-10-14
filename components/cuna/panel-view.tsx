@@ -8,6 +8,7 @@ import { useMe } from '@/lib/hooks'
 import type { PanelPayload, Stat } from '@/lib/types'
 import type { StatsSegment } from '@/lib/server/book-stats'
 import { BookStatsView } from '@/components/cuna/book/book-stats-view'
+import { BinomioView } from '@/components/cuna/book/binomio-view'
 import { SegmentSwitch } from '@/components/cuna/segment-switch'
 import { ScopePill } from '@/components/cuna/unit-banner'
 import { Choice, Notice } from '@/components/cuna/ui'
@@ -196,6 +197,8 @@ export function PanelView() {
           </Card>
         </div>
       ) : null}
+
+      <BinomioView segment={segment} days={Number(days)} />
     </div>
   )
 }

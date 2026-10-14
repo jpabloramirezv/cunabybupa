@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { addDaysYmd, todayYmd } from '@/lib/time'
 import { InsightsView } from '@/components/cuna/insights/insights-view'
 import { BookStatsView } from '@/components/cuna/book/book-stats-view'
+import { BinomioView } from '@/components/cuna/book/binomio-view'
 import { SegmentSwitch, type StatsSegment } from '@/components/cuna/segment-switch'
 import { ScopePill } from '@/components/cuna/unit-banner'
 
@@ -28,7 +29,10 @@ export function ReportsHub() {
       </div>
 
       {segment === 'uci' ? (
-        <InsightsView />
+        <>
+          <InsightsView />
+          <BinomioView segment="uci" withPeriod />
+        </>
       ) : (
         <div className="flex flex-col gap-6">
           <div>
@@ -52,6 +56,7 @@ export function ReportsHub() {
             {!valid ? <p className="pb-3 text-sm text-destructive">La fecha inicial debe ser anterior a la final.</p> : null}
           </div>
           {valid ? <BookStatsView segment={segment} from={from} to={to} /> : null}
+          {valid ? <BinomioView segment={segment} from={from} to={to} /> : null}
         </div>
       )}
     </div>
