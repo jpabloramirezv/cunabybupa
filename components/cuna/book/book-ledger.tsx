@@ -143,7 +143,7 @@ function FieldCell({ f, v, terms }: { f: BookFieldRow; v: string | undefined; te
       </span>
     )
   }
-  if (f.type === 'text') {
+  if (f.type === 'text' || f.type === 'doctor') {
     return (
       <span title={text} className="block max-w-[14rem] truncate">
         <Highlight text={text} terms={terms} />
@@ -167,7 +167,7 @@ function sortableValue(f: BookFieldRow, v: string | undefined): SortValue {
 }
 
 const minWidth = (f: BookFieldRow) =>
-  f.type === 'text' ? 'min-w-[9rem]' : f.type === 'select' ? 'min-w-[7rem]' : f.type === 'date' ? 'min-w-[6.5rem]' : f.type === 'time' ? 'min-w-[4.5rem]' : 'min-w-[5rem]'
+  f.type === 'text' || f.type === 'doctor' ? 'min-w-[9rem]' : f.type === 'select' ? 'min-w-[7rem]' : f.type === 'date' ? 'min-w-[6.5rem]' : f.type === 'time' ? 'min-w-[4.5rem]' : 'min-w-[5rem]'
 
 function compare(a: SortValue, b: SortValue, dir: 'asc' | 'desc') {
   if (a == null && b == null) return 0
