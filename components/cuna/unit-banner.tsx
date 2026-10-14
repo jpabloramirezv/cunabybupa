@@ -1,3 +1,5 @@
+'use client'
+
 import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
@@ -40,12 +42,14 @@ export function UnitBanner({
   href,
   hrefLabel,
   className,
+  onDismiss,
 }: {
   scope: Scope
   children: ReactNode
   href?: string
   hrefLabel?: string
   className?: string
+  onDismiss?: () => void
 }) {
   return (
     <div
@@ -65,6 +69,15 @@ export function UnitBanner({
           {hrefLabel}
           <ArrowRight className="size-4" aria-hidden />
         </Link>
+      ) : null}
+      {onDismiss ? (
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="inline-flex h-9 shrink-0 items-center rounded-lg px-3 text-sm font-semibold text-muted-foreground hover:bg-card hover:text-foreground focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+        >
+          Entendido
+        </button>
       ) : null}
     </div>
   )

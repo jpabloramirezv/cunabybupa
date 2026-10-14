@@ -130,12 +130,18 @@ function buildFacets(episodes: EpisodeDetail[], cat: CatalogsPayload | undefined
   return facets.filter((f) => f.options.length > 0)
 }
 
-export function useEpisodeFilters(episodes: EpisodeDetail[] | undefined) {
+export type InitialEpisodeFilters = {
+  query?: string
+  status?: StatusFilter
+  picked?: Record<string, string[]>
+}
+
+export function useEpisodeFilters(episodes: EpisodeDetail[] | undefined, initial?: InitialEpisodeFilters) {
   const { data: cat } = useCatalogs()
   const all = episodes ?? EMPTY
-  const [query, setQuery] = useState('')
-  const [status, setStatus] = useState<StatusFilter>('todos')
-  const [picked, setPicked] = useState<Record<string, string[]>>({})
+  const [query, setQuery] = useState(initial?.query ?? '')
+  const [status, setStatus] = useState<StatusFilter>(initial?.status ?? 'todos')
+  const [picked, setPicked] = useState<Record<string, string[]>>(initial?.picked ?? {})
 
   const tokens = useMemo(() => parseQuery(query), [query])
   const facets = useMemo(() => buildFacets(all, cat, Date.now()), [all, cat])
