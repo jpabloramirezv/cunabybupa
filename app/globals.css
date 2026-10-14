@@ -1,0 +1,149 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@theme inline {
+  --font-sans: var(--font-montserrat), 'Montserrat Fallback', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --color-navy: var(--navy);
+  --color-navy-foreground: var(--navy-foreground);
+  --color-magenta: var(--magenta);
+  --color-magenta-foreground: var(--magenta-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+}
+
+/*
+ * Paleta tomada de clinicabuparenaca.cl:
+ * azul marino (barra superior), azul Bupa (acciones), magenta (llamados a la acción),
+ * gris azulado oscuro para el texto y un fondo claro frío.
+ */
+:root {
+  color-scheme: light;
+  --background: #f3f6fb;
+  --foreground: #21272a;
+  --card: #ffffff;
+  --card-foreground: #21272a;
+  --popover: #ffffff;
+  --popover-foreground: #21272a;
+  --primary: #1b6ab5;
+  --primary-foreground: #ffffff;
+  --secondary: #e3ecf8;
+  --secondary-foreground: #0f1c55;
+  --muted: #eaf0f8;
+  --muted-foreground: #566274;
+  --accent: #e3ecf8;
+  --accent-foreground: #0f1c55;
+  --destructive: #c8006e;
+  --border: #d4deec;
+  --input: #b9c7db;
+  --ring: #1b6ab5;
+  --radius: 0.5rem;
+  --navy: #0f1c55;
+  --navy-foreground: #ffffff;
+  --magenta: #c8006e;
+  --magenta-foreground: #ffffff;
+  --success: #0e7a5f;
+  --success-foreground: #ffffff;
+  --warning: #fff1d6;
+  --warning-foreground: #6b4300;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button,
+  [role='button'],
+  a {
+    touch-action: manipulation;
+  }
+  input[type='number']::-webkit-outer-spin-button,
+  input[type='number']::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type='number'] {
+    -moz-appearance: textfield;
+  }
+}
+
+@media print {
+  @page {
+    size: A3 landscape;
+    margin: 10mm;
+  }
+  body {
+    background: #fff;
+  }
+  body header {
+    display: none;
+  }
+  main {
+    max-width: none;
+    padding: 0;
+  }
+}
+
+/* Informes estadísticos: hoja A4 vertical y cabeceras propias visibles al imprimir */
+@page insight {
+  size: A4 portrait;
+  margin: 12mm;
+}
+@media print {
+  #insight-report {
+    page: insight;
+    font-size: 12px;
+  }
+  body #insight-report header {
+    display: block;
+  }
+  #insight-report .insight-section {
+    break-inside: auto;
+  }
+  #insight-report h2 {
+    break-after: avoid;
+  }
+  #insight-report figure,
+  #insight-report li,
+  #insight-report tr {
+    break-inside: avoid;
+  }
+  #insight-report * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
