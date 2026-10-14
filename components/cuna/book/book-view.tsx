@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import useSWR from 'swr'
-import { Copy, Download, Info, LayoutList, Plus, Table2 } from 'lucide-react'
+import { ArrowRight, Copy, Download, Info, LayoutList, Plus, Table2, X } from 'lucide-react'
 import { ApiError, fetcher, send } from '@/lib/fetcher'
 import { useMe } from '@/lib/hooks'
 import { haystackOf, matchesAll, parseQuery } from '@/lib/search'
@@ -20,8 +21,11 @@ import {
 import { todayYmd } from '@/lib/time'
 import type { BookFieldRow, BookRecordOut } from '@/lib/server/book'
 import { cn } from '@/lib/utils'
-import { Notice, PrimaryButton, Section } from '@/components/cuna/ui'
+import { Notice, PrimaryButton } from '@/components/cuna/ui'
 import { ChipToggle, SearchField, useSlashFocus } from '@/components/cuna/search-field'
+import { SidePanel } from '@/components/cuna/side-panel'
+import { ConfirmDialog } from '@/components/cuna/confirm-dialog'
+import { FreshnessIndicator, RowsSkeleton } from '@/components/cuna/page-status'
 import { ScopePill } from '@/components/cuna/unit-banner'
 import { BookForm } from '@/components/cuna/book/book-form'
 import { BookOverview, type BookFilter } from '@/components/cuna/book/book-overview'
@@ -85,17 +89,23 @@ export function BookView() {
   const router = useRouter()
   const params = useSearchParams()
   const { data: me } = useMe()
-  const { data, error, mutate } = useSWR<BookPayload>(me?.canBook ? '/api/book' : null, fetcher, {
+  const [updatedAt, setUpdatedAt] = useState<number | null>(null)
+  const { data, error, isValidating, mutate } = useSWR<BookPayload>(me?.canBook ? '/api/book' : null, fetcher, {
     refreshInterval: 60000,
+    onSuccess: () => setUpdatedAt(Date.now()),
   })
   const [draft, setDraft] = useState<Draft | null>(null)
   const [linking, setLinking] = useState<BookSection | null>(null)
   const [dupes, setDupes] = useState<BookRecordOut[] | null>(null)
   const [section, setSection] = useState<BookSection>('materno')
-  const [query, setQuery] = useState('')
-  const [year, setYear] = useState<string | null>(null)
-  const [filter, setFilter] = useState<BookFilter>('todos')
-  const [view, setView] = useState<'libro' | 'tarjetas'>('libro')
+  const [query, setQuery] = useState(() => params.get('q') ?? '')
+  const [year, setYear] = useState<string | null>(() => params.get('anio'))
+  const [filter, setFilter] = useState<BookFilter>(() => {
+    const f = params.get('seg')
+    return f === 'nursery' || f === 'uci' || f === 'aborto' || f === 'falta-mat' || f === 'falta-neo' ? f : 'todos'
+  })
+  const [view, setView] = useState<'libro' | 'tarjetas'>(() => (params.get('vista') === 'tarjetas' ? 'tarjetas' : 'libro'))
+  const [confirmClose, setConfirmClose] = useState(false)
   const [facets, setFacets] = useState<BookFacets>(emptyFacets)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ tone: 'danger' | 'success'; text: string } | null>(null)
@@ -158,6 +168,40 @@ export function BookView() {
       }),
     [inYear, filter, terms, facets],
   )
+
+  const dirty = useMemo(() => {
+    if (!draft) return false
+    const keys = new Set([...Object.keys(draft.values), ...Object.keys(original.current)])
+    for (const k of keys) if ((draft.values[k] ?? '') !== (original.current[k] ?? '')) return true
+    return draft.episodeId !== originalEpisode.current
+  }, [draft])
+
+  function requestClose() {
+    if (dirty) setConfirmClose(true)
+    else setDraft(null)
+  }
+
+  useEffect(() => {
+    if (!dirty) return
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault()
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [dirty])
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const p = new URLSearchParams(window.location.search)
+      const before = p.toString()
+      const set = (k: string, v: string | null) => (v ? p.set(k, v) : p.delete(k))
+      set('q', query.trim() || null)
+      set('anio', year)
+      set('seg', filter === 'todos' ? null : filter)
+      set('vista', view === 'tarjetas' ? 'tarjetas' : null)
+      const next = p.toString()
+      if (next !== before) router.replace(next ? `/libro?${next}` : '/libro', { scroll: false })
+    }, 300)
+    return () => clearTimeout(t)
+  }, [query, year, filter, view, router])
 
   function scrollToForm() {
     requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
@@ -275,7 +319,7 @@ export function BookView() {
       createdByName: r.createdByName,
       updatedByName: r.updatedByName,
     })
-    setMessage({ tone: 'success', text: `Continúas la fila ${linkCode(r.seq)}. Revisa y guarda para sumar tu parte.` })
+    setMessage({ tone: 'success', text: `Continúas el registro ${linkCode(r.seq)}. Revisa y guarda para sumar tu parte.` })
   }
 
   async function save(skipDuplicateCheck = false) {
@@ -307,20 +351,20 @@ export function BookView() {
           return
         }
         await send(`/api/book/${draft.id}`, 'PATCH', body)
-        setMessage({ tone: 'success', text: 'Fila actualizada.' })
+        setMessage({ tone: 'success', text: 'Registro actualizado.' })
         await mutate()
         setDraft(null)
       } else {
         await send('/api/book', 'POST', { data: draft.values, episodeId: draft.episodeId })
         setMessage({
           tone: 'success',
-          text: 'Fila agregada al libro. La otra unidad la verá como pendiente para completar su parte.',
+          text: 'Registro agregado al libro. La otra unidad lo verá como pendiente para completar su parte.',
         })
         await mutate()
         setDraft(null)
       }
     } catch (e) {
-      setMessage({ tone: 'danger', text: e instanceof ApiError ? e.message : 'No pudimos guardar la fila.' })
+      setMessage({ tone: 'danger', text: e instanceof ApiError ? e.message : 'No pudimos guardar el registro.' })
     } finally {
       setSaving(false)
     }
@@ -331,11 +375,11 @@ export function BookView() {
     setSaving(true)
     try {
       await send(`/api/book/${draft.id}`, 'DELETE')
-      setMessage({ tone: 'success', text: 'Fila eliminada. Queda registrada en la auditoría.' })
+      setMessage({ tone: 'success', text: 'Registro eliminado. Queda registrada en la auditoría.' })
       setDraft(null)
       await mutate()
     } catch (e) {
-      setMessage({ tone: 'danger', text: e instanceof ApiError ? e.message : 'No pudimos eliminar la fila.' })
+      setMessage({ tone: 'danger', text: e instanceof ApiError ? e.message : 'No pudimos eliminar el registro.' })
     } finally {
       setSaving(false)
       setConfirmDelete(false)
@@ -362,11 +406,20 @@ export function BookView() {
           <ScopePill scope="libro" />
           <h1 className="text-2xl font-bold text-navy text-balance sm:text-3xl">Libro de Partos y Abortos</h1>
           <p className="max-w-2xl text-sm text-muted-foreground text-pretty">
-            El registro de todos los nacimientos de la clínica: Nursery, UCI Neonatal y abortos. Maternidad completa los
-            datos de la madre y Neonatología los del RN, en cualquier orden.
+            Todos los nacimientos de la clínica: Nursery, UCI y abortos. Maternidad completa los datos de la madre y
+            Neonatología los del RN, en cualquier orden.
           </p>
         </div>
         <div className="flex flex-wrap gap-2 print:hidden">
+          {me?.canClinical ? (
+            <Link
+              href="/pizarra"
+              className="inline-flex h-12 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-primary hover:bg-secondary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+            >
+              Ir a la Pizarra de Neonatología
+              <ArrowRight className="size-4" aria-hidden />
+            </Link>
+          ) : null}
           <a
             href={`/api/book/export${year ? `?year=${year}` : ''}`}
             className="inline-flex h-12 items-center gap-2 rounded-lg border border-primary bg-card px-4 text-sm font-semibold text-primary hover:bg-secondary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
@@ -390,24 +443,24 @@ export function BookView() {
         </summary>
         <ul className="mt-3 flex flex-col gap-2 text-sm leading-relaxed text-muted-foreground">
           <li>
-            <strong className="text-foreground">Una fila por recién nacido.</strong> Maternidad y Neonatología trabajan
-            sobre la misma fila, en el orden que corresponda y en varias veces si hace falta. Cada una ve el avance de
-            su parte.
+            <strong className="text-foreground">Un registro por RN.</strong> Maternidad y Neonatología trabajan sobre
+            el mismo registro, en el orden que corresponda y en varias veces si hace falta. Cada una ve el avance de su
+            parte.
           </li>
           <li>
-            <strong className="text-foreground">Al crear una fila nueva</strong> verás primero las filas que están
-            esperando tu parte. Si ya existe, continúa ahí; así no se duplican los datos. Cada fila tiene un código
-            (por ejemplo {linkCode(12)}) para encontrarla rápido.
+            <strong className="text-foreground">Al crear un registro nuevo</strong> verás primero los registros que
+            están esperando tu parte. Si ya existe, continúa ahí; así no se duplican los datos. Cada registro tiene un
+            código (por ejemplo {linkCode(12)}) para encontrarlo rápido.
           </li>
           <li>
             <strong className="text-foreground">Nursery o UCI.</strong> Si el RN se hospitaliza, vincula su ingreso de
             la Pizarra o marca Hospitalización en SI: pasa a UCI y sus datos clínicos se completan solos. Si no, queda
-            como Nursery. Los gemelos van en filas separadas con los datos de la madre copiados.
+            como Nursery. Los gemelos van en registros separados con los datos de la madre copiados.
           </li>
         </ul>
       </details>
 
-      <BookOverview counts={counts} filter={filter} onFilter={setFilter} showUciLink={!!me?.canClinical} />
+      <BookOverview counts={counts} filter={filter} onFilter={setFilter} />
 
       {message && !draft ? <Notice tone={message.tone} title={message.text} /> : null}
 
@@ -424,33 +477,58 @@ export function BookView() {
       ) : null}
 
       {draft ? (
-        <div ref={formRef} className="scroll-mt-4">
-          <Section
-            title={draft.id ? 'Editar fila del libro' : 'Nueva fila del libro'}
-            hint={
-              draft.id
-                ? `Creada por ${draft.createdByName ?? '—'}${draft.updatedByName && draft.updatedByName !== draft.createdByName ? ` · última edición de ${draft.updatedByName}` : ''}.`
-                : 'La fecha y la hora se completan con el momento actual si las dejas vacías.'
-            }
-          >
-            {draftSegment ? (
-              <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                {draft.id ? (
-                  <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-bold tabular-nums text-foreground">
-                    {linkCode(records.find((r) => r.id === draft.id)?.seq ?? 0)}
-                  </span>
-                ) : null}
-                Esta fila se cuenta como
+        <SidePanel
+          open
+          title={draft.id ? 'Editar registro del libro' : 'Nuevo registro del libro'}
+          subtitle={
+            draft.id
+              ? `${motherName(draft.values)} · creado por ${draft.createdByName ?? '—'}${draft.updatedByName && draft.updatedByName !== draft.createdByName ? ` · última edición de ${draft.updatedByName}` : ''}.`
+              : 'La fecha y la hora se completan con el momento actual si las dejas vacías.'
+          }
+          badges={
+            <>
+              {draft.id ? (
+                <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-bold tabular-nums text-foreground">
+                  {linkCode(records.find((r) => r.id === draft.id)?.seq ?? 0)}
+                </span>
+              ) : null}
+              {draftSegment ? (
                 <span className={cn('rounded-full px-2.5 py-0.5 text-xs font-semibold', SEGMENT_STYLE[draftSegment])}>
                   {SEGMENT_LABEL[draftSegment]}
                 </span>
-              </p>
-            ) : null}
+              ) : null}
+              {dirty ? (
+                <span className="rounded-full bg-warning px-2.5 py-0.5 text-xs font-semibold text-warning-foreground">
+                  Cambios sin guardar
+                </span>
+              ) : null}
+            </>
+          }
+          onRequestClose={requestClose}
+          footer={
+            <>
+              {canCreate ? (
+                <PrimaryButton disabled={saving} onClick={() => save()}>
+                  {saving ? 'Guardando…' : draft.id ? 'Guardar cambios' : 'Agregar al libro'}
+                </PrimaryButton>
+              ) : null}
+              <PrimaryButton variant="ghost" onClick={requestClose}>
+                Cerrar
+              </PrimaryButton>
+              {draft.id && me?.canAdmin ? (
+                <PrimaryButton variant="ghost" className="ml-auto text-destructive hover:bg-destructive/10" onClick={() => setConfirmDelete(true)}>
+                  Eliminar registro
+                </PrimaryButton>
+              ) : null}
+            </>
+          }
+        >
+          <>
             {message ? <Notice tone={message.tone} title={message.text} /> : null}
             {dupes ? (
-              <Notice tone="warn" title="Parece que esta fila ya existe">
+              <Notice tone="warn" title="Parece que este registro ya existe">
                 <p>
-                  {section === 'neonatal' ? 'Maternidad' : 'Neonatología'} ya empezó {dupes.length === 1 ? 'una fila' : 'filas'}{' '}
+                  {section === 'neonatal' ? 'Maternidad' : 'Neonatología'} ya empezó {dupes.length === 1 ? 'un registro' : 'registros'}{' '}
                   con datos parecidos y aún falta tu parte. Continúa en ella para no duplicar.
                 </p>
                 <ul className="mt-3 flex flex-col gap-2">
@@ -469,15 +547,14 @@ export function BookView() {
                 </ul>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <PrimaryButton variant="ghost" className="h-11 px-4 text-sm" disabled={saving} onClick={() => save(true)}>
-                    Es otra persona o un gemelo: guardar como fila nueva
+                    Es otra persona o un gemelo: guardar como registro nuevo
                   </PrimaryButton>
                 </div>
               </Notice>
             ) : null}
             <div role="tablist" aria-label="Sección del libro" className="flex gap-2">
               {(['materno', 'neonatal'] as const).map((s) => {
-                const key = draft.id ? records.find((r) => r.id === draft.id)?.values : undefined
-                const prog = key ? sectionProgress(fields, { ...key, ...draft.values }, s) : null
+                const prog = sectionProgress(fields, { ...draft.linked, ...draft.values }, s)
                 return (
                   <button
                     key={s}
@@ -496,7 +573,9 @@ export function BookView() {
                     )}
                   >
                     {BOOK_SECTION_LABEL[s]}
-                    {prog && prog.state === 'completo' ? ' ✓' : ''}
+                    <span className="ml-2 text-sm font-medium tabular-nums opacity-90">
+                      {prog.state === 'completo' ? '✓' : `${prog.filled}/${prog.total}`}
+                    </span>
                   </button>
                 )
               })}
@@ -522,8 +601,8 @@ export function BookView() {
               />
             </div>
             {confirmDelete ? (
-              <Notice tone="danger" title="¿Eliminar esta fila del libro?">
-                <p>La fila deja de mostrarse, pero queda guardada en la auditoría.</p>
+              <Notice tone="danger" title="¿Eliminar este registro del libro?">
+                <p>El registro deja de mostrarse, pero queda guardada en la auditoría.</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <PrimaryButton variant="accent" className="h-11 px-4 text-sm" disabled={saving} onClick={remove}>
                     Sí, eliminar
@@ -534,26 +613,23 @@ export function BookView() {
                 </div>
               </Notice>
             ) : null}
-            <div className="flex flex-wrap items-center gap-2">
-              {canCreate ? (
-                <PrimaryButton disabled={saving} onClick={() => save()}>
-                  {saving ? 'Guardando…' : draft.id ? 'Guardar cambios' : 'Agregar al libro'}
-                </PrimaryButton>
-              ) : null}
-              <PrimaryButton variant="ghost" onClick={() => setDraft(null)}>
-                Cerrar
-              </PrimaryButton>
-              {draft.id && me?.canAdmin ? (
-                <PrimaryButton variant="ghost" className="ml-auto text-destructive hover:bg-destructive/10" onClick={() => setConfirmDelete(true)}>
-                  Eliminar fila
-                </PrimaryButton>
-              ) : null}
-            </div>
-          </Section>
-        </div>
+          </>
+        </SidePanel>
       ) : null}
 
-      <section aria-label="Filas del libro" className="flex flex-col gap-3">
+      <ConfirmDialog
+        open={confirmClose}
+        title="Tienes cambios sin guardar"
+        description="Si cierras ahora, lo que escribiste en este registro se perderá."
+        confirmLabel="Cerrar sin guardar"
+        onCancel={() => setConfirmClose(false)}
+        onConfirm={() => {
+          setConfirmClose(false)
+          setDraft(null)
+        }}
+      />
+
+      <section aria-label="Registros del libro" className="flex flex-col gap-3">
         <SearchField
           ref={inputRef}
           id="book-search"
@@ -574,18 +650,31 @@ export function BookView() {
         ) : null}
         {data ? <BookFilters fields={fields} records={records} value={facets} onChange={setFacets} /> : null}
         <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
-          <p className="text-sm text-muted-foreground" aria-live="polite">
-            {data ? `${visible.length} de ${records.length} filas` : 'Cargando…'}
-            {filter !== 'todos' ? (
-              <button
-                type="button"
-                onClick={() => setFilter('todos')}
-                className="ml-2 rounded px-1 font-semibold text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
-              >
-                Quitar filtro
-              </button>
-            ) : null}
-          </p>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <p className="text-sm text-muted-foreground" aria-live="polite">
+              {data ? `${visible.length} de ${records.length} registros` : 'Cargando…'}
+              {filter !== 'todos' || year || query.trim() ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilter('todos')
+                    setYear(null)
+                    setQuery('')
+                  }}
+                  className="ml-2 inline-flex items-center gap-1 rounded px-1 font-semibold text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+                >
+                  <X className="size-3.5" aria-hidden />
+                  Quitar filtros
+                </button>
+              ) : null}
+            </p>
+            <FreshnessIndicator
+              updatedAt={updatedAt}
+              validating={isValidating}
+              failed={!!error}
+              onRefresh={() => void mutate()}
+            />
+          </div>
           <div role="group" aria-label="Forma de ver el libro" className="inline-flex gap-1 rounded-xl bg-muted p-1">
             {(
               [
@@ -611,13 +700,17 @@ export function BookView() {
           </div>
         </div>
 
+        {!data ? <RowsSkeleton rows={8} label="Cargando el libro" /> : null}
+
         {view === 'libro' && data ? (
           <BookLedger
             rows={visible}
             fields={fields}
             terms={terms}
-            emptyText={records.length === 0 ? 'Aún no hay filas en el libro.' : 'Ninguna fila coincide con la búsqueda o el filtro.'}
+            emptyText={records.length === 0 ? 'Aún no hay registros en el libro.' : 'Ningún registro coincide con la búsqueda o el filtro.'}
             onOpen={(r) => open(r)}
+            onTwin={me?.canEditMaternity ? duplicateForTwin : undefined}
+            activeId={draft?.id ?? null}
           />
         ) : null}
 
@@ -629,7 +722,7 @@ export function BookView() {
         >
           {data && visible.length === 0 ? (
             <li className="p-8 text-center text-sm text-muted-foreground">
-              {records.length === 0 ? 'Aún no hay filas en el libro.' : 'Ninguna fila coincide con la búsqueda o el filtro.'}
+              {records.length === 0 ? 'Aún no hay registros en el libro.' : 'Ningún registro coincide con la búsqueda o el filtro.'}
             </li>
           ) : null}
           {visible.map(({ r, seg, mat, neo }) => {

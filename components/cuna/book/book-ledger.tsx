@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState, type KeyboardEvent, type ReactNode } from 'react'
-import { Check, ChevronDown, ChevronUp, ChevronsUpDown, Columns3, EyeOff, Printer, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, ChevronsUpDown, Columns3, Copy, EyeOff, Printer, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Highlight } from '@/components/cuna/highlight'
 import { linkCode, SEGMENT_LABEL, type BookSegment, type SectionProgress } from '@/lib/book-flow'
@@ -212,12 +212,18 @@ export function BookLedger({
   terms,
   emptyText,
   onOpen,
+  onTwin,
+  activeId,
 }: {
   rows: LedgerRow[]
   fields: BookFieldRow[]
   terms: string[]
   emptyText: string
   onOpen: (r: BookRecordOut) => void
+  /** Si se entrega, cada registro muestra la acción "Agregar gemelo". */
+  onTwin?: (r: BookRecordOut) => void
+  /** Registro abierto en el panel lateral; se resalta en la tabla. */
+  activeId?: string | null
 }) {
   const [picked, setPicked] = useState<Set<string> | null>(null)
   const [showStatus, setShowStatus] = useState(true)
@@ -275,7 +281,7 @@ export function BookLedger({
         group: 'Fila',
         section: null,
         label: 'N°',
-        title: 'Número correlativo y código de la fila',
+        title: 'Número correlativo y código del registro',
         sticky: 'num',
         sort: (x) => x.r.seq,
         cell: (x) => (
@@ -363,8 +369,31 @@ export function BookLedger({
         sort: (x: LedgerRow) => sortableValue(f, x.r.values[f.key]),
         cell: (x: LedgerRow) => <FieldCell f={f} v={x.r.values[f.key]} terms={terms} />,
       }))
-    return [...head, ...status, ...dynamic]
-  }, [displayFields, effective, hideEmpty, hasValue, showStatus, terms])
+    const actions: Col[] = onTwin
+      ? [
+          {
+            id: 'acciones',
+            group: 'Acciones',
+            section: null,
+            label: 'Gemelo',
+            title: 'Agregar gemelo: copia los datos de la madre',
+            align: 'center',
+            cell: (x) => (
+              <button
+                type="button"
+                onClick={() => onTwin(x.r)}
+                aria-label={`Agregar gemelo de ${motherName(x.r.values) || `registro N° ${x.r.n}`}`}
+                title="Agregar gemelo: copia los datos de la madre"
+                className="inline-flex size-9 items-center justify-center rounded-lg border border-input bg-card text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+              >
+                <Copy className="size-4" aria-hidden />
+              </button>
+            ),
+          },
+        ]
+      : []
+    return [...head, ...status, ...dynamic, ...actions]
+  }, [displayFields, effective, hideEmpty, hasValue, showStatus, terms, onTwin])
 
   const sorted = useMemo(() => {
     const col = columns.find((c) => c.id === sort.id)
@@ -453,7 +482,7 @@ export function BookLedger({
               type="button"
               aria-pressed={hideEmpty}
               onClick={() => setHideEmpty((v) => !v)}
-              title="Oculta las columnas que no tienen ningún dato en las filas mostradas"
+              title="Oculta las columnas que no tienen ningún dato en los registros mostrados"
               className={cn(
                 'flex h-10 items-center gap-2 rounded-lg border px-3.5 text-sm font-semibold transition-colors',
                 'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30',
@@ -463,7 +492,7 @@ export function BookLedger({
               <EyeOff className="size-4" aria-hidden />
               Ocultar vacías
             </button>
-            <div role="group" aria-label="Densidad de filas" className="inline-flex rounded-lg border border-input bg-card p-0.5">
+            <div role="group" aria-label="Densidad de registros" className="inline-flex rounded-lg border border-input bg-card p-0.5">
               {(['comoda', 'compacta'] as const).map((d) => (
                 <button
                   key={d}
@@ -556,8 +585,8 @@ export function BookLedger({
         <div className="relative max-h-[calc(100dvh-15rem)] min-h-64 overflow-auto rounded-2xl border border-border/70 bg-card shadow-sm print:max-h-none print:overflow-visible print:rounded-none print:border-0 print:shadow-none">
           <table className="w-max min-w-full border-separate border-spacing-0">
             <caption className="sr-only">
-              Libro de Partos y Abortos. Cada fila es un recién nacido o un aborto. Usa las flechas arriba y abajo para
-              recorrer las filas y Enter para abrir una.
+              Libro de Partos y Abortos. Cada registro es un recién nacido o un aborto. Usa las flechas arriba y abajo para
+              recorrer los registros y Enter para abrir uno.
             </caption>
             <thead className="print:table-header-group">
               <tr>
@@ -630,7 +659,8 @@ export function BookLedger({
                     if ((e.target as HTMLElement).closest('button')) return
                     onOpen(x.r)
                   }}
-                  className="group cursor-pointer hover:bg-muted/60"
+                  aria-selected={activeId === x.r.id || undefined}
+                  className={cn('group cursor-pointer hover:bg-muted/60', activeId === x.r.id && 'bg-primary/10')}
                 >
                   {columns.map((c) => (
                     <td
@@ -640,7 +670,8 @@ export function BookLedger({
                         cellPad,
                         c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : 'text-left',
                         groupStarts.has(c.id) && 'border-l border-l-border/60',
-                        c.sticky && 'sticky z-20 bg-card group-hover:bg-muted',
+                        c.sticky && 'sticky z-20 group-hover:bg-muted',
+                        c.sticky && (activeId === x.r.id ? 'bg-accent' : 'bg-card'),
                         c.sticky === 'num' && cn('left-0', NUM_W),
                         c.sticky === 'name' && cn('border-r border-r-border', NAME_LEFT),
                       )}
@@ -658,7 +689,7 @@ export function BookLedger({
       {rows.length > 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground print:hidden">
           <p aria-live="polite">
-            Mostrando {page.length} de {rows.length} filas · {fieldCount} columnas del libro
+            Mostrando {page.length} de {rows.length} registros · {fieldCount} columnas del libro
           </p>
           {page.length < rows.length ? (
             <button
@@ -666,7 +697,7 @@ export function BookLedger({
               onClick={() => setLimit((l) => l + PAGE)}
               className="h-11 rounded-lg border border-input bg-card px-4 text-sm font-semibold text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
             >
-              Mostrar {Math.min(PAGE, rows.length - page.length)} filas más
+              Mostrar {Math.min(PAGE, rows.length - page.length)} registros más
             </button>
           ) : null}
         </div>
