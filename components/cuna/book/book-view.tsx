@@ -358,7 +358,7 @@ export function BookView() {
           <h1 className="text-2xl font-bold text-navy text-balance sm:text-3xl">Libro de Partos y Abortos</h1>
           <p className="max-w-2xl text-sm text-muted-foreground text-pretty">
             El registro de todos los nacimientos de la clínica: Nursery, UCI Neonatal y abortos. Maternidad completa los
-            datos de la madre y Neonatología los del bebé, en cualquier orden.
+            datos de la madre y Neonatología los del RN, en cualquier orden.
           </p>
         </div>
         <div className="flex flex-wrap gap-2 print:hidden">
@@ -395,7 +395,7 @@ export function BookView() {
             (por ejemplo {linkCode(12)}) para encontrarla rápido.
           </li>
           <li>
-            <strong className="text-foreground">Nursery o UCI.</strong> Si el bebé se hospitaliza, vincula su ingreso de
+            <strong className="text-foreground">Nursery o UCI.</strong> Si el RN se hospitaliza, vincula su ingreso de
             la Pizarra o marca Hospitalización en SI: pasa a UCI y sus datos clínicos se completan solos. Si no, queda
             como Nursery. Los gemelos van en filas separadas con los datos de la madre copiados.
           </li>

@@ -57,16 +57,16 @@ export function NewEntryButton({
   const items = [
     {
       key: 'neo',
-      title: 'Ingreso o egreso en UCI',
-      hint: 'Recién nacido hospitalizado en la unidad. Va a la Pizarra y al Libro de Partos y Abortos.',
+      title: 'Ingreso / Egreso de RN en UCI',
+      hint: 'RN hospitalizado en la unidad. Va a la Pizarra y al Libro de Partos y Abortos.',
       Icon: Baby,
       enabled: canNeonatal,
       run: onNeonatal,
     },
     {
       key: 'nursery',
-      title: 'Recién nacido de Nursery',
-      hint: 'Estadía normal, sin hospitalización. Mismo formulario que UCI; pasa al Libro de Partos y Abortos.',
+      title: 'Ingreso / Egreso de RN en Nursery',
+      hint: 'RN con estadía normal, sin hospitalización. Mismo formulario que UCI; pasa al Libro de Partos y Abortos.',
       Icon: Stethoscope,
       enabled: canNeonatal,
       run: () => router.push(`/registro/${crypto.randomUUID()}?unidad=nursery`),
