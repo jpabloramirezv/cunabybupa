@@ -23,6 +23,7 @@ import type { EpisodeDetail } from '@/lib/types'
 import { EpisodeToolbar, rowKeyNav, useEpisodeFilters } from '@/components/cuna/episode-filters'
 import { EpisodeGroup, EpisodeRow } from '@/components/cuna/episode-row'
 import { Ledger } from '@/components/cuna/ledger'
+import { NewEntryButton } from '@/components/cuna/book/new-entry-button'
 import { useSlashFocus } from '@/components/cuna/search-field'
 import { Notice, PrimaryButton } from '@/components/cuna/ui'
 
@@ -208,7 +209,9 @@ export function Board() {
               )
             })}
           </div>
-          {me?.canWrite ? (
+          {me?.canBook && (me.canEditMaternity || me.canEditNeonatal) ? (
+            <NewEntryButton canNeonatal={me.canWrite} canMaternity={me.canEditMaternity} onNeonatal={newEpisode} />
+          ) : me?.canWrite ? (
             <PrimaryButton variant="accent" onClick={newEpisode} className="w-full sm:w-auto">
               <Plus className="size-5" aria-hidden />
               Nuevo ingreso

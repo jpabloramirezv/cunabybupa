@@ -19,10 +19,11 @@ type Props = {
   canPanel: boolean
   canReports: boolean
   canAdmin: boolean
+  canBook?: boolean
   children: ReactNode
 }
 
-export function AppShell({ name, roleLabel, canClinical, canPanel, canReports, canAdmin, children }: Props) {
+export function AppShell({ name, roleLabel, canClinical, canPanel, canReports, canAdmin, canBook = false, children }: Props) {
   const pathname = usePathname()
   const router = useRouter()
   const [leaving, setLeaving] = useState(false)
@@ -32,6 +33,7 @@ export function AppShell({ name, roleLabel, canClinical, canPanel, canReports, c
   const links = [
     canClinical ? { href: '/pizarra', label: 'Pizarra' } : null,
     canClinical ? { href: '/turno', label: 'Mi turno' } : null,
+    canBook ? { href: '/libro', label: 'Libro de Partos' } : null,
     canPanel ? { href: '/panel', label: 'Panel' } : null,
     canReports ? { href: '/informes', label: 'Informes' } : null,
     canAdmin ? { href: '/admin', label: 'Administración' } : null,

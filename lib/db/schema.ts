@@ -1,6 +1,7 @@
 import {
   boolean,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   real,
@@ -76,6 +77,8 @@ export const staff = pgTable('staff', {
   lockedUntil: timestamp('locked_until', tz),
   // Matrona Administradora: conserva rol y nombre de matrona, con los permisos de Jefatura.
   isAdmin: boolean('is_admin').notNull().default(false),
+  /** Libro que registra: neonatologia | maternidad. Jefatura accede siempre a ambos. */
+  unit: text('unit').notNull().default('neonatologia'),
   createdAt: timestamp('created_at', tz).notNull().defaultNow(),
 })
 
@@ -209,6 +212,38 @@ export const episodeIdentity = pgTable('episode_identity', {
   contactDeleteAt: timestamp('contact_delete_at', tz),
   updatedAt: timestamp('updated_at', tz).notNull().defaultNow(),
   updatedBy: integer('updated_by'),
+})
+
+// --- Libro de Partos y Abortos ----------------------------------------------
+
+/** Columnas del libro, autoadministrables: los datos se guardan por `key` en birth_record.data. */
+export const bookField = pgTable('book_field', {
+  id: serial('id').primaryKey(),
+  key: text('key').notNull().unique(),
+  label: text('label').notNull(),
+  section: text('section').notNull(), // materno | neonatal
+  groupName: text('group_name').notNull().default(''),
+  type: text('type').notNull().default('text'), // text | number | decimal | date | time | select
+  options: text('options').array().notNull().default([]),
+  position: integer('position').notNull().default(0),
+  required: boolean('required').notNull().default(false),
+  active: boolean('active').notNull().default(true),
+  /** Dato que se completa solo desde el episodio de UCI vinculado (o el usuario que crea). */
+  source: text('source'),
+})
+
+/** Una fila por recién nacido (o aborto). Los datos maternos se repiten entre gemelos. */
+export const birthRecord = pgTable('birth_record', {
+  id: text('id').primaryKey(),
+  seq: serial('seq').notNull(),
+  episodeId: text('episode_id'),
+  data: jsonb('data').$type<Record<string, string>>().notNull().default({}),
+  createdBy: integer('created_by'),
+  createdByName: text('created_by_name'),
+  updatedByName: text('updated_by_name'),
+  createdAt: timestamp('created_at', tz).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', tz).notNull().defaultNow(),
+  deletedAt: timestamp('deleted_at', tz),
 })
 
 // --- Auditoría y turnos ------------------------------------------------------

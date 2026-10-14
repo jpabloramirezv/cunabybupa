@@ -6,11 +6,13 @@ import { cn } from '@/lib/utils'
 import { Notice } from '@/components/cuna/ui'
 import { StaffAdmin } from '@/components/cuna/admin/staff-admin'
 import { CatalogAdmin } from '@/components/cuna/admin/catalog-admin'
+import { BookFieldsAdmin } from '@/components/cuna/admin/book-fields-admin'
 import { AuditAdmin, SettingsAdmin } from '@/components/cuna/admin/settings-audit-admin'
 
 const TABS = [
   { key: 'personal', label: 'Personal' },
   { key: 'catalogos', label: 'Catálogos' },
+  { key: 'libro', label: 'Libro de Partos' },
   { key: 'ajustes', label: 'Ajustes' },
   { key: 'auditoria', label: 'Auditoría' },
 ] as const
@@ -47,6 +49,7 @@ export function AdminView() {
       <div role="tabpanel">
         {tab === 'personal' ? <StaffAdmin /> : null}
         {tab === 'catalogos' ? <CatalogAdmin /> : null}
+        {tab === 'libro' ? <BookFieldsAdmin /> : null}
         {tab === 'ajustes' ? <SettingsAdmin /> : null}
         {tab === 'auditoria' ? <AuditAdmin /> : null}
       </div>

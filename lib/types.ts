@@ -88,6 +88,10 @@ export type MePayload = {
   canReports: boolean
   canAdmin: boolean
   canClinical: boolean
+  unit: 'neonatologia' | 'maternidad'
+  canBook: boolean
+  canEditMaternity: boolean
+  canEditNeonatal: boolean
 }
 
 export type IdentityPayload = {
