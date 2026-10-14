@@ -59,6 +59,8 @@ export function EpisodeRow({
   showIdentity,
   allMissing,
   badges,
+  showUnit,
+  compact,
 }: {
   e: EpisodeDetail
   cat?: CatalogsPayload
@@ -67,22 +69,36 @@ export function EpisodeRow({
   showIdentity: boolean
   allMissing?: boolean
   badges?: React.ReactNode
+  /** Muestra la unidad (UCI o Nursery) en cada fila; útil cuando se ven ambas juntas. */
+  showUnit?: boolean
+  compact?: boolean
 }) {
   const summary = episodeSummary(e, cat)
   const id = e.identity
   const hidden = hiddenMatches(entry, terms)
   const missing = allMissing ? e.missing : e.missing.slice(0, 4)
+  const overdue = e.overdueKinds.length > 0
+  const hasWarnings = e.warnings.length > 0 && e.status !== 'cerrado'
 
   return (
     <Link
       href={`/registro/${e.id}`}
       data-row
-      className="group flex items-center gap-4 px-4 py-4 transition-colors hover:bg-muted/60 focus-visible:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/50 sm:gap-5 sm:px-5"
+      className={cn(
+        'group flex items-center gap-4 border-l-4 px-4 transition-colors hover:bg-muted/60 focus-visible:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/50 sm:gap-5 sm:px-5',
+        compact ? 'py-2.5' : 'py-4',
+        overdue ? 'border-l-warning-foreground' : hasWarnings ? 'border-l-destructive' : 'border-l-transparent',
+      )}
     >
       <div className="w-24 shrink-0 sm:w-28">
         <p className="text-lg font-bold tabular-nums text-navy">
           <Highlight text={e.code} terms={terms} ignorePunct />
         </p>
+        {showUnit && e.unit !== 'nursery' ? (
+          <span className="mt-1 inline-block rounded-full bg-navy/10 px-2.5 py-0.5 text-xs font-semibold text-navy">
+            UCI
+          </span>
+        ) : null}
         {e.unit === 'nursery' ? (
           <span className="mt-1 inline-block rounded-full bg-success/15 px-2.5 py-0.5 text-xs font-semibold text-success">
             Nursery
@@ -130,8 +146,13 @@ export function EpisodeRow({
             <Clock className="size-3.5 shrink-0" aria-hidden />
           )}
           <span>
-            Ingresó {fmtDateTime(e.createdAt)} · actualizado {timeAgo(e.updatedAt)}
+            Ingresó {fmtDateTime(e.createdAt)}
+            {compact ? '' : ` · actualizado ${timeAgo(e.updatedAt)}`}
           </span>
+        </p>
+        <p className="mt-1 flex items-center gap-1 text-xs font-medium text-muted-foreground md:hidden">
+          <CornerDownRight className="size-3 shrink-0" aria-hidden />
+          Siguiente: {nextStep(e)}
         </p>
         {e.status === 'incompleto' && e.missing.length > 0 ? (
           <p className="mt-1.5 flex items-start gap-1.5 text-sm font-medium text-warning-foreground text-pretty">

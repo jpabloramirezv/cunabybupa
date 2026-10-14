@@ -1,13 +1,15 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import useSWR from 'swr'
 import {
+  AlignJustify,
+  ArrowRight,
   Hourglass,
   BookOpen,
   CheckCircle2,
-  ChevronDown,
   ClipboardList,
   HelpCircle,
   LayoutList,
@@ -20,7 +22,15 @@ import { useMe } from '@/lib/hooks'
 import { cn } from '@/lib/utils'
 import { uiStatus, type EpisodeStatus } from '@/lib/rules'
 import type { EpisodeDetail } from '@/lib/types'
-import { EpisodeToolbar, rowKeyNav, useEpisodeFilters } from '@/components/cuna/episode-filters'
+import {
+  EpisodeToolbar,
+  rowKeyNav,
+  useEpisodeFilters,
+  type InitialEpisodeFilters,
+  type StatusFilter,
+} from '@/components/cuna/episode-filters'
+import { FreshnessIndicator, RowsSkeleton } from '@/components/cuna/page-status'
+import { usePref } from '@/lib/use-pref'
 import { EpisodeGroup, EpisodeRow } from '@/components/cuna/episode-row'
 import { Ledger } from '@/components/cuna/ledger'
 import { NewEntryButton } from '@/components/cuna/book/new-entry-button'
@@ -72,12 +82,13 @@ const GROUPS: { key: EpisodeStatus; label: string; hint: string; icon: React.Rea
   },
 ]
 
-function SummaryCard({
+function TriageChip({
   title,
   hint,
   count,
   icon,
   active,
+  alert,
   onClick,
 }: {
   title: string
@@ -85,42 +96,42 @@ function SummaryCard({
   count: number
   icon: React.ReactNode
   active: boolean
+  alert?: boolean
   onClick: () => void
 }) {
+  const warn = alert && count > 0
   return (
     <button
       type="button"
       aria-pressed={active}
+      title={hint}
       onClick={onClick}
       className={cn(
-        'flex items-start gap-3 rounded-2xl border p-4 text-left transition-colors',
+        'flex h-14 items-center gap-3 rounded-xl border px-3 text-left transition-colors',
         'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30',
-        active ? 'border-primary/50 bg-secondary' : 'border-border/70 bg-card hover:bg-muted/60',
+        warn
+          ? 'border-warning-foreground/40 bg-warning text-warning-foreground'
+          : active
+            ? 'border-primary/50 bg-secondary text-foreground'
+            : 'border-border/70 bg-card text-foreground hover:bg-muted/60',
+        active && 'ring-2 ring-primary/50',
       )}
     >
-      <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-        {icon}
-      </span>
-      <span className="min-w-0">
-        <span className="flex items-baseline gap-2">
-          <span className="text-2xl font-bold tabular-nums text-navy">{count}</span>
-          <span className="text-sm font-semibold text-foreground">{title}</span>
-        </span>
-        <span className="mt-0.5 block text-xs text-muted-foreground text-pretty">{hint}</span>
-      </span>
+      <span className={cn('shrink-0', warn ? '' : 'text-muted-foreground')}>{icon}</span>
+      <span className="text-2xl font-bold tabular-nums">{count}</span>
+      <span className="min-w-0 text-sm font-semibold leading-tight text-pretty">{title}</span>
     </button>
   )
 }
 
 function Guide() {
   return (
-    <details className="group rounded-2xl border border-border/70 bg-card px-4 py-1 print:hidden">
-      <summary className="flex h-11 cursor-pointer list-none items-center gap-2 rounded-lg text-sm font-semibold text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30 [&::-webkit-details-marker]:hidden">
+    <section aria-label="Cómo leer esta pizarra" className="rounded-2xl border border-border/70 bg-card px-4 print:hidden">
+      <p className="flex h-11 items-center gap-2 text-sm font-semibold text-foreground">
         <HelpCircle className="size-4" aria-hidden />
         ¿Cómo leer esta pizarra?
-        <ChevronDown className="ml-auto size-4 transition-transform group-open:rotate-180" aria-hidden />
-      </summary>
-      <div className="grid gap-x-8 gap-y-4 pb-4 pt-2 text-sm text-muted-foreground sm:grid-cols-2">
+      </p>
+      <div className="grid gap-x-8 gap-y-4 pb-4 pt-1 text-sm text-muted-foreground sm:grid-cols-2">
         <div>
           <p className="mb-1.5 font-semibold text-foreground">Estados</p>
           <ul className="flex flex-col gap-1">
@@ -136,6 +147,11 @@ function Guide() {
             <li className="flex items-center gap-2"><span className="size-2.5 rounded-full border border-muted-foreground/50" />Pendiente (abierto)</li>
             <li className="flex items-center gap-2"><span className="size-2.5 rounded-full bg-warning-foreground" />Abierto hace más de 48 h</li>
             <li className="flex items-center gap-2"><span className="size-2.5 rounded-full bg-muted-foreground/60" />Rechazado</li>
+          </ul>
+          <p className="mb-1.5 mt-4 font-semibold text-foreground">Franja lateral</p>
+          <ul className="flex flex-col gap-1">
+            <li className="flex items-center gap-2"><span className="h-4 w-1 rounded-full bg-warning-foreground" />Tamizaje abierto hace más de 48 h</li>
+            <li className="flex items-center gap-2"><span className="h-4 w-1 rounded-full bg-destructive" />Alerta clínica</li>
           </ul>
         </div>
         <div>
@@ -153,7 +169,80 @@ function Guide() {
           </p>
         </div>
       </div>
-    </details>
+    </section>
+  )
+}
+
+type SortKey = 'urgencia' | 'reciente' | 'antiguo' | 'codigo'
+
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: 'urgencia', label: 'Más urgentes primero' },
+  { value: 'reciente', label: 'Ingreso más reciente' },
+  { value: 'antiguo', label: 'Ingreso más antiguo' },
+  { value: 'codigo', label: 'Por código' },
+]
+
+const byAge = (a: EpisodeDetail, b: EpisodeDetail) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+
+function sortEpisodes(list: EpisodeDetail[], sort: SortKey): EpisodeDetail[] {
+  const out = [...list]
+  if (sort === 'reciente') return out.sort((a, b) => byAge(b, a))
+  if (sort === 'antiguo') return out.sort(byAge)
+  if (sort === 'codigo') return out.sort((a, b) => a.code.localeCompare(b.code, 'es', { numeric: true }))
+  return out.sort(
+    (a, b) =>
+      b.overdueKinds.length - a.overdueKinds.length ||
+      b.missing.length - a.missing.length ||
+      byAge(a, b),
+  )
+}
+
+/** Solo se guardan en la URL los filtros cuyas opciones existen siempre, para que un enlace viejo nunca deje la lista vacía sin explicación. */
+const URL_FACETS = ['tamizajes', 'condicion', 'egreso', 'ingreso', 'ga', 'peso', 'sexo', 'parto']
+
+function parseInitialFilters(sp: URLSearchParams): InitialEpisodeFilters {
+  const estado = sp.get('estado')
+  const status: StatusFilter =
+    estado === 'incompleto' || estado === 'completo' || estado === 'cerrado' ? estado : 'todos'
+  const picked: Record<string, string[]> = {}
+  for (const raw of sp.getAll('f')) {
+    const i = raw.indexOf(':')
+    if (i < 1) continue
+    const key = raw.slice(0, i)
+    if (!URL_FACETS.includes(key)) continue
+    ;(picked[key] ??= []).push(raw.slice(i + 1))
+  }
+  return { query: sp.get('q') ?? '', status, picked }
+}
+
+function SegmentButton({
+  active,
+  onClick,
+  title,
+  children,
+  className,
+}: {
+  active: boolean
+  onClick: () => void
+  title?: string
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      title={title}
+      onClick={onClick}
+      className={cn(
+        'flex h-11 items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition-all',
+        'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30',
+        active ? 'bg-card text-navy shadow-sm' : 'text-muted-foreground hover:text-foreground',
+        className,
+      )}
+    >
+      {children}
+    </button>
   )
 }
 
@@ -162,49 +251,85 @@ export function Board() {
   const { data: me } = useMe()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const libro = searchParams.get('vista') !== 'pizarra'
+  const libro = searchParams.get('vista') === 'libro'
   const unitParam = searchParams.get('unidad')
   const unit: BoardUnit = unitParam === 'nursery' || unitParam === 'todos' ? unitParam : 'uci'
-  const board = useSWR<EpisodeDetail[]>(libro ? null : `/api/episodes?unidad=${unit}`, fetcher, {
+  const key = libro ? `/api/episodes?alcance=libro&unidad=${unit}` : `/api/episodes?unidad=${unit}`
+  const [stamp, setStamp] = useState<{ key: string; at: number } | null>(null)
+  const { data, error, isLoading, isValidating, mutate } = useSWR<EpisodeDetail[]>(key, fetcher, {
     refreshInterval: 30000,
+    onSuccess: () => setStamp({ key, at: Date.now() }),
   })
-  const book = useSWR<EpisodeDetail[]>(libro ? `/api/episodes?alcance=libro&unidad=${unit}` : null, fetcher, {
-    refreshInterval: 30000,
-  })
-  const { data, error, isLoading } = libro ? book : board
-  const f = useEpisodeFilters(data)
+  const [initialFilters] = useState(() => parseInitialFilters(new URLSearchParams(searchParams.toString())))
+  const f = useEpisodeFilters(data, initialFilters)
   const [grouped, setGrouped] = useState(true)
+  const [showGuide, setShowGuide] = useState(false)
+  const [density, setDensity] = usePref<'comoda' | 'compacta'>('board.density', 'comoda')
+  const [sort, setSort] = usePref<SortKey>('board.sort', 'urgencia')
+  const [bannerOff, setBannerOff, prefsReady] = usePref<boolean>('board.banner', false)
   const inputRef = useRef<HTMLInputElement>(null)
   useSlashFocus(inputRef)
+
+  const replaceParams = useCallback(
+    (edit: (p: URLSearchParams) => void) => {
+      const p = new URLSearchParams(window.location.search)
+      const before = p.toString()
+      edit(p)
+      const next = p.toString()
+      if (next === before) return
+      router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false })
+    },
+    [router, pathname],
+  )
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      replaceParams((p) => {
+        const q = f.query.trim()
+        if (q) p.set('q', q)
+        else p.delete('q')
+        if (f.status !== 'todos') p.set('estado', f.status)
+        else p.delete('estado')
+        p.delete('f')
+        for (const k of URL_FACETS) for (const v of f.picked[k] ?? []) p.append('f', `${k}:${v}`)
+      })
+    }, 300)
+    return () => clearTimeout(t)
+  }, [f.query, f.status, f.picked, replaceParams])
 
   function newEpisode() {
     router.push(`/registro/${crypto.randomUUID()}`)
   }
 
-  function navigate(view: 'tarjetas' | 'libro', nextUnit: BoardUnit) {
-    const q = new URLSearchParams()
-    if (view === 'tarjetas') q.set('vista', 'pizarra')
-    if (nextUnit !== 'uci') q.set('unidad', nextUnit)
-    const qs = q.toString()
-    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
-  }
-
   function setView(next: 'tarjetas' | 'libro') {
-    navigate(next, unit)
+    replaceParams((p) => {
+      if (next === 'libro') p.set('vista', 'libro')
+      else p.delete('vista')
+    })
   }
 
   function setUnit(next: BoardUnit) {
-    navigate(libro ? 'libro' : 'tarjetas', next)
+    replaceParams((p) => {
+      if (next === 'uci') p.delete('unidad')
+      else p.set('unidad', next)
+    })
   }
 
   const unitCopy = UNIT_OPTIONS.find((o) => o.value === unit) ?? UNIT_OPTIONS[0]
+  const sorted = useMemo(() => (libro ? f.list : sortEpisodes(f.list, sort)), [libro, f.list, sort])
 
   const sections =
     grouped && f.status === 'todos'
-      ? GROUPS.map((g) => ({ ...g, items: f.list.filter((e) => uiStatus(e) === g.key) })).filter((g) => g.items.length > 0)
-      : [{ key: 'all', label: undefined, hint: undefined, icon: undefined, items: f.list }]
+      ? GROUPS.map((g) => ({ ...g, items: sorted.filter((e) => uiStatus(e) === g.key) })).filter(
+          (g) => g.items.length > 0,
+        )
+      : [{ key: 'all', label: undefined, hint: undefined, icon: undefined, items: sorted }]
 
   const searchHint = 'Buscar por nombre, RUT, madre, código o cualquier dato'
+  const overdueCount = f.all.filter((e) => e.overdueKinds.length > 0).length
+  const showError = !!error && !data
+  const stale = !!error && !!data
+  const updatedAt = stamp && stamp.key === key ? stamp.at : null
 
   return (
     <div
@@ -214,12 +339,18 @@ export function Board() {
           'relative left-1/2 w-[calc(100vw-2rem)] max-w-[96rem] -translate-x-1/2 print:left-0 print:w-full print:max-w-none print:translate-x-0',
       )}
     >
-      <div className="flex flex-col gap-4 pb-2 sm:flex-row sm:items-end sm:justify-between">
-        <div className="flex flex-col gap-2">
-          <ScopePill scope="uci" />
-          <h1 className="text-2xl font-bold text-navy text-balance sm:text-3xl">
-            {unit === 'uci' ? 'Pizarra de UCI Neonatal' : unit === 'nursery' ? 'Pizarra de Nursery' : 'Pizarra de Neonatología'}
-          </h1>
+      <div className="flex flex-col gap-3 pb-1 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-1.5">
+          <div className="flex flex-wrap items-center gap-3">
+            <ScopePill scope="uci" />
+            <h1 className="text-2xl font-bold text-navy text-balance sm:text-3xl">
+              {unit === 'uci'
+                ? 'Pizarra de UCI Neonatal'
+                : unit === 'nursery'
+                  ? 'Pizarra de Nursery'
+                  : 'Pizarra de Neonatología'}
+            </h1>
+          </div>
           <p className="text-sm text-muted-foreground text-pretty">
             {libro
               ? unit === 'uci'
@@ -235,32 +366,6 @@ export function Board() {
           </p>
         </div>
         <div className="flex items-center gap-3 print:hidden">
-          <div role="group" aria-label="Tipo de vista" className="hidden rounded-xl bg-muted p-1 md:inline-flex">
-            {(
-              [
-                { key: 'tarjetas', label: 'Pizarra', Icon: LayoutList },
-                { key: 'libro', label: 'Libro', Icon: BookOpen },
-              ] as const
-            ).map(({ key, label, Icon }) => {
-              const active = (key === 'libro') === libro
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => setView(key)}
-                  className={cn(
-                    'flex h-10 items-center gap-2 rounded-lg px-4 text-sm font-semibold transition-all',
-                    'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30',
-                    active ? 'bg-card text-navy shadow-sm' : 'text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  <Icon className="size-4" aria-hidden />
-                  {label}
-                </button>
-              )
-            })}
-          </div>
           {me?.canBook && (me.canEditMaternity || me.canEditNeonatal) ? (
             <NewEntryButton canNeonatal={me.canWrite} canMaternity={me.canEditMaternity} onNeonatal={newEpisode} />
           ) : me?.canWrite ? (
@@ -272,39 +377,74 @@ export function Board() {
         </div>
       </div>
 
-      <UnitBanner
-        scope="uci"
-        className="mb-2"
-        href={me?.canBook ? '/libro' : undefined}
-        hrefLabel="Abrir Libro de Partos"
-      >
-        Aquí están los RN de Neonatología: UCI (hospitalizados) y Nursery (estadía normal). Elige abajo cuál ver, o
-        ambos. Los datos de Maternidad se completan en el Libro de Partos y Abortos.
-      </UnitBanner>
+      {prefsReady && !bannerOff ? (
+        <UnitBanner
+          scope="uci"
+          className="mb-1"
+          href={me?.canBook ? '/libro' : undefined}
+          hrefLabel="Abrir Libro de Partos"
+          onDismiss={() => setBannerOff(true)}
+        >
+          Aquí están los RN de Neonatología: UCI (hospitalizados) y Nursery (estadía normal). Elige abajo cuál ver, o
+          ambos. Los datos de Maternidad se completan en el Libro de Partos y Abortos.
+        </UnitBanner>
+      ) : null}
 
-      <div className="mb-2 flex flex-col gap-2 print:hidden">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 print:hidden">
         <div
           role="group"
           aria-label="Qué RN mostrar"
-          className="inline-flex w-full flex-wrap gap-1 rounded-xl bg-muted p-1 sm:w-fit"
+          className="flex w-full gap-1 rounded-xl bg-muted p-1 sm:w-auto"
         >
           {UNIT_OPTIONS.map((o) => (
-            <button
+            <SegmentButton
               key={o.value}
-              type="button"
-              aria-pressed={unit === o.value}
+              active={unit === o.value}
               onClick={() => setUnit(o.value)}
-              className={cn(
-                'h-11 flex-1 rounded-lg px-4 text-sm font-semibold transition-all sm:flex-none',
-                'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30',
-                unit === o.value ? 'bg-card text-navy shadow-sm' : 'text-muted-foreground hover:text-foreground',
-              )}
+              title={o.hint}
+              className="flex-1 sm:flex-none"
             >
               {o.label}
-            </button>
+            </SegmentButton>
           ))}
         </div>
-        <p className="text-sm text-muted-foreground text-pretty">{unitCopy.hint}</p>
+        <div role="group" aria-label="Tipo de vista" className="flex w-full gap-1 rounded-xl bg-muted p-1 sm:w-auto">
+          {(
+            [
+              { key: 'tarjetas', label: 'Pizarra', Icon: LayoutList },
+              { key: 'libro', label: 'Libro', Icon: BookOpen },
+            ] as const
+          ).map(({ key: k, label, Icon }) => (
+            <SegmentButton
+              key={k}
+              active={(k === 'libro') === libro}
+              onClick={() => setView(k)}
+              className="flex-1 sm:flex-none"
+            >
+              <Icon className="size-4" aria-hidden />
+              {label}
+            </SegmentButton>
+          ))}
+        </div>
+        <div className="flex w-full items-center justify-between gap-2 sm:ml-auto sm:w-auto">
+          {prefsReady && bannerOff && me?.canBook ? (
+            <Link
+              href="/libro"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-primary hover:bg-secondary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+            >
+              Abrir Libro de Partos
+              <ArrowRight className="size-4" aria-hidden />
+            </Link>
+          ) : (
+            <span />
+          )}
+          <FreshnessIndicator
+            updatedAt={updatedAt}
+            validating={isValidating}
+            failed={stale}
+            onRefresh={() => void mutate()}
+          />
+        </div>
       </div>
 
       {libro ? null : (
@@ -312,9 +452,18 @@ export function Board() {
           <div
             role="group"
             aria-label="Atajos por estado: toca una tarjeta para filtrar"
-            className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+            className="grid grid-cols-2 gap-2 lg:grid-cols-4"
           >
-            <SummaryCard
+            <TriageChip
+              title="Abiertos hace más de 48 h"
+              hint="Por completar con un tamizaje abierto hace más de 2 días"
+              count={overdueCount}
+              alert
+              icon={<Hourglass className="size-5" aria-hidden />}
+              active={(f.picked.tamizajes ?? []).includes('atrasados')}
+              onClick={() => f.toggle('tamizajes', 'atrasados')}
+            />
+            <TriageChip
               title="Por completar"
               hint="Faltan datos del ingreso o hay tamizajes abiertos"
               count={f.statusCounts.incompleto}
@@ -322,7 +471,7 @@ export function Board() {
               active={f.status === 'incompleto'}
               onClick={() => f.setStatus(f.status === 'incompleto' ? 'todos' : 'incompleto')}
             />
-            <SummaryCard
+            <TriageChip
               title="Completos"
               hint="Datos al día, falta el alta"
               count={f.statusCounts.completo}
@@ -330,24 +479,16 @@ export function Board() {
               active={f.status === 'completo'}
               onClick={() => f.setStatus(f.status === 'completo' ? 'todos' : 'completo')}
             />
-            <SummaryCard
-              title="Cerrados"
+            <TriageChip
+              title="Cerrados (7 días)"
               hint="Alta confirmada, últimos 7 días"
               count={f.statusCounts.cerrado}
               icon={<LockKeyhole className="size-5" aria-hidden />}
               active={f.status === 'cerrado'}
               onClick={() => f.setStatus(f.status === 'cerrado' ? 'todos' : 'cerrado')}
             />
-            <SummaryCard
-              title="Abiertos hace más de 48 h"
-              hint="Por completar con un tamizaje abierto hace más de 2 días"
-              count={f.all.filter((e) => e.overdueKinds.length > 0).length}
-              icon={<Hourglass className="size-5" aria-hidden />}
-              active={(f.picked.tamizajes ?? []).includes('atrasados')}
-              onClick={() => f.toggle('tamizajes', 'atrasados')}
-            />
           </div>
-          <Guide />
+          {showGuide ? <Guide /> : null}
         </div>
       )}
 
@@ -356,35 +497,85 @@ export function Board() {
         inputRef={inputRef}
         placeholder={searchHint}
         trailing={
-          libro ? undefined : (
-          <button
-            type="button"
-            aria-pressed={grouped}
-            onClick={() => setGrouped((v) => !v)}
-            title="Agrupar por estado"
-            className={cn(
-              'hidden h-12 shrink-0 items-center gap-2 rounded-xl border px-4 text-sm font-semibold transition-colors md:flex',
-              'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30',
-              grouped
-                ? 'border-primary/40 bg-secondary text-secondary-foreground'
-                : 'border-input bg-card text-foreground hover:bg-muted',
+          <>
+            {libro ? null : (
+              <>
+                <label className="hidden md:block">
+                  <span className="sr-only">Ordenar registros</span>
+                  <select
+                    value={sort}
+                    onChange={(ev) => setSort(ev.target.value as SortKey)}
+                    className="h-12 rounded-xl border border-input bg-card px-3 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+                  >
+                    {SORT_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  aria-pressed={density === 'compacta'}
+                  onClick={() => setDensity(density === 'compacta' ? 'comoda' : 'compacta')}
+                  title="Más registros por pantalla"
+                  className={cn(
+                    'hidden h-12 shrink-0 items-center gap-2 rounded-xl border px-4 text-sm font-semibold transition-colors md:flex',
+                    'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30',
+                    density === 'compacta'
+                      ? 'border-primary/40 bg-secondary text-secondary-foreground'
+                      : 'border-input bg-card text-foreground hover:bg-muted',
+                  )}
+                >
+                  <AlignJustify className="size-4" aria-hidden />
+                  Compacta
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={grouped}
+                  onClick={() => setGrouped((v) => !v)}
+                  title="Agrupar por estado"
+                  className={cn(
+                    'hidden h-12 shrink-0 items-center gap-2 rounded-xl border px-4 text-sm font-semibold transition-colors md:flex',
+                    'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30',
+                    grouped
+                      ? 'border-primary/40 bg-secondary text-secondary-foreground'
+                      : 'border-input bg-card text-foreground hover:bg-muted',
+                  )}
+                >
+                  <Rows3 className="size-4" aria-hidden />
+                  Agrupar
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={showGuide}
+                  aria-label="Cómo leer esta pizarra"
+                  title="Cómo leer esta pizarra"
+                  onClick={() => setShowGuide((v) => !v)}
+                  className={cn(
+                    'flex size-12 shrink-0 items-center justify-center rounded-xl border transition-colors',
+                    'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30',
+                    showGuide
+                      ? 'border-primary/40 bg-secondary text-secondary-foreground'
+                      : 'border-input bg-card text-foreground hover:bg-muted',
+                  )}
+                >
+                  <HelpCircle className="size-5" aria-hidden />
+                </button>
+              </>
             )}
-          >
-            <Rows3 className="size-4" aria-hidden />
-            Agrupar
-          </button>
-          )
+          </>
         }
       />
 
       <div className="mt-2 flex flex-col gap-6" onKeyDown={rowKeyNav}>
-        {error ? (
+        {showError ? (
           <Notice tone="danger" title="No pudimos cargar la pizarra.">
             Revisa tu conexión. Volveremos a intentarlo solos.
           </Notice>
         ) : null}
-        {isLoading ? <p className="py-10 text-center text-muted-foreground">Cargando registros…</p> : null}
-        {!isLoading && !error && f.list.length === 0 ? (
+        {isLoading ? <RowsSkeleton /> : null}
+        {!isLoading && !showError && f.list.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border bg-card px-6 py-12 text-center">
             <p className="text-lg font-semibold text-navy">No hay registros para mostrar</p>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -402,7 +593,7 @@ export function Board() {
           </div>
         ) : null}
 
-        {libro && !isLoading && !error ? (
+        {libro && !isLoading && !showError ? (
           <Ledger list={f.list} cat={f.cat} terms={f.terms} showIdentity={!!me?.canIdentity} />
         ) : null}
 
@@ -416,6 +607,8 @@ export function Board() {
                   terms={f.terms}
                   entry={f.index.get(e.id)}
                   showIdentity={!!me?.canIdentity}
+                  showUnit={unit === 'todos'}
+                  compact={density === 'compacta'}
                 />
               </li>
             ))}

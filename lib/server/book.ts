@@ -1,8 +1,10 @@
-import { asc, eq, inArray } from 'drizzle-orm'
+import { and, asc, eq, inArray } from 'drizzle-orm'
 import { TZ } from '@/lib/config'
-import { DEFAULT_BOOK_FIELDS, type BookFieldType, type BookSection } from '@/lib/book-fields'
+import { DEFAULT_BOOK_FIELDS, DOCTOR_BOOK_KEYS, type BookFieldType, type BookSection } from '@/lib/book-fields'
 import { db } from '@/lib/db'
-import { bookField, catalogItem, episode } from '@/lib/db/schema'
+import { appSetting, bookField, catalogItem, episode } from '@/lib/db/schema'
+import { HttpError } from '@/lib/api'
+import { listBookDoctors } from '@/lib/server/doctors'
 import { attachIdentity, buildDetails } from '@/lib/server/episodes'
 import type { EpisodeDetail } from '@/lib/types'
 
@@ -26,7 +28,7 @@ const toField = (r: typeof bookField.$inferSelect): BookFieldRow => ({
   label: r.label,
   section: r.section === 'neonatal' ? 'neonatal' : 'materno',
   group: r.groupName,
-  type: (['text', 'number', 'decimal', 'date', 'time', 'select'].includes(r.type) ? r.type : 'text') as BookFieldType,
+  type: (['text', 'number', 'decimal', 'date', 'time', 'select', 'doctor'].includes(r.type) ? r.type : 'text') as BookFieldType,
   options: r.options ?? [],
   position: r.position,
   required: r.required,
@@ -57,7 +59,21 @@ export async function ensureBookFields() {
       )
       .onConflictDoNothing({ target: bookField.key })
   }
+  await migrateDoctorFields()
   seeded = true
+}
+
+const DOCTOR_MIGRATION = 'book_doctor_fields_v1'
+
+/** Una sola vez: las columnas de médicos de instalaciones anteriores pasan de texto libre a médico inscrito. */
+async function migrateDoctorFields() {
+  const [done] = await db.select().from(appSetting).where(eq(appSetting.key, DOCTOR_MIGRATION)).limit(1)
+  if (done) return
+  await db
+    .update(bookField)
+    .set({ type: 'doctor', options: [] })
+    .where(and(inArray(bookField.key, [...DOCTOR_BOOK_KEYS]), eq(bookField.type, 'text')))
+  await db.insert(appSetting).values({ key: DOCTOR_MIGRATION, value: '1' }).onConflictDoNothing()
 }
 
 export async function getBookFields(includeInactive = false): Promise<BookFieldRow[]> {
@@ -206,6 +222,42 @@ export function sanitizeData(
     else data[f.key] = f.type === 'decimal' ? s.replace(',', '.') : s
   }
   return { data, errors }
+}
+
+const norm = (s: string) =>
+  s
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+
+/**
+ * Las columnas de tipo médico solo aceptan personas inscritas en la app. Un valor histórico
+ * que ya estaba en el registro se conserva mientras no se cambie, para no perder datos antiguos.
+ */
+export async function assertBookDoctors(
+  data: Record<string, string>,
+  fields: BookFieldRow[],
+  previous: Record<string, string> = {},
+) {
+  const doctorFields = fields.filter((f) => f.type === 'doctor' && data[f.key])
+  if (doctorFields.length === 0) return
+  const names = await listBookDoctors()
+  const byNorm = new Map(names.map((n) => [norm(n), n]))
+  for (const f of doctorFields) {
+    const v = data[f.key]
+    const match = byNorm.get(norm(v))
+    if (match) {
+      data[f.key] = match
+      continue
+    }
+    if (previous[f.key] !== undefined && norm(previous[f.key]) === norm(v)) continue
+    throw new HttpError(
+      422,
+      `${f.label}: elige un médico inscrito en la app. Si falta, pídele a Jefatura que lo agregue en Administración.`,
+    )
+  }
 }
 
 export type BookRecordOut = {

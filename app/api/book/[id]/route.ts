@@ -4,7 +4,7 @@ import { audit } from '@/lib/audit'
 import { requireCtx } from '@/lib/ctx'
 import { db } from '@/lib/db'
 import { birthRecord, episode } from '@/lib/db/schema'
-import { getBookFields, sanitizeData } from '@/lib/server/book'
+import { assertBookDoctors, getBookFields, sanitizeData } from '@/lib/server/book'
 import { activeRecord, getRecord, withDefaults } from '@/lib/server/book-records'
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -28,6 +28,7 @@ export const PATCH = handle<Ctx>(async (req, { params }) => {
     neonatal: ctx.canEditNeonatal,
   })
   if (errors.length) throw new HttpError(422, errors[0])
+  await assertBookDoctors(data, fields, current.data ?? {})
 
   const set: Partial<typeof birthRecord.$inferInsert> = {}
   if (b.episodeId !== undefined) {

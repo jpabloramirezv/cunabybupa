@@ -4,6 +4,7 @@ import { useId, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, ArrowRight, Check, Rows3 } from 'lucide-react'
 import { BOOK_SECTION_LABEL, type BookSection } from '@/lib/book-fields'
 import { GROUP_HINTS, isFieldVisible } from '@/lib/book-flow'
+import { useCatalogs } from '@/lib/hooks'
 import type { BookFieldRow } from '@/lib/server/book'
 import { cn } from '@/lib/utils'
 import { Choice, FieldLabel, Hint } from '@/components/cuna/ui'
@@ -67,8 +68,47 @@ function BookInput({
       </div>
     )
   }
+  const { data: cat } = useCatalogs()
   const fromUci = !value && linked ? linked : null
   const hint = fromUci ? `Viene de UCI: ${fromUci}. Escribe para reemplazarlo.` : undefined
+
+  if (field.type === 'doctor') {
+    const names = (cat?.items ?? [])
+      .filter((i) => i.kind === 'profesional' && i.active && i.staffId != null)
+      .map((i) => i.label)
+      .sort((a, b) => a.localeCompare(b, 'es'))
+    const current = value || fromUci || ''
+    const legacy = current && !names.includes(current)
+    return (
+      <div>
+        <FieldLabel htmlFor={id} required={field.required}>
+          {field.label}
+        </FieldLabel>
+        <select
+          id={id}
+          disabled={disabled}
+          value={current}
+          onChange={(e) => onChange(e.target.value)}
+          className={inputClass}
+        >
+          <option value="">Seleccionar médico</option>
+          {legacy ? <option value={current}>{`${current} (no inscrito)`}</option> : null}
+          {names.map((n) => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
+        </select>
+        <Hint>
+          {legacy
+            ? 'Este nombre no corresponde a un médico inscrito. Elige uno de la lista para corregirlo.'
+            : names.length === 0 && cat
+              ? 'No hay médicos inscritos. Jefatura debe agregarlos en Administración.'
+              : 'Solo médicos inscritos en la app, los mismos que usa UCI.'}
+        </Hint>
+      </div>
+    )
+  }
 
   if (field.type === 'select' && field.options.length <= 3) {
     return (

@@ -1,5 +1,8 @@
 export type BookSection = 'materno' | 'neonatal'
-export type BookFieldType = 'text' | 'number' | 'decimal' | 'date' | 'time' | 'select'
+export type BookFieldType = 'text' | 'number' | 'decimal' | 'date' | 'time' | 'select' | 'doctor'
+
+/** Columnas del libro que corresponden a médicos y deben ser personas inscritas en la app. */
+export const DOCTOR_BOOK_KEYS = ['medico', 'ayudante', 'anestesista', 'neonatologo'] as const
 
 export const BOOK_SECTION_LABEL: Record<BookSection, string> = {
   materno: 'Maternidad',
@@ -13,6 +16,7 @@ export const BOOK_FIELD_TYPES: { value: BookFieldType; label: string }[] = [
   { value: 'date', label: 'Fecha' },
   { value: 'time', label: 'Hora' },
   { value: 'select', label: 'Lista de opciones' },
+  { value: 'doctor', label: 'Médico inscrito en la app' },
 ]
 
 /**
@@ -127,10 +131,10 @@ export const DEFAULT_BOOK_FIELDS: BookFieldDef[] = [
   { key: 'chagas_res', label: 'Chagas: resultado', section: M, group: 'Exámenes', type: 'select', options: NEG_POS },
   // Placenta y equipo
   { key: 'entrega_placenta', label: 'Entrega de placenta', section: M, group: 'Placenta y equipo', type: 'select', options: SN },
-  { key: 'medico', label: 'Médico', section: M, group: 'Placenta y equipo', type: 'text' },
-  { key: 'ayudante', label: 'Ayudante', section: M, group: 'Placenta y equipo', type: 'text' },
-  { key: 'anestesista', label: 'Anestesista', section: M, group: 'Placenta y equipo', type: 'text' },
-  { key: 'neonatologo', label: 'Neonatólogo', section: M, group: 'Placenta y equipo', type: 'text', source: 'medicoLabel' },
+  { key: 'medico', label: 'Médico', section: M, group: 'Placenta y equipo', type: 'doctor' },
+  { key: 'ayudante', label: 'Ayudante', section: M, group: 'Placenta y equipo', type: 'doctor' },
+  { key: 'anestesista', label: 'Anestesista', section: M, group: 'Placenta y equipo', type: 'doctor' },
+  { key: 'neonatologo', label: 'Neonatólogo', section: M, group: 'Placenta y equipo', type: 'doctor', source: 'medicoLabel' },
   { key: 'matrona_quirurgica', label: 'Matrona equipo quirúrgico', section: M, group: 'Placenta y equipo', type: 'text' },
 
   // Neonatología
