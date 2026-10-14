@@ -33,7 +33,7 @@ export function AppShell({ name, roleLabel, canClinical, canPanel, canReports, c
   type NavLink = { href: string; label: string }
   const groups = [
     {
-      caption: 'UCI Neonatal',
+      caption: 'Neonatología',
       links: [
         canClinical ? { href: '/pizarra', label: 'Pizarra' } : null,
         canClinical ? { href: '/turno', label: 'Mi turno' } : null,

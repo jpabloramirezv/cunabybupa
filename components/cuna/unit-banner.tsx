@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 export type Scope = 'uci' | 'libro' | 'analisis'
 
 const PILL: Record<Scope, { label: string; className: string }> = {
-  uci: { label: 'UCI Neonatal', className: 'bg-navy text-navy-foreground' },
+  uci: { label: 'Neonatología', className: 'bg-navy text-navy-foreground' },
   libro: { label: 'Todos los nacimientos', className: 'bg-success text-success-foreground' },
   analisis: { label: 'Análisis', className: 'bg-secondary text-secondary-foreground' },
 }
