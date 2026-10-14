@@ -26,6 +26,7 @@ import { ScopePill } from '@/components/cuna/unit-banner'
 import { BookForm } from '@/components/cuna/book/book-form'
 import { BookOverview, type BookFilter } from '@/components/cuna/book/book-overview'
 import { BookLedger } from '@/components/cuna/book/book-ledger'
+import { BookFilters, emptyFacets, matchesFacets, type BookFacets } from '@/components/cuna/book/book-filters'
 import { EpisodeLinker } from '@/components/cuna/book/episode-linker'
 import { RecordLinker } from '@/components/cuna/book/record-linker'
 
@@ -95,6 +96,7 @@ export function BookView() {
   const [year, setYear] = useState<string | null>(null)
   const [filter, setFilter] = useState<BookFilter>('todos')
   const [view, setView] = useState<'libro' | 'tarjetas'>('libro')
+  const [facets, setFacets] = useState<BookFacets>(emptyFacets)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ tone: 'danger' | 'success'; text: string } | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -148,12 +150,13 @@ export function BookView() {
         if (filter === 'aborto' && x.seg !== 'aborto') return false
         if (filter === 'falta-mat' && x.mat.state === 'completo') return false
         if (filter === 'falta-neo' && x.neo.state === 'completo') return false
+        if (!matchesFacets(x.r.values, facets)) return false
         return matchesAll(
           haystackOf(`${Object.values(x.r.values).join(' ')} ${x.r.episodeCode ?? ''} ${linkCode(x.r.seq)}`),
           terms,
         )
       }),
-    [inYear, filter, terms],
+    [inYear, filter, terms, facets],
   )
 
   function scrollToForm() {
@@ -569,6 +572,7 @@ export function BookView() {
             ))}
           </div>
         ) : null}
+        {data ? <BookFilters fields={fields} records={records} value={facets} onChange={setFacets} /> : null}
         <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
           <p className="text-sm text-muted-foreground" aria-live="polite">
             {data ? `${visible.length} de ${records.length} filas` : 'Cargando…'}

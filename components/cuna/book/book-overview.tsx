@@ -144,7 +144,7 @@ export function BookOverview({
             href="/pizarra"
             className="ml-auto inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-semibold text-primary hover:bg-card focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
           >
-            Ir a la Pizarra de UCI
+            Ir a la Pizarra de Neonatología
             <ArrowRight className="size-4" aria-hidden />
           </Link>
         ) : null}
