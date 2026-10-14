@@ -25,6 +25,7 @@ import { EpisodeGroup, EpisodeRow } from '@/components/cuna/episode-row'
 import { Ledger } from '@/components/cuna/ledger'
 import { NewEntryButton } from '@/components/cuna/book/new-entry-button'
 import { useSlashFocus } from '@/components/cuna/search-field'
+import { ScopePill, UnitBanner } from '@/components/cuna/unit-banner'
 import { Notice, PrimaryButton } from '@/components/cuna/ui'
 
 const GROUPS: { key: EpisodeStatus; label: string; hint: string; icon: React.ReactNode }[] = [
@@ -174,12 +175,13 @@ export function Board() {
       )}
     >
       <div className="flex flex-col gap-4 pb-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-navy text-balance sm:text-3xl">Pizarra de la unidad</h1>
-          <p className="mt-1 text-sm text-muted-foreground text-pretty">
+        <div className="flex flex-col gap-2">
+          <ScopePill scope="uci" />
+          <h1 className="text-2xl font-bold text-navy text-balance sm:text-3xl">Pizarra de UCI Neonatal</h1>
+          <p className="text-sm text-muted-foreground text-pretty">
             {libro
-              ? 'Libro de registro: historial completo de ingresos, con las mismas columnas del libro físico.'
-              : 'Registros abiertos y los cerrados en los últimos 7 días.'}
+              ? 'Libro de ingresos de UCI: historial completo de hospitalizaciones, con las mismas columnas del libro físico.'
+              : 'Recién nacidos hospitalizados: registros abiertos y los cerrados en los últimos 7 días.'}
           </p>
         </div>
         <div className="flex items-center gap-3 print:hidden">
@@ -219,6 +221,16 @@ export function Board() {
           ) : null}
         </div>
       </div>
+
+      <UnitBanner
+        scope="uci"
+        className="mb-2"
+        href={me?.canBook ? '/libro' : undefined}
+        hrefLabel="Abrir Libro de Partos"
+      >
+        Aquí solo están los recién nacidos hospitalizados en UCI. Los de Nursery (estadía normal) y los datos de
+        Maternidad se registran en el Libro de Partos y Abortos.
+      </UnitBanner>
 
       {libro ? null : (
         <div className="flex flex-col gap-3 pb-1 print:hidden">

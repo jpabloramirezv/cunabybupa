@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Baby, HeartPulse, Plus } from 'lucide-react'
+import { Baby, HeartPulse, Plus, Stethoscope } from 'lucide-react'
 import { PrimaryButton } from '@/components/cuna/ui'
 
 /** Pregunta primero si el registro es de Maternidad o de Neonatología; Neonatología sigue el flujo de siempre. */
@@ -36,16 +36,24 @@ export function NewEntryButton({
   const items = [
     {
       key: 'neo',
-      title: 'Neonatología (UCI)',
-      hint: 'Ingreso o egreso de un recién nacido hospitalizado.',
+      title: 'Ingreso o egreso en UCI',
+      hint: 'Recién nacido hospitalizado en la unidad. Va a la Pizarra.',
       Icon: Baby,
       enabled: canNeonatal,
       run: onNeonatal,
     },
     {
+      key: 'nursery',
+      title: 'Recién nacido de Nursery',
+      hint: 'Estadía normal, sin hospitalización. Se registra en el Libro de Partos y Abortos.',
+      Icon: Stethoscope,
+      enabled: canNeonatal,
+      run: () => router.push('/libro?nuevo=neo'),
+    },
+    {
       key: 'mat',
-      title: 'Maternidad',
-      hint: 'Fila del Libro de Partos y Abortos.',
+      title: 'Parto o aborto (Maternidad)',
+      hint: 'Datos de la madre. Se registra en el Libro de Partos y Abortos.',
       Icon: HeartPulse,
       enabled: canMaternity,
       run: () => router.push('/libro?nuevo=1'),

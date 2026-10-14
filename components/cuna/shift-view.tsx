@@ -15,6 +15,7 @@ import { useSlashFocus } from '@/components/cuna/search-field'
 import { SHIFT_HOURS, ShiftGlyph } from '@/components/cuna/shift-glyph'
 import { ShiftHistory } from '@/components/cuna/shift-history'
 import { Notice, PrimaryButton } from '@/components/cuna/ui'
+import { ScopePill } from '@/components/cuna/unit-banner'
 
 type Scope = 'todos' | 'turno' | 'previos'
 
@@ -467,12 +468,16 @@ export function ShiftView() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-navy text-balance sm:text-3xl">Mi turno</h1>
-          <p className="mt-1 text-sm text-muted-foreground text-pretty">
+        <div className="flex flex-col gap-2">
+          <ScopePill scope="uci" />
+          <h1 className="text-2xl font-bold text-navy text-balance sm:text-3xl">Mi turno en UCI</h1>
+          <p className="text-sm text-muted-foreground text-pretty">
             {mode === 'turno'
-              ? 'Los recién nacidos que ingresaste o modificaste durante el turno. Cambia de fecha o de turno cuando quieras.'
-              : 'Quién hizo qué en cada turno de día y de noche: ingresos, egresos y ediciones.'}
+              ? 'Los recién nacidos hospitalizados que ingresaste o modificaste durante el turno. Cambia de fecha o de turno cuando quieras.'
+              : 'Quién hizo qué en cada turno de día y de noche en UCI: ingresos, egresos y ediciones.'}
+          </p>
+          <p className="text-xs text-muted-foreground text-pretty">
+            Las filas del Libro de Partos y Abortos (Nursery y Maternidad) no se muestran aquí.
           </p>
         </div>
         <div role="group" aria-label="Vista de turnos" className="inline-flex self-start rounded-xl bg-muted p-1 sm:self-auto">

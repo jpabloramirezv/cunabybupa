@@ -6,6 +6,10 @@ import { Download } from 'lucide-react'
 import { fetcher } from '@/lib/fetcher'
 import { useMe } from '@/lib/hooks'
 import type { PanelPayload, Stat } from '@/lib/types'
+import type { StatsSegment } from '@/lib/server/book-stats'
+import { BookStatsView } from '@/components/cuna/book/book-stats-view'
+import { SegmentSwitch } from '@/components/cuna/segment-switch'
+import { ScopePill } from '@/components/cuna/unit-banner'
 import { Choice, Notice } from '@/components/cuna/ui'
 
 const RANGES = [
@@ -73,34 +77,51 @@ export function PanelView() {
     return d.toISOString()
   }, [days])
   const query = `from=${encodeURIComponent(from)}`
-  const { data, error, isLoading } = useSWR<PanelPayload>(me?.canPanel ? `/api/panel?${query}` : null, fetcher)
+  const [segment, setSegment] = useState<StatsSegment>('uci')
+  const { data, error, isLoading } = useSWR<PanelPayload>(
+    me?.canPanel && segment === 'uci' ? `/api/panel?${query}` : null,
+    fetcher,
+  )
 
   if (me && !me.canPanel) {
     return <Notice tone="danger" title="Tu rol no tiene acceso al panel." />
   }
 
+  const uci = segment === 'uci'
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
+        <div className="flex flex-col gap-2">
+          <ScopePill scope="analisis" />
           <h1 className="text-2xl font-bold text-navy sm:text-3xl">Panel de indicadores</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Calculado sobre los ingresos del período. Sin datos de identificación.</p>
+          <p className="text-sm text-muted-foreground">
+            {uci
+              ? 'Calculado sobre los ingresos a UCI del período. Sin datos de identificación.'
+              : 'Calculado sobre el Libro de Partos y Abortos del período. Sin datos de identificación.'}
+          </p>
         </div>
-        <a
-          href={`/api/export?${query}`}
-          className="inline-flex h-12 items-center gap-2 rounded-lg border border-primary bg-card px-4 text-sm font-semibold text-primary hover:bg-secondary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
-        >
-          <Download className="size-4" aria-hidden />
-          Exportar CSV
-        </a>
+        {uci ? (
+          <a
+            href={`/api/export?${query}`}
+            className="inline-flex h-12 items-center gap-2 rounded-lg border border-primary bg-card px-4 text-sm font-semibold text-primary hover:bg-secondary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+          >
+            <Download className="size-4" aria-hidden />
+            Exportar CSV
+          </a>
+        ) : null}
       </div>
+
+      <SegmentSwitch value={segment} onChange={setSegment} />
 
       <Choice label="Período" columns={3} options={RANGES} value={days} onChange={(v) => v && setDays(v)} />
 
-      {error ? <Notice tone="danger" title="No pudimos calcular los indicadores." /> : null}
-      {isLoading ? <p className="py-10 text-center text-muted-foreground">Calculando…</p> : null}
+      {!uci ? <BookStatsView segment={segment} days={Number(days)} /> : null}
 
-      {data ? (
+      {uci && error ? <Notice tone="danger" title="No pudimos calcular los indicadores." /> : null}
+      {uci && isLoading ? <p className="py-10 text-center text-muted-foreground">Calculando…</p> : null}
+
+      {uci && data ? (
         <div className="grid gap-4 lg:grid-cols-2">
           <Card title="Movimiento" className="lg:col-span-2">
             <div className="grid grid-cols-3 gap-4">
