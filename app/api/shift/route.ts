@@ -23,8 +23,14 @@ export const GET = handle(async (req) => {
     .from(episode)
     .where(and(gte(episode.createdAt, shift.start), lt(episode.createdAt, shift.end)))
   const ids = [...new Set([...touched.map((t) => t.id), ...created.map((c) => c.id)])]
+  const unidad = new URL(req.url).searchParams.get('unidad')
+  const byUnit = unidad === 'todos' ? undefined : eq(episode.unit, unidad === 'nursery' ? 'nursery' : 'uci')
   const rows = ids.length
-    ? await db.select().from(episode).where(inArray(episode.id, ids)).orderBy(desc(episode.createdAt))
+    ? await db
+        .select()
+        .from(episode)
+        .where(and(inArray(episode.id, ids), byUnit))
+        .orderBy(desc(episode.createdAt))
     : []
   const closures = await db
     .select()

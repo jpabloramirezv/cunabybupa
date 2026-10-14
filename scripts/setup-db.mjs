@@ -78,6 +78,19 @@ const ddl = [
   `CREATE INDEX IF NOT EXISTS episode_created_idx ON episode (created_at)`,
   `CREATE INDEX IF NOT EXISTS episode_updated_idx ON episode (updated_at)`,
   `CREATE INDEX IF NOT EXISTS audit_at_idx ON audit_log (at DESC)`,
+  `ALTER TABLE staff ADD COLUMN IF NOT EXISTS unit text NOT NULL DEFAULT 'neonatologia'`,
+  `CREATE TABLE IF NOT EXISTS book_field (
+    id serial PRIMARY KEY, key text NOT NULL UNIQUE, label text NOT NULL,
+    section text NOT NULL, group_name text NOT NULL DEFAULT '', type text NOT NULL DEFAULT 'text',
+    options text[] NOT NULL DEFAULT '{}', position int NOT NULL DEFAULT 0,
+    required boolean NOT NULL DEFAULT false, active boolean NOT NULL DEFAULT true, source text)`,
+  `CREATE TABLE IF NOT EXISTS birth_record (
+    id text PRIMARY KEY, seq serial NOT NULL, episode_id text,
+    data jsonb NOT NULL DEFAULT '{}'::jsonb, created_by int, created_by_name text,
+    updated_by_name text, created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(), deleted_at timestamptz)`,
+  `CREATE INDEX IF NOT EXISTS birth_record_created_idx ON birth_record (created_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS birth_record_episode_idx ON birth_record (episode_id)`,
 ]
 
 const diagnoses = [
@@ -113,6 +126,7 @@ async function main() {
 
   // Datos del libro en papel: ingreso, nivel de cuidado, procedencia, GES y varios médicos.
   for (const stmt of [
+    `ALTER TABLE episode ADD COLUMN IF NOT EXISTS unit text NOT NULL DEFAULT 'uci'`,
     `ALTER TABLE episode ADD COLUMN IF NOT EXISTS admission_at timestamptz`,
     `ALTER TABLE episode ADD COLUMN IF NOT EXISTS care_level text`,
     `ALTER TABLE episode ADD COLUMN IF NOT EXISTS transfer_origin text`,

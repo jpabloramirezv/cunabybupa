@@ -83,6 +83,11 @@ export function EpisodeRow({
         <p className="text-lg font-bold tabular-nums text-navy">
           <Highlight text={e.code} terms={terms} ignorePunct />
         </p>
+        {e.unit === 'nursery' ? (
+          <span className="mt-1 inline-block rounded-full bg-success/15 px-2.5 py-0.5 text-xs font-semibold text-success">
+            Nursery
+          </span>
+        ) : null}
         {e.readmissionOf ? (
           <span className="mt-1 inline-block rounded-full bg-secondary px-2.5 py-0.5 text-xs font-semibold text-secondary-foreground">
             Reingreso

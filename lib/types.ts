@@ -23,6 +23,8 @@ export type EpisodeDetail = EpisodeCore & {
   seq: number
   code: string
   status: EpisodeStatus
+  /** uci = hospitalizado en la unidad; nursery = estadía normal (no pasa por la Pizarra). */
+  unit: 'uci' | 'nursery'
   readmissionOf: string | null
   createdAt: string
   updatedAt: string
@@ -88,6 +90,10 @@ export type MePayload = {
   canReports: boolean
   canAdmin: boolean
   canClinical: boolean
+  unit: 'neonatologia' | 'maternidad'
+  canBook: boolean
+  canEditMaternity: boolean
+  canEditNeonatal: boolean
 }
 
 export type IdentityPayload = {

@@ -146,17 +146,25 @@ export function clearOutbox() {
   notify()
 }
 
+/** Unidad elegida al abrir un registro nuevo; se envía solo en el primer guardado y el servidor la fija al crear. */
+const newUnits = new Map<string, 'uci' | 'nursery'>()
+
+export function setNewEpisodeUnit(id: string, unit: 'uci' | 'nursery') {
+  newUnits.set(id, unit)
+}
+
 function sendEntry(e: Entry, patch: Record<string, unknown>) {
   const base = `/api/episodes/${e.id}`
   const reason = getEditReason(e.id)
   const why = reason ? { reason } : {}
+  const unit = newUnits.has(e.id) ? { unit: newUnits.get(e.id) } : {}
   switch (e.block) {
     case 'identidad':
-      return send(`${base}/identity`, 'PATCH', { ...patch, ...why })
+      return send(`${base}/identity`, 'PATCH', { ...patch, ...why, ...unit })
     case 'tamizaje':
       return send(`${base}/screening`, 'PATCH', { ...patch, ...why })
     default:
-      return send(base, 'PATCH', { block: e.block, patch, ...why })
+      return send(base, 'PATCH', { block: e.block, patch, ...why, ...unit })
   }
 }
 

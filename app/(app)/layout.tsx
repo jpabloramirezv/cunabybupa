@@ -18,6 +18,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       canPanel={ctx.canPanel}
       canReports={ctx.canReports}
       canAdmin={ctx.canAdmin}
+      canBook={ctx.canBook}
     >
       {children}
     </AppShell>

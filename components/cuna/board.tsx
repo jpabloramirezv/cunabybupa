@@ -23,8 +23,33 @@ import type { EpisodeDetail } from '@/lib/types'
 import { EpisodeToolbar, rowKeyNav, useEpisodeFilters } from '@/components/cuna/episode-filters'
 import { EpisodeGroup, EpisodeRow } from '@/components/cuna/episode-row'
 import { Ledger } from '@/components/cuna/ledger'
+import { NewEntryButton } from '@/components/cuna/book/new-entry-button'
 import { useSlashFocus } from '@/components/cuna/search-field'
+import { ScopePill, UnitBanner } from '@/components/cuna/unit-banner'
 import { Notice, PrimaryButton } from '@/components/cuna/ui'
+
+type BoardUnit = 'uci' | 'nursery' | 'todos'
+
+const UNIT_OPTIONS: { value: BoardUnit; label: string; hint: string; empty: string }[] = [
+  {
+    value: 'uci',
+    label: 'UCI',
+    hint: 'Recién nacidos hospitalizados en UCI Neonatal.',
+    empty: 'Cuando ingreses un RN a UCI aparecerá aquí.',
+  },
+  {
+    value: 'nursery',
+    label: 'Nursery',
+    hint: 'RN con estadía normal en Nursery, sin hospitalización. Se registran igual que un ingreso a UCI.',
+    empty: 'Cuando registres el ingreso de un RN a Nursery aparecerá aquí.',
+  },
+  {
+    value: 'todos',
+    label: 'UCI + Nursery',
+    hint: 'Todos los RN de Neonatología juntos.',
+    empty: 'Cuando ingreses un RN a UCI o Nursery aparecerá aquí.',
+  },
+]
 
 const GROUPS: { key: EpisodeStatus; label: string; hint: string; icon: React.ReactNode }[] = [
   {
@@ -136,11 +161,14 @@ export function Board() {
   const router = useRouter()
   const { data: me } = useMe()
   const pathname = usePathname()
-  const libro = useSearchParams().get('vista') !== 'pizarra'
-  const board = useSWR<EpisodeDetail[]>(libro ? null : '/api/episodes', fetcher, {
+  const searchParams = useSearchParams()
+  const libro = searchParams.get('vista') !== 'pizarra'
+  const unitParam = searchParams.get('unidad')
+  const unit: BoardUnit = unitParam === 'nursery' || unitParam === 'todos' ? unitParam : 'uci'
+  const board = useSWR<EpisodeDetail[]>(libro ? null : `/api/episodes?unidad=${unit}`, fetcher, {
     refreshInterval: 30000,
   })
-  const book = useSWR<EpisodeDetail[]>(libro ? '/api/episodes?alcance=libro' : null, fetcher, {
+  const book = useSWR<EpisodeDetail[]>(libro ? `/api/episodes?alcance=libro&unidad=${unit}` : null, fetcher, {
     refreshInterval: 30000,
   })
   const { data, error, isLoading } = libro ? book : board
@@ -153,9 +181,23 @@ export function Board() {
     router.push(`/registro/${crypto.randomUUID()}`)
   }
 
-  function setView(next: 'tarjetas' | 'libro') {
-    router.replace(next === 'libro' ? pathname : `${pathname}?vista=pizarra`, { scroll: false })
+  function navigate(view: 'tarjetas' | 'libro', nextUnit: BoardUnit) {
+    const q = new URLSearchParams()
+    if (view === 'tarjetas') q.set('vista', 'pizarra')
+    if (nextUnit !== 'uci') q.set('unidad', nextUnit)
+    const qs = q.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
   }
+
+  function setView(next: 'tarjetas' | 'libro') {
+    navigate(next, unit)
+  }
+
+  function setUnit(next: BoardUnit) {
+    navigate(libro ? 'libro' : 'tarjetas', next)
+  }
+
+  const unitCopy = UNIT_OPTIONS.find((o) => o.value === unit) ?? UNIT_OPTIONS[0]
 
   const sections =
     grouped && f.status === 'todos'
@@ -173,12 +215,23 @@ export function Board() {
       )}
     >
       <div className="flex flex-col gap-4 pb-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-navy text-balance sm:text-3xl">Pizarra de la unidad</h1>
-          <p className="mt-1 text-sm text-muted-foreground text-pretty">
+        <div className="flex flex-col gap-2">
+          <ScopePill scope="uci" />
+          <h1 className="text-2xl font-bold text-navy text-balance sm:text-3xl">
+            {unit === 'uci' ? 'Pizarra de UCI Neonatal' : unit === 'nursery' ? 'Pizarra de Nursery' : 'Pizarra de Neonatología'}
+          </h1>
+          <p className="text-sm text-muted-foreground text-pretty">
             {libro
-              ? 'Libro de registro: historial completo de ingresos, con las mismas columnas del libro físico.'
-              : 'Registros abiertos y los cerrados en los últimos 7 días.'}
+              ? unit === 'uci'
+                ? 'Libro de ingresos de UCI: historial completo de hospitalizaciones, con las mismas columnas del libro físico.'
+                : unit === 'nursery'
+                  ? 'Historial completo de ingresos y egresos de Nursery.'
+                  : 'Historial completo de ingresos y egresos de UCI y Nursery.'
+              : unit === 'uci'
+                ? 'Recién nacidos hospitalizados: registros abiertos y los cerrados en los últimos 7 días.'
+                : unit === 'nursery'
+                  ? 'RN de Nursery: registros abiertos y los cerrados en los últimos 7 días.'
+                  : 'RN de UCI y Nursery: registros abiertos y los cerrados en los últimos 7 días.'}
           </p>
         </div>
         <div className="flex items-center gap-3 print:hidden">
@@ -208,13 +261,50 @@ export function Board() {
               )
             })}
           </div>
-          {me?.canWrite ? (
+          {me?.canBook && (me.canEditMaternity || me.canEditNeonatal) ? (
+            <NewEntryButton canNeonatal={me.canWrite} canMaternity={me.canEditMaternity} onNeonatal={newEpisode} />
+          ) : me?.canWrite ? (
             <PrimaryButton variant="accent" onClick={newEpisode} className="w-full sm:w-auto">
               <Plus className="size-5" aria-hidden />
               Nuevo ingreso
             </PrimaryButton>
           ) : null}
         </div>
+      </div>
+
+      <UnitBanner
+        scope="uci"
+        className="mb-2"
+        href={me?.canBook ? '/libro' : undefined}
+        hrefLabel="Abrir Libro de Partos"
+      >
+        Aquí están los RN de Neonatología: UCI (hospitalizados) y Nursery (estadía normal). Elige abajo cuál ver, o
+        ambos. Los datos de Maternidad se completan en el Libro de Partos y Abortos.
+      </UnitBanner>
+
+      <div className="mb-2 flex flex-col gap-2 print:hidden">
+        <div
+          role="group"
+          aria-label="Qué RN mostrar"
+          className="inline-flex w-full flex-wrap gap-1 rounded-xl bg-muted p-1 sm:w-fit"
+        >
+          {UNIT_OPTIONS.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              aria-pressed={unit === o.value}
+              onClick={() => setUnit(o.value)}
+              className={cn(
+                'h-11 flex-1 rounded-lg px-4 text-sm font-semibold transition-all sm:flex-none',
+                'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30',
+                unit === o.value ? 'bg-card text-navy shadow-sm' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+        <p className="text-sm text-muted-foreground text-pretty">{unitCopy.hint}</p>
       </div>
 
       {libro ? null : (
@@ -298,7 +388,7 @@ export function Board() {
           <div className="rounded-2xl border border-dashed border-border bg-card px-6 py-12 text-center">
             <p className="text-lg font-semibold text-navy">No hay registros para mostrar</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              {data?.length ? 'Prueba con otra búsqueda o quita algún filtro.' : 'Cuando ingreses un recién nacido aparecerá aquí.'}
+              {data?.length ? 'Prueba con otra búsqueda o quita algún filtro.' : unitCopy.empty}
             </p>
             {data?.length && f.isFiltering ? (
               <button

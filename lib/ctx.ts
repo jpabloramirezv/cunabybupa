@@ -37,6 +37,28 @@ export type Ctx = {
   canReports: boolean
   canAdmin: boolean
   canClinical: boolean
+  unit: Unit
+  /** Puede abrir el Libro de Partos y Abortos. */
+  canBook: boolean
+  /** Puede escribir las columnas de maternidad / neonatología del libro. */
+  canEditMaternity: boolean
+  canEditNeonatal: boolean
+}
+
+export type Unit = 'neonatologia' | 'maternidad'
+
+export function normalizeUnit(value: unknown): Unit {
+  return value === 'maternidad' ? 'maternidad' : 'neonatologia'
+}
+
+export function bookPermissionsFor(role: Role, isAdmin = false, unit: Unit = 'neonatologia') {
+  const effective: Role = role === 'matrona' && isAdmin ? 'jefatura' : role
+  const canBook = effective === 'matrona' || effective === 'jefatura'
+  return {
+    canBook,
+    canEditMaternity: canBook && (effective === 'jefatura' || unit === 'maternidad'),
+    canEditNeonatal: canBook && (effective === 'jefatura' || unit === 'neonatologia'),
+  }
 }
 
 export function permissionsFor(role: Role, isAdmin = false) {
@@ -80,7 +102,9 @@ export async function getCtx(): Promise<Ctx | null> {
     role,
     isAdmin: s.isAdmin,
     userId: account.id,
+    unit: normalizeUnit(s.unit),
     ...permissionsFor(role, s.isAdmin),
+    ...bookPermissionsFor(role, s.isAdmin, normalizeUnit(s.unit)),
   }
 }
 

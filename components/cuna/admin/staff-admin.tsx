@@ -9,7 +9,21 @@ import { Highlight } from '@/components/cuna/highlight'
 import { ChipToggle, SearchField } from '@/components/cuna/search-field'
 import { Choice, Notice, PrimaryButton, Section, TextField } from '@/components/cuna/ui'
 
-type StaffRow = { id: number; name: string; role: string; isAdmin: boolean; active: boolean; lockedUntil: string | null }
+type StaffRow = {
+  id: number
+  name: string
+  role: string
+  isAdmin: boolean
+  unit?: 'neonatologia' | 'maternidad'
+  active: boolean
+  lockedUntil: string | null
+}
+
+const UNITS = [
+  { value: 'neonatologia', label: 'Neonatología' },
+  { value: 'maternidad', label: 'Maternidad' },
+]
+const unitLabel = (u?: string) => UNITS.find((x) => x.value === u)?.label ?? 'Neonatología'
 
 const ADMIN_OPTIONS = [
   { value: 'no', label: 'No' },
@@ -32,6 +46,8 @@ export function StaffAdmin() {
   const [pin, setPin] = useState('')
   const [adminNew, setAdminNew] = useState<string | null>('no')
   const [editAdmin, setEditAdmin] = useState<string | null>('no')
+  const [unitNew, setUnitNew] = useState<string | null>('neonatologia')
+  const [editUnit, setEditUnit] = useState<string | null>('neonatologia')
   const [resetId, setResetId] = useState<number | null>(null)
   const [resetPin, setResetPin] = useState('')
   const [editId, setEditId] = useState<number | null>(null)
@@ -120,6 +136,7 @@ export function StaffAdmin() {
                   </p>
                   <p className="text-sm text-muted-foreground">
                     {roleLabel(s.role)}
+                    {s.role === 'matrona' ? ` · ${unitLabel(s.unit)}` : ''}
                     {s.role === 'matrona' && s.isAdmin ? ' · Permisos de Jefatura' : ''} · {s.active ? 'Activo' : 'Inactivo'}
                     {s.lockedUntil && new Date(s.lockedUntil) > new Date() ? ` · Bloqueado hasta ${fmtDateTime(s.lockedUntil)}` : ''}
                   </p>
@@ -137,6 +154,7 @@ export function StaffAdmin() {
                       setEditName(s.name)
                       setEditRole(s.role)
                       setEditAdmin(s.isAdmin ? 'si' : 'no')
+                      setEditUnit(s.unit ?? 'neonatologia')
                       setResetId(null)
                     }}
                   >
@@ -170,6 +188,16 @@ export function StaffAdmin() {
                   <Choice label="Cargo (rol)" required columns={2} options={ROLES} value={editRole} onChange={setEditRole} />
                   {editRole === 'matrona' ? (
                     <Choice
+                      label="Unidad de trabajo"
+                      columns={2}
+                      options={UNITS}
+                      value={editUnit}
+                      onChange={setEditUnit}
+                      hint="Define qué columnas del Libro de Partos y Abortos completa: Maternidad o Neonatología."
+                    />
+                  ) : null}
+                  {editRole === 'matrona' ? (
+                    <Choice
                       label="¿Tiene permisos de Jefatura?"
                       columns={2}
                       options={ADMIN_OPTIONS}
@@ -186,13 +214,17 @@ export function StaffAdmin() {
                       disabled={
                         !editName.trim() ||
                         !editRole ||
-                        (editName.trim() === s.name && editRole === s.role && (editRole !== 'matrona' || (editAdmin === 'si') === s.isAdmin))
+                        (editName.trim() === s.name &&
+                          editRole === s.role &&
+                          (editRole !== 'matrona' ||
+                            ((editAdmin === 'si') === s.isAdmin && editUnit === (s.unit ?? 'neonatologia'))))
                       }
                       onClick={async () => {
                         const body: Record<string, unknown> = { id: s.id }
                         if (editName.trim() !== s.name) body.name = editName.trim()
                         if (editRole !== s.role) body.role = editRole
                         if (editRole === 'matrona' && (editAdmin === 'si') !== s.isAdmin) body.isAdmin = editAdmin === 'si'
+                        if (editRole === 'matrona' && editUnit && editUnit !== (s.unit ?? 'neonatologia')) body.unit = editUnit
                         if (await run(() => send('/api/admin/staff', 'PATCH', body), 'Datos de la persona actualizados.')) setEditId(null)
                       }}
                     >
@@ -240,6 +272,16 @@ export function StaffAdmin() {
         <Choice label="Rol" required columns={2} options={ROLES} value={role} onChange={setRole} />
         {role === 'matrona' ? (
           <Choice
+            label="Unidad de trabajo"
+            columns={2}
+            options={UNITS}
+            value={unitNew}
+            onChange={setUnitNew}
+            hint="Define qué columnas del Libro de Partos y Abortos completa."
+          />
+        ) : null}
+        {role === 'matrona' ? (
+          <Choice
             label="¿Tiene permisos de Jefatura?"
             columns={2}
             options={ADMIN_OPTIONS}
@@ -261,7 +303,7 @@ export function StaffAdmin() {
         <PrimaryButton
           disabled={!name.trim() || !role || (pin.length !== 4 && pin.length !== 6)}
           onClick={async () => {
-            if (await run(() => send('/api/admin/staff', 'POST', { name, role, pin, isAdmin: role === 'matrona' && adminNew === 'si' }), 'Persona agregada.')) {
+            if (await run(() => send('/api/admin/staff', 'POST', { name, role, pin, isAdmin: role === 'matrona' && adminNew === 'si', unit: role === 'matrona' ? unitNew : 'neonatologia' }), 'Persona agregada.')) {
               setName('')
               setAdminNew('no')
               setPin('')

@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm'
 import { assertEpisodeId, handle, HttpError, readJson } from '@/lib/api'
 import { audit } from '@/lib/audit'
 import { explainChange } from '@/lib/audit-text'
-import { ensureEpisode } from '@/lib/server/create-episode'
+import { ensureEpisode, parseUnit } from '@/lib/server/create-episode'
 import { CONTACT_REASONS } from '@/lib/config'
 import { requireCtx } from '@/lib/ctx'
 import { db } from '@/lib/db'
@@ -62,7 +62,7 @@ export const PATCH = handle<Params>(async (req, { params }) => {
   assertEpisodeId(id)
   const body = await readJson<Record<string, unknown>>(req)
 
-  const { created } = await ensureEpisode(id, ctx)
+  const { created } = await ensureEpisode(id, ctx, new Date(), parseUnit(body.unit))
   if (created) {
     await recordChanges(ctx, id, [
       { block: 'identidad', field: 'creacion', oldValue: null, newValue: 'Registro creado' },
