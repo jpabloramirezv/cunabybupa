@@ -73,12 +73,16 @@ function BookInput({
   const hint = fromUci ? `Viene de UCI: ${fromUci}. Escribe para reemplazarlo.` : undefined
 
   if (field.type === 'doctor') {
-    const names = (cat?.items ?? [])
+    const docs = (cat?.items ?? [])
       .filter((i) => i.kind === 'profesional' && i.active && i.staffId != null)
-      .map((i) => i.label)
-      .sort((a, b) => a.localeCompare(b, 'es'))
+      .sort((a, b) => a.label.localeCompare(b.label, 'es'))
+    const names = docs.map((d) => d.label)
     const current = value || fromUci || ''
     const legacy = current && !names.includes(current)
+    const repeated = new Set(names.filter((n, i) => names.indexOf(n) !== i))
+    const optionLabel = (d: (typeof docs)[number]) =>
+      d.specialty ? `${d.label} · ${d.specialty}` : repeated.has(d.label) ? `${d.label} · sin especialidad` : d.label
+    const currentDoc = docs.find((d) => d.label === current)
     return (
       <div>
         <FieldLabel htmlFor={id} required={field.required}>
@@ -93,9 +97,9 @@ function BookInput({
         >
           <option value="">Seleccionar médico</option>
           {legacy ? <option value={current}>{`${current} (no inscrito)`}</option> : null}
-          {names.map((n) => (
-            <option key={n} value={n}>
-              {n}
+          {docs.map((d) => (
+            <option key={d.id} value={d.label}>
+              {optionLabel(d)}
             </option>
           ))}
         </select>
@@ -104,8 +108,15 @@ function BookInput({
             ? 'Este nombre no corresponde a un médico inscrito. Elige uno de la lista para corregirlo.'
             : names.length === 0 && cat
               ? 'No hay médicos inscritos. Jefatura debe agregarlos en Administración.'
-              : 'Solo médicos inscritos en la app, los mismos que usa UCI.'}
+              : currentDoc?.specialty
+                ? `Especialidad: ${currentDoc.specialty}`
+                : 'Solo médicos inscritos en la app, los mismos que usa Neonatología.'}
         </Hint>
+        {current && repeated.has(current) ? (
+          <p role="alert" className="mt-1 text-sm font-medium text-warning-foreground">
+            Hay más de un médico inscrito con este nombre. Revisa que sea el correcto.
+          </p>
+        ) : null}
       </div>
     )
   }

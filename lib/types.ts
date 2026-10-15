@@ -64,7 +64,14 @@ export type DiagnosisItem = {
   active: boolean
 }
 
-export type CatalogEntry = { id: number; kind: string; label: string; active: boolean; staffId?: number | null }
+export type CatalogEntry = {
+  id: number
+  kind: string
+  label: string
+  active: boolean
+  staffId?: number | null
+  specialty?: string | null
+}
 
 export type Defaults = {
   previsionId: number | null

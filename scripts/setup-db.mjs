@@ -79,6 +79,7 @@ const ddl = [
   `CREATE INDEX IF NOT EXISTS episode_updated_idx ON episode (updated_at)`,
   `CREATE INDEX IF NOT EXISTS audit_at_idx ON audit_log (at DESC)`,
   `ALTER TABLE staff ADD COLUMN IF NOT EXISTS unit text NOT NULL DEFAULT 'neonatologia'`,
+  `ALTER TABLE staff ADD COLUMN IF NOT EXISTS specialty text`,
   `CREATE TABLE IF NOT EXISTS book_field (
     id serial PRIMARY KEY, key text NOT NULL UNIQUE, label text NOT NULL,
     section text NOT NULL, group_name text NOT NULL DEFAULT '', type text NOT NULL DEFAULT 'text',

@@ -143,7 +143,7 @@ export function BinomioView({
   const b = data?.binomio
   const active = b?.crosses.find((c) => c.id === crossId) ?? b?.crosses[0]
   const scopeText =
-    segment === 'uci' ? 'recién nacidos hospitalizados en UCI' : segment === 'nursery' ? 'recién nacidos de Nursery' : 'recién nacidos de UCI y Nursery'
+    segment === 'uci' ? 'recién nacidos hospitalizados' : segment === 'nursery' ? 'recién nacidos de Nursery' : 'todos los recién nacidos de Neonatología'
 
   return (
     <section aria-labelledby="binomio-title" className="flex flex-col gap-4">
@@ -157,8 +157,9 @@ export function BinomioView({
             Binomio recién nacido + madre
           </h2>
           <p className="mt-1 text-sm text-muted-foreground text-pretty">
-            Cruza los datos de la madre con los del RN para {scopeText}. Se calcula con las filas del libro, sin datos de
-            identificación. La madre se identifica por su fila: el libro no registra datos del padre.
+            Un binomio es una fila del Libro de Partos y Abortos: reúne los datos de la madre (Maternidad) y del recién
+            nacido (Neonatología), sin importar si estuvo hospitalizado. Aquí se cruzan para {scopeText}, sin datos de
+            identificación. El libro no registra datos del padre.
           </p>
         </div>
         {withPeriod ? (

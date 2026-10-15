@@ -425,7 +425,13 @@ export function BookView() {
             className="inline-flex h-12 items-center gap-2 rounded-lg border border-primary bg-card px-4 text-sm font-semibold text-primary hover:bg-secondary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
           >
             <Download className="size-4" aria-hidden />
-            Exportar CSV
+            Exportar Excel
+          </a>
+          <a
+            href={`/api/book/export?format=csv${year ? `&year=${year}` : ''}`}
+            className="inline-flex h-12 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+          >
+            CSV
           </a>
           {canCreate ? (
             <PrimaryButton variant="accent" className="h-12 px-4 text-sm" onClick={() => create(me?.canEditMaternity ? 'materno' : 'neonatal')}>

@@ -79,8 +79,10 @@ export const staff = pgTable('staff', {
   isAdmin: boolean('is_admin').notNull().default(false),
   /** Libro que registra: neonatologia | maternidad. Jefatura accede siempre a ambos. */
   unit: text('unit').notNull().default('neonatologia'),
+  /** Solo médicos: especialidad (Obstetricia, Neonatología, Anestesiología...). */
+  specialty: text('specialty'),
   createdAt: timestamp('created_at', tz).notNull().defaultNow(),
-})
+  })
 
 export const personSession = pgTable('person_session', {
   tokenHash: text('token_hash').primaryKey(),

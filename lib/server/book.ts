@@ -1,9 +1,10 @@
-import { and, asc, eq, inArray } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
 import { TZ } from '@/lib/config'
-import { DEFAULT_BOOK_FIELDS, DOCTOR_BOOK_KEYS, type BookFieldType, type BookSection } from '@/lib/book-fields'
+import { BOOK_LINK_UPGRADES, DEFAULT_BOOK_FIELDS, DOCTOR_BOOK_KEYS, type BookFieldType, type BookSection } from '@/lib/book-fields'
 import { db } from '@/lib/db'
 import { appSetting, bookField, catalogItem, episode } from '@/lib/db/schema'
 import { HttpError } from '@/lib/api'
+import { matchNames } from '@/lib/name-match'
 import { listBookDoctors } from '@/lib/server/doctors'
 import { attachIdentity, buildDetails } from '@/lib/server/episodes'
 import type { EpisodeDetail } from '@/lib/types'
@@ -60,7 +61,23 @@ export async function ensureBookFields() {
       .onConflictDoNothing({ target: bookField.key })
   }
   await migrateDoctorFields()
+  await migrateLinkSources()
   seeded = true
+}
+
+const LINK_MIGRATION = 'book_link_sources_v1'
+
+/** Una sola vez: conecta con Neonatología las columnas existentes que no tenían vínculo, sin tocar las ya configuradas. */
+async function migrateLinkSources() {
+  const [done] = await db.select().from(appSetting).where(eq(appSetting.key, LINK_MIGRATION)).limit(1)
+  if (done) return
+  for (const [key, source] of Object.entries(BOOK_LINK_UPGRADES)) {
+    await db
+      .update(bookField)
+      .set({ source })
+      .where(and(eq(bookField.key, key), isNull(bookField.source)))
+  }
+  await db.insert(appSetting).values({ key: LINK_MIGRATION, value: '1' }).onConflictDoNothing()
 }
 
 const DOCTOR_MIGRATION = 'book_doctor_fields_v1'
@@ -135,6 +152,10 @@ function resolveSource(source: string, d: EpisodeDetail, labels: Labels): string
     return ids.map((i) => labels.get(i)).filter(Boolean).join(', ')
   }
   if (source === 'deliveryLabel') return DELIVERY_BOOK[str(d.deliveryType)] ?? ''
+  if (source === 'maternalHiv') {
+    const r = str(d.maternalHivResult)
+    return r === 'negativo' ? 'NEGATIVO' : r === 'positivo' ? 'POSITIVO' : ''
+  }
   if (source.startsWith('identity.')) {
     const k = source.slice('identity.'.length) as keyof NonNullable<EpisodeDetail['identity']>
     return str(d.identity?.[k])
@@ -224,39 +245,18 @@ export function sanitizeData(
   return { data, errors }
 }
 
-const norm = (s: string) =>
-  s
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toLowerCase()
-
 /**
- * Las columnas de tipo médico solo aceptan personas inscritas en la app. Un valor histórico
- * que ya estaba en el registro se conserva mientras no se cambie, para no perder datos antiguos.
+ * Las columnas de tipo médico no son restrictivas: se puede escribir un nombre que aún no está inscrito.
+ * Si el nombre coincide con un médico inscrito (aunque cambie el orden, las tildes o el título «Dr.»),
+ * se guarda con el nombre oficial para que cada médico figure una sola vez en el libro y en los informes.
  */
-export async function assertBookDoctors(
-  data: Record<string, string>,
-  fields: BookFieldRow[],
-  previous: Record<string, string> = {},
-) {
+export async function canonicalizeBookDoctors(data: Record<string, string>, fields: BookFieldRow[]) {
   const doctorFields = fields.filter((f) => f.type === 'doctor' && data[f.key])
   if (doctorFields.length === 0) return
   const names = await listBookDoctors()
-  const byNorm = new Map(names.map((n) => [norm(n), n]))
   for (const f of doctorFields) {
-    const v = data[f.key]
-    const match = byNorm.get(norm(v))
-    if (match) {
-      data[f.key] = match
-      continue
-    }
-    if (previous[f.key] !== undefined && norm(previous[f.key]) === norm(v)) continue
-    throw new HttpError(
-      422,
-      `${f.label}: elige un médico inscrito en la app. Si falta, pídele a Jefatura que lo agregue en Administración.`,
-    )
+    const { exact } = matchNames(data[f.key], names, (n) => n)
+    if (exact.length === 1) data[f.key] = exact[0]
   }
 }
 

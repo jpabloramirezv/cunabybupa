@@ -50,6 +50,18 @@ export async function listBookDoctors(): Promise<string[]> {
   return [...new Set(rows.map((r) => r.label))]
 }
 
+export type BookDoctor = { id: number; name: string; specialty: string | null; role: string }
+
+/** Médicos activos con su especialidad, para elegirlos en el libro y detectar nombres repetidos. */
+export async function listBookDoctorsDetailed(): Promise<BookDoctor[]> {
+  const rows = await db
+    .select({ id: staff.id, name: staff.name, specialty: staff.specialty, role: staff.role })
+    .from(staff)
+    .where(and(eq(staff.active, true), inArray(staff.role, [...DOCTOR_ROLES])))
+    .orderBy(asc(staff.name))
+  return rows
+}
+
 /** Si se corrige el nombre de un médico, los registros del libro que lo citan se actualizan con él. */
 async function renameDoctorInBook(from: string, to: string) {
   const cols = await db.select({ key: bookField.key }).from(bookField).where(eq(bookField.type, 'doctor'))

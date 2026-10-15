@@ -1,10 +1,10 @@
-import { eq } from 'drizzle-orm'
+import { and, eq, isNull, ne } from 'drizzle-orm'
 import { assertEpisodeId, handle, HttpError, readJson } from '@/lib/api'
 import { audit } from '@/lib/audit'
 import { requireCtx } from '@/lib/ctx'
 import { db } from '@/lib/db'
 import { birthRecord, episode } from '@/lib/db/schema'
-import { assertBookDoctors, getBookFields, sanitizeData } from '@/lib/server/book'
+import { canonicalizeBookDoctors, getBookFields, sanitizeData } from '@/lib/server/book'
 import { activeRecord, getRecord, withDefaults } from '@/lib/server/book-records'
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -28,7 +28,7 @@ export const PATCH = handle<Ctx>(async (req, { params }) => {
     neonatal: ctx.canEditNeonatal,
   })
   if (errors.length) throw new HttpError(422, errors[0])
-  await assertBookDoctors(data, fields, current.data ?? {})
+  await canonicalizeBookDoctors(data, fields)
 
   const set: Partial<typeof birthRecord.$inferInsert> = {}
   if (b.episodeId !== undefined) {
@@ -38,6 +38,12 @@ export const PATCH = handle<Ctx>(async (req, { params }) => {
       assertEpisodeId(b.episodeId)
       const [ep] = await db.select({ id: episode.id }).from(episode).where(eq(episode.id, b.episodeId)).limit(1)
       if (!ep) throw new HttpError(404, 'No encontramos ese ingreso de UCI.')
+      const [dup] = await db
+        .select({ id: birthRecord.id })
+        .from(birthRecord)
+        .where(and(eq(birthRecord.episodeId, ep.id), isNull(birthRecord.deletedAt), ne(birthRecord.id, id)))
+        .limit(1)
+      if (dup) throw new HttpError(409, 'Ese recién nacido ya está vinculado a otra fila del libro.')
       set.episodeId = ep.id
     } else {
       throw new HttpError(400, 'Vínculo no válido.')
