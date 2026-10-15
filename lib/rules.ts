@@ -1,6 +1,7 @@
 // Reglas compartidas entre cliente y servidor: faltantes, estado y avisos.
 
 import { SCREENING_KINDS } from '@/lib/config'
+import { addMonthsDaysSantiago } from '@/lib/time'
 
 export type Role = 'matrona' | 'medico' | 'medico_jefe' | 'jefatura' | 'analista'
 
@@ -66,9 +67,7 @@ export function hivStatus(
   const hasDate = !!at
   if (!has && !hasDate) return { state: 'sin_dato', expiresAt: null, daysLeft: null, negative: false }
   if (!has || !hasDate) return { state: 'incompleto', expiresAt: null, daysLeft: null, negative: result === 'negativo' }
-  const exp = new Date(at as string)
-  exp.setMonth(exp.getMonth() + 1)
-  exp.setDate(exp.getDate() + 5)
+  const exp = addMonthsDaysSantiago(at as string, 1, 5)
   const daysLeft = Math.ceil((exp.getTime() - now) / 86400_000)
   return {
     state: exp.getTime() >= now ? 'vigente' : 'caducado',

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { CloudOff, RefreshCw } from 'lucide-react'
+import { TZ } from '@/lib/time'
 import { cn } from '@/lib/utils'
 
 /** Fuerza un re-render cada cierto tiempo para que los textos relativos ("hace 12 s") se mantengan al día. */
@@ -24,7 +25,7 @@ function ago(from: number, now: number) {
 }
 
 const clock = (t: number) =>
-  new Date(t).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', hour12: false })
+  new Date(t).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: TZ })
 
 /**
  * Dice cuándo se actualizaron los datos por última vez. Si falla el refresco, deja la lista

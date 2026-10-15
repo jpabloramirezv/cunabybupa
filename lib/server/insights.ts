@@ -50,7 +50,7 @@ import {
   summarize,
   wilson,
 } from '@/lib/stats'
-import { addDaysYmd, endOfDay, fmtYmd, shiftOf, startOfDay, zonedParts } from '@/lib/time'
+import { addDaysYmd, endOfDay, fmtSheetDateTime, fmtYmd, shiftOf, startOfDay, zonedParts } from '@/lib/time'
 import { buildDetails, type EpisodeRow } from '@/lib/server/episodes'
 import type { EpisodeDetail } from '@/lib/types'
 
@@ -817,9 +817,9 @@ export async function computeInsights(
     const row: DataRow = {
       Código: d?.code ?? r.id,
       Estado: STATUS_LABEL[r.status as EpisodeStatus] ?? r.status,
-      Ingreso: r.createdAt.toISOString(),
+      Ingreso: fmtSheetDateTime(r.createdAt),
       'Turno de ingreso': shiftOf(r.createdAt).kind === 'D' ? 'Día' : 'Noche',
-      Nacimiento: r.birthAt?.toISOString() ?? null,
+      Nacimiento: fmtSheetDateTime(r.birthAt) || null,
       'EG (semanas)': r.gaWeeks,
       'EG (días)': r.gaDays,
       'Grupo EG': gaLabel(gaGroupOf(r.gaWeeks)),
@@ -837,8 +837,8 @@ export async function computeInsights(
           .filter(Boolean)
           .join(' | ') || null,
       Hiperbilirrubinemia: r.hyperbili === null ? null : r.hyperbili ? 'Sí' : 'No',
-      Fototerapia: r.phototherapyAt?.toISOString() ?? null,
-      Egreso: r.dischargeAt?.toISOString() ?? null,
+      Fototerapia: fmtSheetDateTime(r.phototherapyAt) || null,
+      Egreso: fmtSheetDateTime(r.dischargeAt) || null,
       'Estadía (días)': los !== null && los >= 0 ? Math.round(los * 100) / 100 : null,
       'Peso al alta (g)': r.dischargeWeightG,
       'Dx egreso':

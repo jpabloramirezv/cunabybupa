@@ -5,6 +5,7 @@ import useSWR from 'swr'
 import { Download } from 'lucide-react'
 import { fetcher } from '@/lib/fetcher'
 import { useMe } from '@/lib/hooks'
+import { addDaysYmd, startOfDay, todayYmd } from '@/lib/time'
 import type { PanelPayload, Stat } from '@/lib/types'
 import type { StatsSegment } from '@/lib/server/book-stats'
 import { BookStatsView } from '@/components/cuna/book/book-stats-view'
@@ -72,10 +73,7 @@ export function PanelView() {
   const { data: me } = useMe()
   const [days, setDays] = useState('30')
   const from = useMemo(() => {
-    const d = new Date()
-    d.setHours(0, 0, 0, 0)
-    d.setDate(d.getDate() - Number(days))
-    return d.toISOString()
+    return startOfDay(addDaysYmd(todayYmd(), -Number(days)))!.toISOString()
   }, [days])
   const query = `from=${encodeURIComponent(from)}`
   const [segment, setSegment] = useState<StatsSegment>('uci')

@@ -211,7 +211,7 @@ function Composer({ onPosted }: { onPosted: () => Promise<unknown> }) {
           className="w-full resize-y rounded-lg border border-input bg-background p-3 text-base leading-relaxed focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
         />
         <div className="mt-1 flex items-start justify-between gap-3 text-sm text-muted-foreground">
-          <span>{hint} No incluyas RUT ni nombres de pacientes.</span>
+          <span>{hint}</span>
           <span className="shrink-0 tabular-nums">
             {body.length}/{NOTE_MAX_LENGTH}
           </span>

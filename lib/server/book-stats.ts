@@ -1,7 +1,7 @@
 import { getBookFields, type BookRecordOut } from '@/lib/server/book'
 import { listRecords } from '@/lib/server/book-records'
 import { segmentOf, sectionProgress, type BookSegment } from '@/lib/book-flow'
-import { addDaysYmd } from '@/lib/time'
+import { addDaysYmd, ymdInSantiago } from '@/lib/time'
 
 export type StatsSegment = 'nursery' | 'uci' | 'todos'
 
@@ -295,7 +295,7 @@ function computeBinomio(fields: Awaited<ReturnType<typeof getBookFields>>, items
 export async function computeBookStats(from: string, to: string, segment: StatsSegment): Promise<BookStats> {
   const fields = await getBookFields()
   const all = await listRecords(fields)
-  const dateOf = (r: BookRecordOut) => r.values.fecha || r.createdAt.slice(0, 10)
+  const dateOf = (r: BookRecordOut) => r.values.fecha || ymdInSantiago(r.createdAt)
   const inPeriod = all
     .filter((r) => {
       const d = dateOf(r)
