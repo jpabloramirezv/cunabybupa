@@ -8,7 +8,7 @@ export const maxDuration = 60
 
 /** Excel del informe: tablas por sección y hoja de datos sin identificación. */
 export const POST = handle(async (req) => {
-  const ctx = await requireCtx('reports')
+  const ctx = await requireCtx('admin')
   const body = await readJson<{ config?: unknown }>(req)
   const cfg = sanitizeConfig(body.config ?? body)
   if (!cfg) throw new HttpError(400, 'Revisa el período del informe.')

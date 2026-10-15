@@ -1,5 +1,6 @@
 'use client'
 
+import { DownloadGate } from '@/components/cuna/download-gate'
 import { Fragment, useMemo, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -587,14 +588,16 @@ export function Ledger({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <ResetWidthsButton widths={colW} />
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="flex h-10 items-center gap-2 rounded-lg border border-input bg-card px-4 text-sm font-semibold text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
-          >
-            <Printer className="size-4" aria-hidden />
-            Imprimir libro
-          </button>
+          <DownloadGate>
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="flex h-10 items-center gap-2 rounded-lg border border-input bg-card px-4 text-sm font-semibold text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+            >
+              <Printer className="size-4" aria-hidden />
+              Imprimir libro
+            </button>
+          </DownloadGate>
         </div>
       </div>
 

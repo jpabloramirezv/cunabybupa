@@ -21,7 +21,7 @@ const cell = (v: unknown) => {
 
 /** Exportación sin datos identificables: solo código interno y variables clínicas. */
 export const GET = handle(async (req) => {
-  const ctx = await requireCtx('panel')
+  const ctx = await requireCtx('admin')
   const params = new URL(req.url).searchParams
   const period = parsePeriod(params)
   if (!period) throw new HttpError(400, 'El período no es válido.')

@@ -1,5 +1,6 @@
 'use client'
 
+import { DownloadGate } from '@/components/cuna/download-gate'
 import { useMemo, useState } from 'react'
 import useSWR from 'swr'
 import { Check, ChevronDown, Download, Printer, SlidersHorizontal } from 'lucide-react'
@@ -314,6 +315,7 @@ export function BookColumnReport({
       </div>
 
       {data && visible.length > 0 ? (
+        <DownloadGate>
         <div className="flex flex-wrap gap-2 print:hidden">
           <button
             type="button"
@@ -332,6 +334,7 @@ export function BookColumnReport({
             Descargar resumen (CSV)
           </button>
         </div>
+        </DownloadGate>
       ) : null}
 
       {error ? <Notice tone="danger" title="No pudimos calcular el informe por columnas." /> : null}

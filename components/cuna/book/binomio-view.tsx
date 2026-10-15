@@ -1,5 +1,6 @@
 'use client'
 
+import { DownloadGate } from '@/components/cuna/download-gate'
 import { useMemo, useState, type ReactNode } from 'react'
 import useSWR from 'swr'
 import { AlertTriangle, CheckCircle2, Download, Link2, Printer } from 'lucide-react'
@@ -214,6 +215,7 @@ export function BinomioView({
       </div>
 
       {tools && b && b.n > 0 ? (
+        <DownloadGate>
         <div className="flex flex-wrap gap-2 print:hidden">
           <button
             type="button"
@@ -240,6 +242,7 @@ export function BinomioView({
             Descargar resumen (CSV)
           </button>
         </div>
+        </DownloadGate>
       ) : null}
 
       {error ? <Notice tone="danger" title="No pudimos calcular el análisis del binomio." /> : null}

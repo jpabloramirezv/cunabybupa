@@ -58,8 +58,9 @@ export function bookPermissionsFor(role: Role, isAdmin = false, unit: Unit = 'ne
   const canBook = effective === 'matrona' || effective === 'jefatura'
   return {
     canBook,
-    canEditMaternity: canBook && (effective === 'jefatura' || unit === 'maternidad'),
-    canEditNeonatal: canBook && (effective === 'jefatura' || unit === 'neonatologia'),
+    // Cada perfil completa solo la parte de la unidad que tiene asignada, también Jefatura.
+    canEditMaternity: canBook && unit === 'maternidad',
+    canEditNeonatal: canBook && unit === 'neonatologia',
   }
 }
 

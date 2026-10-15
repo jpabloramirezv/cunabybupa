@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState, type KeyboardEvent, type ReactNode } from 'react'
-import { Check, ChevronDown, ChevronUp, ChevronsUpDown, Columns3, Copy, EyeOff, Printer, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, ChevronsUpDown, Columns3, Copy, Printer, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Highlight } from '@/components/cuna/highlight'
 import { ColumnResizer, ResetWidthsButton, SizedCell, useColumnWidths, widthStyle } from '@/components/cuna/column-resize'
@@ -17,7 +17,6 @@ export type LedgerRow = {
 }
 
 type SortValue = string | number | null
-type Density = 'comoda' | 'compacta'
 
 type Col = {
   id: string
@@ -40,29 +39,15 @@ const NAME_LEFT = 'left-[7.5rem]'
 const NAME_FIELDS = new Set(['nombre', 'ap_paterno', 'ap_materno'])
 const FLAGGED = new Set(['POSITIVO', 'REACTIVO', 'REFIERE'])
 
-const RESUMEN_KEYS = new Set([
-  'fecha',
-  'hora',
-  'rut',
-  'tipo_parto',
-  'prevision',
-  'sexo_rn',
-  'eg',
-  'peso',
-  'apgar1',
-  'apgar5',
-  'hospitalizado',
-  'fecha_alta_rn',
-])
-
-type PresetId = 'resumen' | 'materno' | 'neonatal' | 'examenes' | 'todo'
+export type LedgerPreset = 'neonatal' | 'materno' | 'todo'
+type PresetId = LedgerPreset
 
 const PRESETS: { id: PresetId; label: string; hint: string; pick: (f: BookFieldRow) => boolean }[] = [
   {
-    id: 'resumen',
-    label: 'Resumen',
-    hint: 'Lo esencial de cada nacimiento: fecha, madre, tipo de parto, sexo, peso, Apgar y alta.',
-    pick: (f) => RESUMEN_KEYS.has(f.key),
+    id: 'neonatal',
+    label: 'Neonatología',
+    hint: 'Todas las columnas del RN: datos al nacer, Apgar, alta, vacunas y tamizajes.',
+    pick: (f) => f.section === 'neonatal',
   },
   {
     id: 'materno',
@@ -71,20 +56,8 @@ const PRESETS: { id: PresetId; label: string; hint: string; pick: (f: BookFieldR
     pick: (f) => f.section === 'materno',
   },
   {
-    id: 'neonatal',
-    label: 'Neonatología',
-    hint: 'Todas las columnas del RN: datos al nacer, Apgar, alta, vacunas y tamizajes.',
-    pick: (f) => f.section === 'neonatal',
-  },
-  {
-    id: 'examenes',
-    label: 'Exámenes y vacunas',
-    hint: 'Exámenes de la madre (ELISA, VDRL, SGB, Hepatitis B, Chagas) y vacunas y tamizajes del RN.',
-    pick: (f) => f.group === 'Exámenes' || f.group === 'Vacunas y tamizajes' || f.key === 'rut' || f.key === 'fecha',
-  },
-  {
     id: 'todo',
-    label: 'Todo el libro',
+    label: 'Todo el Libro',
     hint: 'Todas las columnas, tal como en el libro oficial. Desplázate hacia los lados; las dos primeras quedan fijas.',
     pick: () => true,
   },
@@ -215,7 +188,13 @@ export function BookLedger({
   onOpen,
   onTwin,
   activeId,
+  canDownload = false,
+  defaultPreset = 'todo',
 }: {
+  /** Solo Jefatura puede imprimir o descargar el libro. */
+  canDownload?: boolean
+  /** Vista de columnas con la que abre, según la unidad del perfil. */
+  defaultPreset?: LedgerPreset
   rows: LedgerRow[]
   fields: BookFieldRow[]
   terms: string[]
@@ -228,8 +207,6 @@ export function BookLedger({
 }) {
   const [picked, setPicked] = useState<Set<string> | null>(null)
   const [showStatus, setShowStatus] = useState(true)
-  const [hideEmpty, setHideEmpty] = useState(false)
-  const [density, setDensity] = useState<Density>('comoda')
   const [sort, setSort] = useState<{ id: string; dir: 'asc' | 'desc' }>({ id: 'seq', dir: 'desc' })
   const [limit, setLimit] = useState(PAGE)
   const [chooser, setChooser] = useState(false)
@@ -246,7 +223,7 @@ export function BookLedger({
     return new Set(keys.length ? keys : displayFields.map((f) => f.key))
   }
 
-  const effective = picked ?? presetKeys('resumen')
+  const effective = picked ?? presetKeys(defaultPreset)
   const activePreset = PRESETS.find((p) => sameSet(effective, presetKeys(p.id)))?.id ?? null
 
   const groups = useMemo(() => {
@@ -259,12 +236,6 @@ export function BookLedger({
     }
     return out
   }, [displayFields])
-
-  const hasValue = useMemo(() => {
-    const s = new Set<string>()
-    for (const x of rows) for (const [k, v] of Object.entries(x.r.values)) if (v) s.add(k)
-    return s
-  }, [rows])
 
   function toggleGroup(keys: string[]) {
     const next = new Set(effective)
@@ -359,7 +330,7 @@ export function BookLedger({
         ]
       : []
     const dynamic: Col[] = displayFields
-      .filter((f) => effective.has(f.key) && (!hideEmpty || hasValue.has(f.key)))
+      .filter((f) => effective.has(f.key))
       .map((f) => ({
         id: `f-${f.key}`,
         group: f.group,
@@ -395,7 +366,7 @@ export function BookLedger({
         ]
       : []
     return [...head, ...status, ...dynamic, ...actions]
-  }, [displayFields, effective, hideEmpty, hasValue, showStatus, terms, onTwin])
+  }, [displayFields, effective, showStatus, terms, onTwin])
 
   const sorted = useMemo(() => {
     const col = columns.find((c) => c.id === sort.id)
@@ -438,7 +409,7 @@ export function BookLedger({
   const preset = PRESETS.find((p) => p.id === activePreset)
   const page = sorted.slice(0, limit)
   const fieldCount = columns.filter((c) => c.id.startsWith('f-')).length
-  const cellPad = density === 'compacta' ? 'px-3 py-1.5 text-xs' : 'px-3 py-3 text-sm'
+  const cellPad = 'px-3 py-1.5 text-xs'
 
   return (
     <div className="relative left-1/2 flex w-[calc(100vw-2rem)] max-w-[96rem] -translate-x-1/2 flex-col gap-3 print:left-0 print:w-full print:max-w-none print:translate-x-0">
@@ -480,46 +451,17 @@ export function BookLedger({
               <Columns3 className="size-4" aria-hidden />
               Elegir columnas
             </button>
-            <button
-              type="button"
-              aria-pressed={hideEmpty}
-              onClick={() => setHideEmpty((v) => !v)}
-              title="Oculta las columnas que no tienen ningún dato en los registros mostrados"
-              className={cn(
-                'flex h-10 items-center gap-2 rounded-lg border px-3.5 text-sm font-semibold transition-colors',
-                'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30',
-                hideEmpty ? 'border-primary/40 bg-secondary text-secondary-foreground' : 'border-input bg-card text-foreground hover:bg-muted',
-              )}
-            >
-              <EyeOff className="size-4" aria-hidden />
-              Ocultar vacías
-            </button>
-            <div role="group" aria-label="Densidad de registros" className="inline-flex rounded-lg border border-input bg-card p-0.5">
-              {(['comoda', 'compacta'] as const).map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  aria-pressed={density === d}
-                  onClick={() => setDensity(d)}
-                  className={cn(
-                    'h-9 rounded-md px-3 text-sm font-semibold transition-colors',
-                    'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30',
-                    density === d ? 'bg-secondary text-secondary-foreground' : 'text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  {d === 'comoda' ? 'Cómoda' : 'Compacta'}
-                </button>
-              ))}
-            </div>
             <ResetWidthsButton widths={colW} />
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="flex h-10 items-center gap-2 rounded-lg border border-input bg-card px-3.5 text-sm font-semibold text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
-            >
-              <Printer className="size-4" aria-hidden />
-              Imprimir
-            </button>
+            {canDownload ? (
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="flex h-10 items-center gap-2 rounded-lg border border-input bg-card px-3.5 text-sm font-semibold text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+              >
+                <Printer className="size-4" aria-hidden />
+                Imprimir
+              </button>
+            ) : null}
           </div>
         </div>
 

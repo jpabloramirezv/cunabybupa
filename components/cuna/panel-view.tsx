@@ -103,7 +103,7 @@ export function PanelView() {
                 : 'Calculado sobre UPC Neonatal y Nursery juntos, más el Libro de Partos y Abortos. Sin datos de identificación.'}
           </p>
         </div>
-        {uci ? (
+        {uci && me?.canAdmin ? (
           <a
             href={`/api/export?${query}&unidad=${segment}`}
             className="inline-flex h-12 items-center gap-2 rounded-lg border border-primary bg-card px-4 text-sm font-semibold text-primary hover:bg-secondary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
