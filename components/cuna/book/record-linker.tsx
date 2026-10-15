@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { FilePlus2, Link2, X } from 'lucide-react'
+import { ChevronDown, FilePlus2, Link2, X } from 'lucide-react'
 import { BOOK_SECTION_LABEL, type BookSection } from '@/lib/book-fields'
 import { linkCode, type SectionProgress } from '@/lib/book-flow'
 import { haystackOf, matchesAll, parseQuery } from '@/lib/search'
@@ -10,13 +10,85 @@ import { cn } from '@/lib/utils'
 import { PrimaryButton } from '@/components/cuna/ui'
 import { SearchField } from '@/components/cuna/search-field'
 
-export type LinkCandidate = { record: BookRecordOut; progress: SectionProgress }
+export type LinkCandidate = {
+  record: BookRecordOut
+  /** Avance de la parte de quien está registrando. */
+  progress: SectionProgress
+  /** Avance de la otra unidad, para ver quién ya empezó la fila. */
+  other?: SectionProgress
+}
+
+const VISIBLE_FIRST = 5
 
 const motherOf = (v: Record<string, string>) =>
   [v.nombre, v.ap_paterno, v.ap_materno].filter(Boolean).join(' ') || 'Madre sin nombre'
 
+function UnitBadge({ unit, p, highlight }: { unit: string; p: SectionProgress; highlight?: boolean }) {
+  if (p.total === 0) {
+    return (
+      <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
+        {unit} no aplica
+      </span>
+    )
+  }
+  const text = p.state === 'pendiente' ? `${unit}: sin empezar` : p.state === 'completo' ? `${unit}: completa` : `${unit}: ${p.filled}/${p.total}`
+  return (
+    <span
+      className={cn(
+        'rounded-full px-2.5 py-0.5 text-xs font-semibold',
+        p.state === 'completo' && 'bg-success/15 text-success',
+        p.state === 'en_curso' && 'bg-secondary text-secondary-foreground',
+        p.state === 'pendiente' && (highlight ? 'bg-warning text-warning-foreground' : 'bg-muted text-muted-foreground'),
+      )}
+    >
+      {text}
+    </span>
+  )
+}
+
+function CandidateRow({
+  candidate,
+  section,
+  onPick,
+}: {
+  candidate: LinkCandidate
+  section: BookSection
+  onPick: (r: BookRecordOut) => void
+}) {
+  const { record: r, progress, other } = candidate
+  const mine = section === 'materno' ? 'Maternidad' : 'Neonatología'
+  const theirs = section === 'materno' ? 'Neonatología' : 'Maternidad'
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => onPick(r)}
+        className="flex w-full items-center gap-4 rounded-xl border border-border bg-background p-4 text-left transition-colors hover:border-primary hover:bg-secondary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+      >
+        <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="text-xs font-bold tabular-nums text-muted-foreground">{linkCode(r.seq)}</span>
+            <span className="truncate text-base font-semibold text-foreground">{motherOf(r.values)}</span>
+            {r.values.rut ? <span className="text-sm text-muted-foreground">{r.values.rut}</span> : null}
+          </span>
+          <span className="text-sm text-muted-foreground">
+            {[r.values.fecha, r.values.hora, r.values.tipo_parto, r.episodeCode ? `UCI ${r.episodeCode}` : null]
+              .filter(Boolean)
+              .join(' · ')}
+          </span>
+          <span className="flex flex-wrap gap-1.5">
+            {other ? <UnitBadge unit={theirs} p={other} /> : null}
+            <UnitBadge unit={mine} p={progress} highlight />
+          </span>
+        </span>
+        <Link2 className="size-5 shrink-0 text-primary" aria-hidden />
+      </button>
+    </li>
+  )
+}
+
 /**
- * Paso previo a crear una fila: muestra las filas que están esperando la parte de quien registra,
+ * Paso previo a crear una fila: muestra el total de filas incompletas que esperan la parte de quien registra,
  * para que Maternidad y Neonatología completen la misma fila en cualquier orden.
  */
 export function RecordLinker({
@@ -33,10 +105,11 @@ export function RecordLinker({
   onCancel: () => void
 }) {
   const [q, setQ] = useState('')
+  const [expanded, setExpanded] = useState(false)
   const other = section === 'neonatal' ? 'Maternidad' : 'Neonatología'
   const terms = parseQuery(q)
 
-  const shown = useMemo(() => {
+  const matching = useMemo(() => {
     const rank = (c: LinkCandidate) => (c.progress.state === 'pendiente' ? 0 : 1)
     return [...candidates]
       .filter((c) =>
@@ -46,9 +119,13 @@ export function RecordLinker({
         ),
       )
       .sort((a, b) => rank(a) - rank(b) || b.record.seq - a.record.seq)
-      .slice(0, q ? 20 : 6)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [candidates, q])
+
+  const first = matching.slice(0, VISIBLE_FIRST)
+  const rest = matching.slice(VISIBLE_FIRST)
+  const startedByOther = candidates.filter((c) => c.other && c.other.state !== 'pendiente').length
+  const total = candidates.length
 
   return (
     <section
@@ -76,6 +153,16 @@ export function RecordLinker({
         </button>
       </div>
 
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl bg-secondary px-4 py-3" role="status">
+        <p className="text-base font-semibold text-secondary-foreground">
+          {total} {total === 1 ? 'registro incompleto' : 'registros incompletos'}
+        </p>
+        <p className="text-sm text-muted-foreground">
+          esperan la parte de {BOOK_SECTION_LABEL[section]}
+          {startedByOther > 0 ? ` · ${startedByOther} ya ${startedByOther === 1 ? 'la empezó' : 'las empezó'} ${other}` : ''}
+        </p>
+      </div>
+
       <SearchField
         id="book-link-search"
         label="Buscar la fila"
@@ -85,49 +172,36 @@ export function RecordLinker({
       />
 
       <ul className="flex flex-col gap-2">
-        {shown.length === 0 ? (
+        {matching.length === 0 ? (
           <li className="rounded-lg bg-muted p-4 text-sm text-muted-foreground">
-            {q ? 'Ninguna fila pendiente coincide. Prueba con otro dato o crea una fila nueva.' : 'No hay filas esperando.'}
+            {q ? 'Ninguna fila incompleta coincide. Prueba con otro dato o crea una fila nueva.' : 'No hay filas esperando.'}
           </li>
         ) : null}
-        {shown.map(({ record: r, progress }) => (
-          <li key={r.id}>
-            <button
-              type="button"
-              onClick={() => onPick(r)}
-              className="flex w-full items-center gap-4 rounded-xl border border-border bg-background p-4 text-left transition-colors hover:border-primary hover:bg-secondary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
-            >
-              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <span className="text-xs font-bold tabular-nums text-muted-foreground">{linkCode(r.seq)}</span>
-                  <span className="truncate text-base font-semibold text-foreground">{motherOf(r.values)}</span>
-                  {r.values.rut ? <span className="text-sm text-muted-foreground">{r.values.rut}</span> : null}
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  {[r.values.fecha, r.values.hora, r.values.tipo_parto, r.episodeCode ? `UCI ${r.episodeCode}` : null]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </span>
-              </span>
-              <span
-                className={cn(
-                  'shrink-0 rounded-full px-3 py-1 text-xs font-semibold',
-                  progress.state === 'pendiente' ? 'bg-warning text-warning-foreground' : 'bg-secondary text-secondary-foreground',
-                )}
-              >
-                {progress.state === 'pendiente'
-                  ? `Falta ${BOOK_SECTION_LABEL[section]}`
-                  : `${BOOK_SECTION_LABEL[section]} ${progress.filled}/${progress.total}`}
-              </span>
-              <Link2 className="size-5 shrink-0 text-primary" aria-hidden />
-            </button>
-          </li>
+        {first.map((c) => (
+          <CandidateRow key={c.record.id} candidate={c} section={section} onPick={onPick} />
         ))}
       </ul>
-      {!q && candidates.length > 6 ? (
-        <p className="text-sm text-muted-foreground">
-          Mostrando las 6 más recientes de {candidates.length}. Usa el buscador para encontrar otra.
-        </p>
+
+      {rest.length > 0 ? (
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            aria-expanded={expanded}
+            aria-controls="book-link-rest"
+            className="flex h-12 items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-semibold text-primary hover:bg-secondary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+          >
+            {expanded ? 'Ocultar el resto' : `Ver los ${rest.length} restantes`}
+            <ChevronDown className={cn('size-4 transition-transform', expanded && 'rotate-180')} aria-hidden />
+          </button>
+          {expanded ? (
+            <ul id="book-link-rest" className="flex max-h-[28rem] flex-col gap-2 overflow-y-auto pr-1">
+              {rest.map((c) => (
+                <CandidateRow key={c.record.id} candidate={c} section={section} onPick={onPick} />
+              ))}
+            </ul>
+          ) : null}
+        </div>
       ) : null}
 
       <div className="flex flex-wrap gap-2 border-t border-border pt-4">

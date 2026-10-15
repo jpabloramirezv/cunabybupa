@@ -396,7 +396,11 @@ export function BookView() {
   const linkCandidates = linking
     ? rows
         .filter((x) => (linking === 'neonatal' ? x.seg !== 'aborto' && x.neo.state !== 'completo' : x.mat.state !== 'completo'))
-        .map((x) => ({ record: x.r, progress: linking === 'neonatal' ? x.neo : x.mat }))
+        .map((x) => ({
+          record: x.r,
+          progress: linking === 'neonatal' ? x.neo : x.mat,
+          other: linking === 'neonatal' ? x.mat : x.neo,
+        }))
     : []
 
   return (
