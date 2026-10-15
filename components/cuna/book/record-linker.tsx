@@ -97,12 +97,15 @@ export function RecordLinker({
   onPick,
   onNew,
   onCancel,
+  onSwitch,
 }: {
   section: BookSection
   candidates: LinkCandidate[]
   onPick: (r: BookRecordOut) => void
   onNew: () => void
   onCancel: () => void
+  /** Solo si la persona puede registrar por ambas unidades: elige quién empieza o continúa. */
+  onSwitch?: (s: BookSection) => void
 }) {
   const [q, setQ] = useState('')
   const [expanded, setExpanded] = useState(false)
@@ -139,9 +142,29 @@ export function RecordLinker({
           </p>
           <h2 className="mt-1 text-xl font-bold text-navy text-balance">¿Esta fila ya la empezó {other}?</h2>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground text-pretty">
-            Una fila es un recién nacido. Si {other} ya empezó a llenarla, elígela y continúa donde quedó. Si no, crea una
-            fila nueva; la otra unidad podrá completarla después.
+            Una fila es un recién nacido. Funciona en ambos sentidos: Maternidad puede abrirla cuando llega la madre y
+            Neonatología continuarla tras el nacimiento, o al revés. Si {other} ya la empezó, elígela y continúa donde
+            quedó. Si no, crea una fila nueva; la otra unidad podrá completarla después.
           </p>
+          {onSwitch ? (
+            <div role="group" aria-label="Quién registra" className="mt-3 inline-flex gap-1 rounded-xl bg-muted p-1">
+              {(['materno', 'neonatal'] as const).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  aria-pressed={section === s}
+                  onClick={() => section !== s && onSwitch(s)}
+                  className={cn(
+                    'h-10 rounded-lg px-3.5 text-sm font-semibold transition-all',
+                    'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30',
+                    section === s ? 'bg-card text-navy shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  Registro como {BOOK_SECTION_LABEL[s]}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
         <button
           type="button"

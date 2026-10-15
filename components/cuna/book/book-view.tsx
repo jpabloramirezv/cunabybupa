@@ -244,7 +244,8 @@ export function BookView() {
     setMessage(null)
     setDupes(null)
     const waiting = rows.some((x) => (kind === 'neonatal' ? x.seg !== 'aborto' && x.neo.state !== 'completo' : x.mat.state !== 'completo'))
-    if (!waiting) return startBlank(kind)
+    const canBoth = !!me?.canEditMaternity && !!me?.canEditNeonatal
+    if (!waiting && !canBoth) return startBlank(kind)
     setDraft(null)
     setSection(kind)
     setLinking(kind)
@@ -358,7 +359,7 @@ export function BookView() {
         await send('/api/book', 'POST', { data: draft.values, episodeId: draft.episodeId })
         setMessage({
           tone: 'success',
-          text: 'Registro agregado al libro. La otra unidad lo verá como pendiente para completar su parte.',
+          text: `Registro agregado al libro. ${section === 'materno' ? 'Neonatología' : 'Maternidad'} lo verá como pendiente para completar su parte.`,
         })
         await mutate()
         setDraft(null)
@@ -463,6 +464,11 @@ export function BookView() {
             código (por ejemplo {linkCode(12)}) para encontrarlo rápido.
           </li>
           <li>
+            <strong className="text-foreground">Quién empieza.</strong> Puede empezar Maternidad (la madre llega y ya se
+            completan varios datos) y luego Neonatología continúa tras el nacimiento, o al revés. En ambos casos la fila
+            queda pendiente para la otra unidad y no se duplica.
+          </li>
+          <li>
             <strong className="text-foreground">Nursery o UCI.</strong> Si el RN se hospitaliza, vincula su ingreso de
             la Pizarra o marca Hospitalización en SI: pasa a UCI y sus datos clínicos se completan solos. Si no, queda
             como Nursery. Los gemelos van en registros separados con los datos de la madre copiados.
@@ -482,6 +488,14 @@ export function BookView() {
             onPick={(r) => open(r, linking)}
             onNew={() => startBlank(linking)}
             onCancel={() => setLinking(null)}
+            onSwitch={
+              me?.canEditMaternity && me?.canEditNeonatal
+                ? (s) => {
+                    setSection(s)
+                    setLinking(s)
+                  }
+                : undefined
+            }
           />
         </div>
       ) : null}
