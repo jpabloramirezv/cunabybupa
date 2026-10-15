@@ -7,10 +7,14 @@ import { db } from '@/lib/db'
 import { catalogItem, diagnosis, episode } from '@/lib/db/schema'
 import { buildDetails } from '@/lib/server/episodes'
 import { parsePanelUnit, parsePeriod } from '@/lib/server/panel'
+import { fmtSheetDateTime } from '@/lib/time'
+
+const ISO_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
 
 const cell = (v: unknown) => {
   if (v === null || v === undefined) return ''
-  const s = v instanceof Date ? v.toISOString() : String(v)
+  const raw = v instanceof Date ? v.toISOString() : String(v)
+  const s = ISO_UTC.test(raw) ? fmtSheetDateTime(raw) : raw
   const safe = /^[=+\-@]/.test(s) ? `'${s}` : s
   return /[",\n;]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe
 }

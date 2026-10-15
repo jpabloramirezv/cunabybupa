@@ -22,6 +22,7 @@ export const AUDIT_BLOCK_LABELS: Record<string, string> = {
   turno: 'Turno',
   insights: 'Informes',
   libro: 'Libro de Partos',
+  mural: 'Mural de turno',
 }
 
 export type AuditChange = {

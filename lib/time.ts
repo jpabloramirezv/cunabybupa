@@ -89,6 +89,30 @@ export function todayYmd(now = new Date()): string {
   return `${p.y}-${pad(p.mo)}-${pad(p.d)}`
 }
 
+/** Día calendario (YYYY-MM-DD) de un instante, en hora de Santiago. */
+export function ymdInSantiago(iso: string | Date): string {
+  const d = typeof iso === 'string' ? new Date(iso) : iso
+  const p = zonedParts(d)
+  return `${p.y}-${pad(p.mo)}-${pad(p.d)}`
+}
+
+/** Hora de Santiago como "YYYY-MM-DD HH:mm", para planillas y CSV. Vacío si no hay fecha. */
+export function fmtSheetDateTime(iso?: string | Date | null): string {
+  if (!iso) return ''
+  const d = typeof iso === 'string' ? new Date(iso) : iso
+  if (Number.isNaN(d.getTime())) return ''
+  const p = zonedParts(d)
+  return `${p.y}-${pad(p.mo)}-${pad(p.d)} ${pad(p.h)}:${pad(p.mi)}`
+}
+
+/** Suma meses y días calendario a un instante respetando la hora de pared de Santiago. */
+export function addMonthsDaysSantiago(iso: string | Date, months: number, days: number): Date {
+  const d = typeof iso === 'string' ? new Date(iso) : iso
+  const p = zonedParts(d)
+  const shifted = new Date(Date.UTC(p.y, p.mo - 1 + months, p.d + days))
+  return zonedToUtc(shifted.getUTCFullYear(), shifted.getUTCMonth() + 1, shifted.getUTCDate(), p.h, p.mi)
+}
+
 export function addDaysYmd(ymd: string, days: number): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd)!
   const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3] + days))
