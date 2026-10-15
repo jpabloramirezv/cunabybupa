@@ -1,6 +1,7 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Montserrat } from 'next/font/google'
+import { SmartZoom } from '@/components/cuna/smart-zoom'
 import './globals.css'
 
 const montserrat = Montserrat({
@@ -33,6 +34,7 @@ export default function RootLayout({
     <html lang="es-CL" className={`${montserrat.variable} bg-background`}>
       <body className="min-h-dvh antialiased">
         {children}
+        <SmartZoom />
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
