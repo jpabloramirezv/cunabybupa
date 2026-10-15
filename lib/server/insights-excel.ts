@@ -12,7 +12,7 @@ const safe = (v: unknown) => {
   return v as ExcelJS.CellValue
 }
 
-class Sheet {
+export class Sheet {
   ws: ExcelJS.Worksheet
   row = 1
   constructor(wb: ExcelJS.Workbook, name: string, widths: number[]) {
@@ -75,24 +75,24 @@ class Sheet {
   }
 }
 
-const sum = (s: Summary | null) =>
+export const sum = (s: Summary | null) =>
   s
     ? [s.n, s.mean, s.sd, s.min, s.q1, s.median, s.q3, s.p90, s.max].map((x) =>
         x === null ? null : Math.round(x * 100) / 100,
       )
     : [0, null, null, null, null, null, null, null, null]
-const SUM_HEAD = ['n', 'Media', 'DE', 'Mín', 'Q1', 'Mediana', 'Q3', 'P90', 'Máx']
+export const SUM_HEAD = ['n', 'Media', 'DE', 'Mín', 'Q1', 'Mediana', 'Q3', 'P90', 'Máx']
 
-const bars = (b: Bar[]) => b.map((x) => [x.label, x.n, x.pct === null ? null : Math.round(x.pct * 10) / 10])
-const boxRows = (b: Box[]) =>
+export const bars = (b: Bar[]) => b.map((x) => [x.label, x.n, x.pct === null ? null : Math.round(x.pct * 10) / 10])
+export const boxRows = (b: Box[]) =>
   b.map((x) => {
     const s: BoxStats | null = x.stats
     return [x.label, s?.n ?? 0, s ? r2(s.q1) : null, s ? r2(s.median) : null, s ? r2(s.q3) : null, s ? r2(s.whiskerLow) : null, s ? r2(s.whiskerHigh) : null, s?.outliers.length ?? 0]
   })
 const r2 = (n: number) => Math.round(n * 100) / 100
-const histRows = (h: Hist) => h.bins.map((b) => [`${fmtNum(b.from, 1)} a ${fmtNum(b.to, 1)}`, b.n])
+export const histRows = (h: Hist) => h.bins.map((b) => [`${fmtNum(b.from, 1)} a ${fmtNum(b.to, 1)}`, b.n])
 
-function contingency(sh: Sheet, t: ContingencyTable) {
+export function contingency(sh: Sheet, t: ContingencyTable) {
   sh.heading(t.title)
   sh.table([t.rowLabel, ...t.cols, 'Total'], [
     ...t.rows.map((r, i) => [r, ...t.cells[i], t.cells[i].reduce((a, b) => a + b, 0)]),
