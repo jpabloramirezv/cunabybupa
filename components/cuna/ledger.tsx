@@ -12,6 +12,7 @@ import { Highlight } from '@/components/cuna/highlight'
 import { ChipToggle } from '@/components/cuna/search-field'
 import { uiStatus } from '@/lib/rules'
 import { StatusBadge } from '@/components/cuna/ui'
+import { ColumnResizer, ResetWidthsButton, SizedCell, useColumnWidths, widthStyle } from '@/components/cuna/column-resize'
 
 type GroupKey = 'registro' | 'madre' | 'nacimiento' | 'ingreso' | 'egreso' | 'tamizajes' | 'estado'
 type ToggleGroup = Extract<GroupKey, 'madre' | 'nacimiento' | 'ingreso' | 'egreso' | 'tamizajes'>
@@ -467,6 +468,7 @@ export function Ledger({
     tamizajes: true,
   })
   const [visible, setVisible] = useState(PAGE)
+  const colW = useColumnWidths('pizarra')
 
   const ctx = useMemo<Ctx>(() => {
     const items = new Map((cat?.items ?? []).map((i) => [i.id, i.label]))
@@ -540,14 +542,17 @@ export function Ledger({
             </ChipToggle>
           ))}
         </div>
-        <button
-          type="button"
-          onClick={() => window.print()}
-          className="flex h-10 items-center gap-2 rounded-lg border border-input bg-card px-4 text-sm font-semibold text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
-        >
-          <Printer className="size-4" aria-hidden />
-          Imprimir libro
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <ResetWidthsButton widths={colW} />
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="flex h-10 items-center gap-2 rounded-lg border border-input bg-card px-4 text-sm font-semibold text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+          >
+            <Printer className="size-4" aria-hidden />
+            Imprimir libro
+          </button>
+        </div>
       </div>
 
       <div className="relative max-h-[calc(100dvh-16rem)] min-h-64 overflow-auto rounded-2xl border border-border/70 bg-card shadow-sm print:max-h-none print:overflow-visible print:rounded-none print:border-0 print:shadow-none">
@@ -582,6 +587,7 @@ export function Ledger({
                     scope="col"
                     title={c.title}
                     aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : undefined}
+                    style={widthStyle(colW.widths[c.id])}
                     className={cn(
                       'sticky top-9 z-10 border-b border-border bg-card px-3 py-2 text-xs font-semibold text-foreground',
                       c.align === 'center' ? 'text-center' : c.align === 'right' ? 'text-right' : 'text-left',
@@ -589,9 +595,10 @@ export function Ledger({
                       c.sticky === 'num' && cn('left-0 z-30', NUM_COL_W),
                       c.sticky === 'name' && cn('z-30 border-r border-r-border', NAME_LEFT),
                       c.sticky === 'num' && columns.length > 0 && !columns.some((x) => x.sticky === 'name') && 'border-r border-r-border',
-                      c.min,
+                      colW.widths[c.id] == null && c.min,
                     )}
                   >
+                    <SizedCell width={colW.widths[c.id]}>
                     {c.sort ? (
                       <button
                         type="button"
@@ -608,6 +615,15 @@ export function Ledger({
                     ) : (
                       <span className="whitespace-nowrap">{c.label}</span>
                     )}
+                    </SizedCell>
+                    {c.sticky !== 'num' ? (
+                      <ColumnResizer
+                        label={c.label}
+                        onPreview={(w) => colW.preview(c.id, w)}
+                        onCommit={(w) => colW.commit(c.id, w)}
+                        onReset={() => colW.reset(c.id)}
+                      />
+                    ) : null}
                   </th>
                 )
               })}
@@ -652,10 +668,10 @@ export function Ledger({
                           c.sticky === 'num' && cn('left-0', NUM_COL_W),
                           c.sticky === 'name' && cn('border-r border-r-border', NAME_LEFT),
                           c.sticky === 'num' && !columns.some((x) => x.sticky === 'name') && 'border-r border-r-border',
-                          c.min,
+                          colW.widths[c.id] == null && c.min,
                         )}
                       >
-                        {c.cell(e, ctx)}
+                        <SizedCell width={colW.widths[c.id]}>{c.cell(e, ctx)}</SizedCell>
                       </td>
                     ))}
                   </tr>

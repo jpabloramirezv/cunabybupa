@@ -14,6 +14,8 @@ export const GET = handle(async (req) => {
   const url = new URL(req.url)
   const days = Math.min(Math.max(Number(url.searchParams.get('days')) || 14, 1), 60)
   const mine = url.searchParams.get('mine') === '1'
+  const unidadParam = url.searchParams.get('unidad')
+  const onlyUnit: 'uci' | 'nursery' | null = unidadParam === 'uci' || unidadParam === 'nursery' ? unidadParam : null
 
   const ymdOf = (s: ShiftInfo) => {
     const p = zonedParts(s.start)
@@ -52,11 +54,17 @@ export const GET = handle(async (req) => {
   const to = shifts[0].end > current.end ? current.end : shifts[0].end
 
   const created = await db
-    .select({ id: episode.id, seq: episode.seq, createdAt: episode.createdAt, createdBy: episode.createdBy })
+    .select({
+      id: episode.id,
+      seq: episode.seq,
+      unit: episode.unit,
+      createdAt: episode.createdAt,
+      createdBy: episode.createdBy,
+    })
     .from(episode)
     .where(and(gte(episode.createdAt, from), lt(episode.createdAt, to)))
   const discharged = await db
-    .select({ id: episode.id, seq: episode.seq, at: episode.altaConfirmedAt })
+    .select({ id: episode.id, seq: episode.seq, unit: episode.unit, at: episode.altaConfirmedAt })
     .from(episode)
     .where(and(gte(episode.altaConfirmedAt, from), lt(episode.altaConfirmedAt, to)))
   const relatedIds = [...new Set([...created.map((c) => c.id), ...discharged.map((d) => d.id)])]
@@ -74,10 +82,19 @@ export const GET = handle(async (req) => {
     )
 
   const seqRows = new Map<string, number>([...created, ...discharged].map((r) => [r.id, r.seq]))
+  const unitRows = new Map<string, 'uci' | 'nursery'>(
+    [...created, ...discharged].map((r) => [r.id, r.unit === 'nursery' ? 'nursery' : 'uci']),
+  )
   const editedOnly = [...new Set(blocks.map((b) => b.episodeId))].filter((id) => !seqRows.has(id))
   if (editedOnly.length) {
-    const more = await db.select({ id: episode.id, seq: episode.seq }).from(episode).where(inArray(episode.id, editedOnly))
-    for (const m of more) seqRows.set(m.id, m.seq)
+    const more = await db
+      .select({ id: episode.id, seq: episode.seq, unit: episode.unit })
+      .from(episode)
+      .where(inArray(episode.id, editedOnly))
+    for (const m of more) {
+      seqRows.set(m.id, m.seq)
+      unitRows.set(m.id, m.unit === 'nursery' ? 'nursery' : 'uci')
+    }
   }
 
   const staffRows = await db.select({ id: staff.id, name: staff.name }).from(staff)
@@ -93,6 +110,8 @@ export const GET = handle(async (req) => {
 
   const eventsByShift = new Map<string, ShiftEvent[]>()
   const push = (ev: ShiftEvent) => {
+    ev.unit = unitRows.get(ev.episodeId)
+    if (onlyUnit && ev.unit !== onlyUnit) return
     const k = shiftOf(new Date(ev.at)).key
     const list = eventsByShift.get(k) ?? []
     list.push(ev)

@@ -67,7 +67,7 @@ function dist(values: string[], order?: string[]): Dist {
   return labels.map((label) => ({ label, n: counts.get(label) ?? 0, pct: total ? Math.round(((counts.get(label) ?? 0) / total) * 1000) / 10 : 0 }))
 }
 
-const gaBin = (v: string) => {
+export const gaBin = (v: string) => {
   const n = Number.parseInt(v, 10)
   if (!Number.isFinite(n)) return ''
   if (n < 28) return 'Extremo (<28)'
@@ -75,9 +75,9 @@ const gaBin = (v: string) => {
   if (n < 37) return 'Prematuro (32-36)'
   return 'De término (37+)'
 }
-const GA_ORDER = ['Extremo (<28)', 'Muy prematuro (28-31)', 'Prematuro (32-36)', 'De término (37+)']
+export const GA_ORDER = ['Extremo (<28)', 'Muy prematuro (28-31)', 'Prematuro (32-36)', 'De término (37+)']
 
-const weightBin = (v: string) => {
+export const weightBin = (v: string) => {
   const n = Number.parseInt(v, 10)
   if (!Number.isFinite(n)) return ''
   if (n < 1000) return '< 1.000 g'
@@ -86,7 +86,7 @@ const weightBin = (v: string) => {
   if (n < 4000) return '2.500 - 3.999 g'
   return '4.000 g o más'
 }
-const WEIGHT_ORDER = ['< 1.000 g', '1.000 - 1.499 g', '1.500 - 2.499 g', '2.500 - 3.999 g', '4.000 g o más']
+export const WEIGHT_ORDER = ['< 1.000 g', '1.000 - 1.499 g', '1.500 - 2.499 g', '2.500 - 3.999 g', '4.000 g o más']
 
 const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
 
@@ -96,20 +96,20 @@ function yesRate(label: string, rows: BookRecordOut[], key: string, yes = 'SI'):
   return { label, n, total: answered.length, pct: pct(n, answered.length) }
 }
 
-const numOf = (v: string | undefined) => {
+export const numOf = (v: string | undefined) => {
   if (!v) return null
   const n = Number(v.replace(',', '.'))
   return Number.isFinite(n) ? n : null
 }
 
-const AGE_ORDER = ['Menor de 20 años', '20 a 34 años', '35 años o más']
-const ageBin = (v: string | undefined) => {
+export const AGE_ORDER = ['Menor de 20 años', '20 a 34 años', '35 años o más']
+export const ageBin = (v: string | undefined) => {
   const n = numOf(v)
   if (n === null) return ''
   return n < 20 ? AGE_ORDER[0] : n < 35 ? AGE_ORDER[1] : AGE_ORDER[2]
 }
-const BMI_ORDER = ['Bajo peso (< 18,5)', 'Normal (18,5 a 24,9)', 'Sobrepeso (25 a 29,9)', 'Obesidad (30 o más)']
-const bmiBin = (v: string | undefined) => {
+export const BMI_ORDER = ['Bajo peso (< 18,5)', 'Normal (18,5 a 24,9)', 'Sobrepeso (25 a 29,9)', 'Obesidad (30 o más)']
+export const bmiBin = (v: string | undefined) => {
   const n = numOf(v)
   if (n === null) return ''
   return n < 18.5 ? BMI_ORDER[0] : n < 25 ? BMI_ORDER[1] : n < 30 ? BMI_ORDER[2] : BMI_ORDER[3]
