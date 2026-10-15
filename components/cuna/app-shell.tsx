@@ -11,6 +11,7 @@ import { authClient } from '@/lib/auth-client'
 import { Brand } from '@/components/cuna/brand'
 import { SyncStatus } from '@/components/cuna/sync-status'
 import { SyncManager } from '@/components/cuna/sync-manager'
+import { NotesButton } from '@/components/cuna/notes/notes-button'
 
 type Props = {
   name: string
@@ -179,7 +180,10 @@ export function AppShell({ name, roleLabel, canClinical, canPanel, canReports, c
                 </div>
               ))}
             </nav>
-            <SyncStatus />
+            <div className="flex items-center gap-3 py-1.5">
+              {canClinical ? <NotesButton /> : null}
+              <SyncStatus />
+            </div>
           </div>
         </div>
       </header>

@@ -288,3 +288,30 @@ export const shiftClosure = pgTable('shift_closure', {
   episodeCount: integer('episode_count').notNull().default(0),
   pendingCount: integer('pending_count').notNull().default(0),
 })
+
+/** Mural de turno: mensajes, recordatorios y constancias que se dejan para el equipo, como en el libro físico. */
+export const shiftNote = pgTable('shift_note', {
+  id: serial('id').primaryKey(),
+  kind: text('kind').notNull().default('siguiente'), // siguiente | recordatorio | constancia
+  body: text('body').notNull(),
+  shiftKey: text('shift_key').notNull(),
+  authorId: integer('author_id'),
+  authorName: text('author_name').notNull(),
+  authorRole: text('author_role'),
+  createdAt: timestamp('created_at', tz).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', tz).notNull().defaultNow(),
+  resolvedAt: timestamp('resolved_at', tz),
+  resolvedByName: text('resolved_by_name'),
+  deletedAt: timestamp('deleted_at', tz),
+})
+
+/** Qué persona ya leyó cada mensaje del mural. */
+export const shiftNoteRead = pgTable(
+  'shift_note_read',
+  {
+    noteId: integer('note_id').notNull(),
+    staffId: integer('staff_id').notNull(),
+    readAt: timestamp('read_at', tz).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.noteId, t.staffId] })],
+)

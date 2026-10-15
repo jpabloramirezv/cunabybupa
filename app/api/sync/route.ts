@@ -22,6 +22,7 @@ export const GET = handle(async () => {
       ${MS('screening')} as screening,
       ${MS('episode_identity')} as identity,
       (select count(*) from shift_closure) as closures,
+      (select coalesce(max(id), 0) from shift_note) || '-' || ${MS('shift_note')} as notes,
       (select coalesce(sum(id * case when active then 1 else 2 end) + sum(hashtext(name || '|' || role)::bigint), 0) from staff) as staff,
       (select coalesce(sum(id * case when active then 1 else 2 end) + sum(hashtext(code || '|' || name || '|' || array_to_string(synonyms, ','))::bigint), 0) from diagnosis) as diagnosis,
       (select coalesce(sum(id * case when active then 1 else 2 end) + sum(hashtext(label)::bigint), 0) from catalog_item) as catalog,

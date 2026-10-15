@@ -251,7 +251,7 @@ export function Board() {
   const { data: me } = useMe()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const libro = searchParams.get('vista') === 'libro'
+  const libro = searchParams.get('vista') !== 'pizarra'
   const unitParam = searchParams.get('unidad')
   const unit: BoardUnit = unitParam === 'nursery' || unitParam === 'todos' ? unitParam : 'uci'
   const key = libro ? `/api/episodes?alcance=libro&unidad=${unit}` : `/api/episodes?unidad=${unit}`
@@ -303,7 +303,7 @@ export function Board() {
 
   function setView(next: 'tarjetas' | 'libro') {
     replaceParams((p) => {
-      if (next === 'libro') p.set('vista', 'libro')
+      if (next === 'tarjetas') p.set('vista', 'pizarra')
       else p.delete('vista')
     })
   }

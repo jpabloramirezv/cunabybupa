@@ -29,6 +29,35 @@
   --color-magenta-foreground: var(--magenta-foreground);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
+  --animate-note-ring: note-ring 2.4s ease-out infinite;
+  --animate-note-wiggle: note-wiggle 2.4s ease-in-out infinite;
+  @keyframes note-ring {
+    0% {
+      box-shadow: 0 0 0 0 rgb(200 0 110 / 0.55);
+    }
+    70%,
+    100% {
+      box-shadow: 0 0 0 10px rgb(200 0 110 / 0);
+    }
+  }
+  @keyframes note-wiggle {
+    0%,
+    60%,
+    100% {
+      transform: rotate(0);
+    }
+    10%,
+    30% {
+      transform: rotate(-14deg);
+    }
+    20%,
+    40% {
+      transform: rotate(14deg);
+    }
+    50% {
+      transform: rotate(-6deg);
+    }
+  }
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
   --radius-sm: calc(var(--radius) * 0.6);

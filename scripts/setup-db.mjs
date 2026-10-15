@@ -92,6 +92,15 @@ const ddl = [
     updated_at timestamptz NOT NULL DEFAULT now(), deleted_at timestamptz)`,
   `CREATE INDEX IF NOT EXISTS birth_record_created_idx ON birth_record (created_at DESC)`,
   `CREATE INDEX IF NOT EXISTS birth_record_episode_idx ON birth_record (episode_id)`,
+  `CREATE TABLE IF NOT EXISTS shift_note (
+    id serial PRIMARY KEY, kind text NOT NULL DEFAULT 'siguiente', body text NOT NULL,
+    shift_key text NOT NULL, author_id int, author_name text NOT NULL, author_role text,
+    created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
+    resolved_at timestamptz, resolved_by_name text, deleted_at timestamptz)`,
+  `CREATE INDEX IF NOT EXISTS shift_note_created_idx ON shift_note (created_at DESC)`,
+  `CREATE TABLE IF NOT EXISTS shift_note_read (
+    note_id int NOT NULL, staff_id int NOT NULL, read_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (note_id, staff_id))`,
 ]
 
 const diagnoses = [
