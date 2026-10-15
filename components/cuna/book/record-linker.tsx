@@ -20,6 +20,8 @@ export type LinkCandidate = {
 
 const VISIBLE_FIRST = 5
 
+const waitsForMine = (c: LinkCandidate) => c.progress.total > 0 && c.progress.state !== 'completo'
+
 const motherOf = (v: Record<string, string>) =>
   [v.nombre, v.ap_paterno, v.ap_materno].filter(Boolean).join(' ') || 'Madre sin nombre'
 
@@ -113,7 +115,7 @@ export function RecordLinker({
   const terms = parseQuery(q)
 
   const matching = useMemo(() => {
-    const rank = (c: LinkCandidate) => (c.progress.state === 'pendiente' ? 0 : 1)
+    const rank = (c: LinkCandidate) => (waitsForMine(c) ? (c.progress.state === 'pendiente' ? 0 : 1) : 2)
     return [...candidates]
       .filter((c) =>
         matchesAll(
@@ -127,7 +129,9 @@ export function RecordLinker({
 
   const first = matching.slice(0, VISIBLE_FIRST)
   const rest = matching.slice(VISIBLE_FIRST)
+  const showRest = expanded || (terms.length > 0 && rest.length > 0)
   const startedByOther = candidates.filter((c) => c.other && c.other.state !== 'pendiente').length
+  const waitingMine = candidates.filter(waitsForMine).length
   const total = candidates.length
 
   return (
@@ -140,11 +144,13 @@ export function RecordLinker({
           <p className="text-xs font-bold uppercase tracking-wide text-primary">
             Antes de empezar · {BOOK_SECTION_LABEL[section]}
           </p>
-          <h2 className="mt-1 text-xl font-bold text-navy text-balance">¿Esta fila ya la empezó {other}?</h2>
+          <h2 className="mt-1 text-xl font-bold text-navy text-balance">
+            ¿Este recién nacido ya tiene un registro iniciado?
+          </h2>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground text-pretty">
-            Una fila es un recién nacido. Funciona en ambos sentidos: Maternidad puede abrirla cuando llega la madre y
-            Neonatología continuarla tras el nacimiento, o al revés. Si {other} ya la empezó, elígela y continúa donde
-            quedó. Si no, crea una fila nueva; la otra unidad podrá completarla después.
+            Un registro corresponde a un recién nacido y puede abrirlo cualquiera de las dos unidades, en el orden que
+            corresponda. Revisa los registros incompletos: si ya existe, elígelo y continúa donde quedó. Si no aparece,
+            crea uno nuevo; {other} podrá completarlo después.
           </p>
           {onSwitch ? (
             <div role="group" aria-label="Quién registra" className="mt-3 inline-flex gap-1 rounded-xl bg-muted p-1">
@@ -181,8 +187,8 @@ export function RecordLinker({
           {total} {total === 1 ? 'registro incompleto' : 'registros incompletos'}
         </p>
         <p className="text-sm text-muted-foreground">
-          esperan la parte de {BOOK_SECTION_LABEL[section]}
-          {startedByOther > 0 ? ` · ${startedByOther} ya ${startedByOther === 1 ? 'la empezó' : 'las empezó'} ${other}` : ''}
+          {waitingMine} {waitingMine === 1 ? 'espera' : 'esperan'} la parte de {BOOK_SECTION_LABEL[section]}
+          {startedByOther > 0 ? ` · ${startedByOther} con avance de ${other}` : ''}
         </p>
       </div>
 
@@ -210,14 +216,14 @@ export function RecordLinker({
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
-            aria-expanded={expanded}
+            aria-expanded={showRest}
             aria-controls="book-link-rest"
             className="flex h-12 items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-semibold text-primary hover:bg-secondary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
           >
-            {expanded ? 'Ocultar el resto' : `Ver los ${rest.length} restantes`}
-            <ChevronDown className={cn('size-4 transition-transform', expanded && 'rotate-180')} aria-hidden />
+            {showRest ? 'Ver menos' : `Ver más (${rest.length} ${rest.length === 1 ? 'registro incompleto' : 'registros incompletos'})`}
+            <ChevronDown className={cn('size-4 transition-transform', showRest && 'rotate-180')} aria-hidden />
           </button>
-          {expanded ? (
+          {showRest ? (
             <ul id="book-link-rest" className="flex max-h-[28rem] flex-col gap-2 overflow-y-auto pr-1">
               {rest.map((c) => (
                 <CandidateRow key={c.record.id} candidate={c} section={section} onPick={onPick} />

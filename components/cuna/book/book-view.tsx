@@ -396,7 +396,10 @@ export function BookView() {
 
   const linkCandidates = linking
     ? rows
-        .filter((x) => (linking === 'neonatal' ? x.seg !== 'aborto' && x.neo.state !== 'completo' : x.mat.state !== 'completo'))
+        .filter((x) => {
+          const pending = (p: { total: number; state: string }) => p.total > 0 && p.state !== 'completo'
+          return pending(x.mat) || (x.seg !== 'aborto' && pending(x.neo))
+        })
         .map((x) => ({
           record: x.r,
           progress: linking === 'neonatal' ? x.neo : x.mat,
@@ -459,8 +462,8 @@ export function BookView() {
             parte.
           </li>
           <li>
-            <strong className="text-foreground">Al crear un registro nuevo</strong> verás primero los registros que
-            están esperando tu parte. Si ya existe, continúa ahí; así no se duplican los datos. Cada registro tiene un
+            <strong className="text-foreground">Al crear un registro nuevo</strong> verás primero todos los registros
+            incompletos (los que esperan tu parte primero). Si ya existe, continúa ahí; así no se duplican los datos. Cada registro tiene un
             código (por ejemplo {linkCode(12)}) para encontrarlo rápido.
           </li>
           <li>
