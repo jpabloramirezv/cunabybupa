@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
-import { Baby, HeartPulse, Plus, Stethoscope } from 'lucide-react'
+import { Baby, BookOpen, HeartPulse, Plus, Stethoscope } from 'lucide-react'
 import { PrimaryButton } from '@/components/cuna/ui'
 
 /** Pregunta primero si el registro es de Maternidad o de Neonatología; Neonatología sigue el flujo de siempre. */
@@ -74,10 +74,18 @@ export function NewEntryButton({
     {
       key: 'mat',
       title: 'Parto o aborto (Maternidad)',
-      hint: 'Datos de la madre. Se registra en el Libro de Partos y Abortos.',
+      hint: 'Datos de la madre al llegar a la clínica. Si Neonatología ya empezó la fila, podrás continuarla.',
       Icon: HeartPulse,
       enabled: canMaternity,
       run: () => router.push('/libro?nuevo=1'),
+    },
+    {
+      key: 'libro-neo',
+      title: 'Fila del Libro desde Neonatología',
+      hint: 'Completa los datos del RN en el Libro de Partos y Abortos. Si Maternidad ya empezó la fila, podrás continuarla.',
+      Icon: BookOpen,
+      enabled: canNeonatal,
+      run: () => router.push('/libro?nuevo=neo'),
     },
   ]
 

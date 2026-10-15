@@ -32,7 +32,7 @@ import { BookOverview, type BookFilter } from '@/components/cuna/book/book-overv
 import { BookLedger } from '@/components/cuna/book/book-ledger'
 import { BookFilters, emptyFacets, matchesFacets, type BookFacets } from '@/components/cuna/book/book-filters'
 import { EpisodeLinker } from '@/components/cuna/book/episode-linker'
-import { RecordLinker } from '@/components/cuna/book/record-linker'
+import { RecordLinker, type PendingEpisode } from '@/components/cuna/book/record-linker'
 
 type BookPayload = { fields: BookFieldRow[]; records: BookRecordOut[] }
 
@@ -96,6 +96,11 @@ export function BookView() {
   })
   const [draft, setDraft] = useState<Draft | null>(null)
   const [linking, setLinking] = useState<BookSection | null>(null)
+  const { data: pendingEpisodes } = useSWR<PendingEpisode[]>(
+    me?.canBook && linking ? '/api/book/episodes?sinFila=1' : null,
+    fetcher,
+    { revalidateOnFocus: true },
+  )
   const [dupes, setDupes] = useState<BookRecordOut[] | null>(null)
   const [section, setSection] = useState<BookSection>('materno')
   const [query, setQuery] = useState(() => params.get('q') ?? '')
@@ -239,12 +244,26 @@ export function BookView() {
     scrollToForm()
   }
 
+  /** Abre una fila nueva ya vinculada a un ingreso de la Pizarra que aún no tenía fila en el libro. */
+  function startFromEpisode(kind: BookSection, e: PendingEpisode) {
+    original.current = {}
+    originalEpisode.current = null
+    setSection(kind)
+    setConfirmDelete(false)
+    setMessage(null)
+    setDupes(null)
+    setLinking(null)
+    setDraft({ ...emptyDraft(), episodeId: e.id, episodeCode: e.code })
+    scrollToForm()
+  }
+
   /** Antes de abrir una fila nueva, ofrece continuar una que la otra unidad ya empezó. */
   function create(kind: BookSection) {
     setMessage(null)
     setDupes(null)
     const waiting = rows.some((x) => (kind === 'neonatal' ? x.seg !== 'aborto' && x.neo.state !== 'completo' : x.mat.state !== 'completo'))
-    if (!waiting) return startBlank(kind)
+    const canBoth = !!me?.canEditMaternity && !!me?.canEditNeonatal
+    if (!waiting && !canBoth) return startBlank(kind)
     setDraft(null)
     setSection(kind)
     setLinking(kind)
@@ -358,7 +377,7 @@ export function BookView() {
         await send('/api/book', 'POST', { data: draft.values, episodeId: draft.episodeId })
         setMessage({
           tone: 'success',
-          text: 'Registro agregado al libro. La otra unidad lo verá como pendiente para completar su parte.',
+          text: `Registro agregado al libro. ${section === 'materno' ? 'Neonatología' : 'Maternidad'} lo verá como pendiente para completar su parte.`,
         })
         await mutate()
         setDraft(null)
@@ -395,7 +414,10 @@ export function BookView() {
 
   const linkCandidates = linking
     ? rows
-        .filter((x) => (linking === 'neonatal' ? x.seg !== 'aborto' && x.neo.state !== 'completo' : x.mat.state !== 'completo'))
+        .filter((x) => {
+          const pending = (p: { total: number; state: string }) => p.total > 0 && p.state !== 'completo'
+          return pending(x.mat) || (x.seg !== 'aborto' && pending(x.neo))
+        })
         .map((x) => ({
           record: x.r,
           progress: linking === 'neonatal' ? x.neo : x.mat,
@@ -458,9 +480,14 @@ export function BookView() {
             parte.
           </li>
           <li>
-            <strong className="text-foreground">Al crear un registro nuevo</strong> verás primero los registros que
-            están esperando tu parte. Si ya existe, continúa ahí; así no se duplican los datos. Cada registro tiene un
+            <strong className="text-foreground">Al crear un registro nuevo</strong> verás primero todos los registros
+            incompletos (los que esperan tu parte primero). Si ya existe, continúa ahí; así no se duplican los datos. Cada registro tiene un
             código (por ejemplo {linkCode(12)}) para encontrarlo rápido.
+          </li>
+          <li>
+            <strong className="text-foreground">Quién empieza.</strong> Puede empezar Maternidad (la madre llega y ya se
+            completan varios datos) y luego Neonatología continúa tras el nacimiento, o al revés. En ambos casos la fila
+            queda pendiente para la otra unidad y no se duplica.
           </li>
           <li>
             <strong className="text-foreground">Nursery o UCI.</strong> Si el RN se hospitaliza, vincula su ingreso de
@@ -479,9 +506,19 @@ export function BookView() {
           <RecordLinker
             section={linking}
             candidates={linkCandidates}
+            episodes={pendingEpisodes ?? []}
+            onPickEpisode={(e) => startFromEpisode(linking, e)}
             onPick={(r) => open(r, linking)}
             onNew={() => startBlank(linking)}
             onCancel={() => setLinking(null)}
+            onSwitch={
+              me?.canEditMaternity && me?.canEditNeonatal
+                ? (s) => {
+                    setSection(s)
+                    setLinking(s)
+                  }
+                : undefined
+            }
           />
         </div>
       ) : null}

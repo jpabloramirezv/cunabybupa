@@ -113,15 +113,24 @@ export function findPossibleMatches<T extends { values: Values }>(
   today: string,
 ): T[] {
   const rut = normRut(draft.rut)
-  const surname = normText(draft.ap_paterno) || normText(draft.ap_paterno_rn)
+  const lineage = (v: Values) => {
+    // El apellido materno del RN suele ser el paterno de la madre, así una fila que partió Neonatología
+    // (solo con datos del RN) también se reconoce cuando Maternidad escribe los datos de la madre, y al revés.
+    const keys = [normText(v.ap_paterno), normText(v.ap_materno_rn)].filter(Boolean)
+    return keys.length ? keys : [normText(v.ap_paterno_rn)].filter(Boolean)
+  }
+  const surnames = lineage(draft)
   const date = draft.fecha || today
-  if (!rut && !surname) return []
+  if (!rut && surnames.length === 0) return []
   return records.filter((r) => {
     if (!isPending(r)) return false
     if (rut && normRut(r.values.rut) === rut) return true
-    if (surname && normText(r.values.ap_paterno) === surname) {
-      const other = r.values.fecha
-      return !other || dayDiff(other, date) <= 2
+    if (surnames.length > 0) {
+      const theirs = [normText(r.values.ap_paterno), normText(r.values.ap_materno_rn)].filter(Boolean)
+      if (surnames.some((s) => theirs.includes(s))) {
+        const other = r.values.fecha
+        return !other || dayDiff(other, date) <= 2
+      }
     }
     return false
   })
