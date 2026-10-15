@@ -307,8 +307,9 @@ export function NotesButton() {
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
         aria-label={label}
+        title={label}
         className={cn(
-          'relative flex h-11 items-center gap-2 rounded-lg px-3 text-sm font-semibold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40',
+          'relative flex size-11 items-center justify-center rounded-lg text-sm font-semibold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40',
           unread > 0
             ? 'bg-magenta text-magenta-foreground hover:opacity-90 motion-safe:animate-note-ring'
             : 'border border-navy-foreground/40 hover:bg-navy-foreground/10',
@@ -318,9 +319,8 @@ export function NotesButton() {
           className={cn('size-5', unread > 0 && 'motion-safe:origin-top motion-safe:animate-note-wiggle')}
           aria-hidden
         />
-        <span>Mural</span>
         {unread > 0 ? (
-          <span className="flex min-w-6 items-center justify-center rounded-full bg-background px-1.5 text-xs font-bold text-magenta">
+          <span className="absolute -right-1.5 -top-1.5 flex min-w-5 items-center justify-center rounded-full border border-magenta bg-background px-1 text-[11px] font-bold leading-5 text-magenta">
             {unread > 99 ? '99+' : unread}
           </span>
         ) : null}

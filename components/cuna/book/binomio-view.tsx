@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type ReactNode } from 'react'
 import useSWR from 'swr'
-import { AlertTriangle, CheckCircle2, Link2 } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Download, Link2, Printer } from 'lucide-react'
 import { fetcher } from '@/lib/fetcher'
 import { addDaysYmd, todayYmd } from '@/lib/time'
 import { cn } from '@/lib/utils'
@@ -16,6 +16,33 @@ const PERIODS = [
   { days: 90, label: '90 días' },
   { days: 365, label: '1 año' },
 ]
+
+type BinomioData = NonNullable<BookStats['binomio']>
+
+/** CSV agregado (sin datos de identificación), con separador ";" y BOM para que Excel en español lo abra bien. */
+function binomioCsv(b: BinomioData, meta: { scope: string; from: string; to: string }) {
+  const esc = (v: string | number | null) => `"${String(v ?? '').replace(/"/g, '""')}"`
+  const rows: (string | number | null)[][] = [
+    ['Sección', 'Indicador', 'Casos', 'Porcentaje', 'Detalle'],
+    ['Resumen', 'Alcance', null, null, meta.scope],
+    ['Resumen', 'Período', null, null, `${meta.from} a ${meta.to}`],
+    ['Resumen', 'Binomios en el libro', b.n, null, null],
+    ['Resumen', 'Con ambas partes completas', b.complete, b.completePct, null],
+  ]
+  const dists: [string, Dist][] = [
+    ['Edad de la madre', b.age],
+    ['IMC de la madre', b.bmi],
+    ['Paridad', b.parity],
+    ['Control prenatal', b.prenatal],
+    ['País de origen de la madre', b.origin],
+    ['Pueblo originario', b.indigenous],
+  ]
+  for (const [title, d] of dists) for (const r of d) rows.push([title, r.label, r.n, r.pct, null])
+  for (const c of b.crosses)
+    for (const r of c.rows) rows.push([`Cruce: ${c.title}`, r.label, r.n, r.pct, `${r.hits} con ${c.outcome}`])
+  for (const r of b.risks) rows.push(['Riesgo materno', r.label, r.mothers, null, `${r.follow}: ${r.followN}`])
+  return '\ufeff' + rows.map((r) => r.map(esc).join(';')).join('\r\n')
+}
 
 function Card({ title, hint, children, className }: { title: string; hint?: string; children: ReactNode; className?: string }) {
   return (
@@ -121,12 +148,15 @@ export function BinomioView({
   from,
   to,
   withPeriod,
+  tools,
 }: {
   segment: StatsSegment
   days?: number
   from?: string
   to?: string
   withPeriod?: boolean
+  /** Muestra las acciones de informe: imprimir y descargar el resumen en CSV. */
+  tools?: boolean
 }) {
   const [own, setOwn] = useState(30)
   const effectiveDays = withPeriod ? own : days
@@ -182,6 +212,35 @@ export function BinomioView({
           </div>
         ) : null}
       </div>
+
+      {tools && b && b.n > 0 ? (
+        <div className="flex flex-wrap gap-2 print:hidden">
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="flex h-10 items-center gap-2 rounded-lg border border-input bg-card px-4 text-sm font-semibold text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+          >
+            <Printer className="size-4" aria-hidden />
+            Imprimir informe
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const csv = binomioCsv(b, { scope: scopeText, from: range.from, to: range.to })
+              const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+              const a = document.createElement('a')
+              a.href = url
+              a.download = `binomio-${segment}-${range.from}_${range.to}.csv`
+              a.click()
+              URL.revokeObjectURL(url)
+            }}
+            className="flex h-10 items-center gap-2 rounded-lg border border-input bg-card px-4 text-sm font-semibold text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+          >
+            <Download className="size-4" aria-hidden />
+            Descargar resumen (CSV)
+          </button>
+        </div>
+      ) : null}
 
       {error ? <Notice tone="danger" title="No pudimos calcular el análisis del binomio." /> : null}
       {isLoading || (!data && !error) ? <p className="py-8 text-center text-muted-foreground">Calculando…</p> : null}

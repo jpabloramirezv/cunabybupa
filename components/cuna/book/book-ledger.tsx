@@ -4,6 +4,7 @@ import { useMemo, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { Check, ChevronDown, ChevronUp, ChevronsUpDown, Columns3, Copy, EyeOff, Printer, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Highlight } from '@/components/cuna/highlight'
+import { ColumnResizer, ResetWidthsButton, SizedCell, useColumnWidths, widthStyle } from '@/components/cuna/column-resize'
 import { linkCode, SEGMENT_LABEL, type BookSegment, type SectionProgress } from '@/lib/book-flow'
 import { BOOK_SECTION_LABEL, type BookSection } from '@/lib/book-fields'
 import type { BookFieldRow, BookRecordOut } from '@/lib/server/book'
@@ -232,6 +233,7 @@ export function BookLedger({
   const [sort, setSort] = useState<{ id: string; dir: 'asc' | 'desc' }>({ id: 'seq', dir: 'desc' })
   const [limit, setLimit] = useState(PAGE)
   const [chooser, setChooser] = useState(false)
+  const colW = useColumnWidths('libro-partos')
 
   const displayFields = useMemo(
     () => fields.filter((f) => f.active && !NAME_FIELDS.has(f.key)).sort((a, b) => a.position - b.position),
@@ -509,6 +511,7 @@ export function BookLedger({
                 </button>
               ))}
             </div>
+            <ResetWidthsButton widths={colW} />
             <button
               type="button"
               onClick={() => window.print()}
@@ -621,15 +624,17 @@ export function BookLedger({
                       scope="col"
                       title={c.title}
                       aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : undefined}
+                      style={widthStyle(colW.widths[c.id])}
                       className={cn(
                         'sticky top-9 z-10 border-b border-border bg-card px-3 py-2 align-bottom text-xs font-semibold text-foreground',
                         c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : 'text-left',
                         groupStarts.has(c.id) && 'border-l border-l-border/60',
                         c.sticky === 'num' && cn('left-0 z-30', NUM_W),
                         c.sticky === 'name' && cn('z-30 border-r border-r-border', NAME_LEFT),
-                        c.min,
+                        colW.widths[c.id] == null && c.min,
                       )}
                     >
+                      <SizedCell width={colW.widths[c.id]}>
                       {c.sort ? (
                         <button
                           type="button"
@@ -646,6 +651,15 @@ export function BookLedger({
                       ) : (
                         <span className="max-w-[9rem] text-balance">{c.label}</span>
                       )}
+                      </SizedCell>
+                      {c.sticky !== 'num' && c.id !== 'acciones' ? (
+                        <ColumnResizer
+                          label={c.label}
+                          onPreview={(w) => colW.preview(c.id, w)}
+                          onCommit={(w) => colW.commit(c.id, w)}
+                          onReset={() => colW.reset(c.id)}
+                        />
+                      ) : null}
                     </th>
                   )
                 })}
@@ -676,7 +690,7 @@ export function BookLedger({
                         c.sticky === 'name' && cn('border-r border-r-border', NAME_LEFT),
                       )}
                     >
-                      {c.cell(x)}
+                      <SizedCell width={colW.widths[c.id]}>{c.cell(x)}</SizedCell>
                     </td>
                   ))}
                 </tr>

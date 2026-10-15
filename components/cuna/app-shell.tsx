@@ -96,6 +96,7 @@ export function AppShell({ name, roleLabel, canClinical, canPanel, canReports, c
               <p className="text-sm font-semibold">{name}</p>
               <p className="text-xs text-navy-foreground/80">{roleLabel}</p>
             </div>
+            {canClinical ? <NotesButton /> : null}
             {confirmingExit ? (
               <div
                 role="alertdialog"
@@ -181,7 +182,6 @@ export function AppShell({ name, roleLabel, canClinical, canPanel, canReports, c
               ))}
             </nav>
             <div className="flex items-center gap-3 py-1.5">
-              {canClinical ? <NotesButton /> : null}
               <SyncStatus />
             </div>
           </div>
