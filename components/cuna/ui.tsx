@@ -147,6 +147,7 @@ export function TextField({
   disabled,
   autoComplete = 'off',
   type = 'text',
+  list,
 }: {
   label: string
   value: string | null
@@ -160,6 +161,7 @@ export function TextField({
   disabled?: boolean
   autoComplete?: string
   type?: string
+  list?: string
 }) {
   const id = useId()
   return (
@@ -170,6 +172,7 @@ export function TextField({
       <input
         id={id}
         type={type}
+  list={list}
         inputMode={inputMode}
         autoComplete={autoComplete}
         maxLength={maxLength}

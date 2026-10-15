@@ -15,8 +15,10 @@ type StaffRow = {
   role: string
   isAdmin: boolean
   unit?: 'neonatologia' | 'maternidad'
+  specialty?: string | null
   active: boolean
   lockedUntil: string | null
+  hasPin?: boolean
 }
 
 const UNITS = [
@@ -38,6 +40,38 @@ const ROLES = [
   { value: 'analista', label: 'Analista' },
 ]
 const roleLabel = (r: string) => ROLES.find((x) => x.value === r)?.label ?? r
+const isDoctorRole = (r: string | null) => r === 'medico' || r === 'medico_jefe'
+
+const SPECIALTIES = [
+  'Neonatología',
+  'Pediatría',
+  'Obstetricia y Ginecología',
+  'Anestesiología',
+  'Cirugía Pediátrica',
+  'Cardiología Pediátrica',
+  'Medicina Intensiva Pediátrica',
+  'Medicina Familiar',
+]
+
+function SpecialtyField({ value, onChange, id }: { value: string; onChange: (v: string) => void; id: string }) {
+  return (
+    <div>
+      <TextField
+        label="Especialidad"
+        maxLength={60}
+        value={value}
+        onChange={onChange}
+        list={`${id}-list`}
+        hint="Opcional. Elige una sugerencia o escribe otra; se muestra junto al nombre del médico en el Libro de Partos."
+      />
+      <datalist id={`${id}-list`}>
+        {SPECIALTIES.map((s) => (
+          <option key={s} value={s} />
+        ))}
+      </datalist>
+    </div>
+  )
+}
 
 export function StaffAdmin() {
   const { data, mutate } = useSWR<StaffRow[]>('/api/admin/staff', fetcher)
@@ -48,6 +82,9 @@ export function StaffAdmin() {
   const [editAdmin, setEditAdmin] = useState<string | null>('no')
   const [unitNew, setUnitNew] = useState<string | null>('neonatologia')
   const [editUnit, setEditUnit] = useState<string | null>('neonatologia')
+  const [specialtyNew, setSpecialtyNew] = useState('')
+  const [editSpecialty, setEditSpecialty] = useState('')
+  const [dupWarning, setDupWarning] = useState<{ text: string; retry: () => Promise<unknown> } | null>(null)
   const [resetId, setResetId] = useState<number | null>(null)
   const [resetPin, setResetPin] = useState('')
   const [editId, setEditId] = useState<number | null>(null)
@@ -66,14 +103,19 @@ export function StaffAdmin() {
   })
   const filtering = terms.length > 0 || !!roleFilter || !!statusFilter
 
-  async function run(fn: () => Promise<unknown>, ok: string) {
+  async function run(fn: () => Promise<unknown>, ok: string, confirmable?: () => Promise<unknown>) {
     setMessage(null)
+    setDupWarning(null)
     try {
       await fn()
       await mutate()
       setMessage({ tone: 'success', text: ok })
       return true
     } catch (e) {
+      if (e instanceof ApiError && e.status === 409 && confirmable) {
+        setDupWarning({ text: e.message, retry: confirmable })
+        return false
+      }
       setMessage({ tone: 'danger', text: e instanceof ApiError ? e.message : 'No pudimos guardar el cambio.' })
       return false
     }
@@ -82,6 +124,29 @@ export function StaffAdmin() {
   return (
     <div className="flex flex-col gap-6">
       {message ? <Notice tone={message.tone} title={message.text} /> : null}
+      {dupWarning ? (
+        <div role="alert" className="flex flex-col gap-3 rounded-xl border border-warning/50 bg-warning/10 p-4">
+          <p className="text-base font-semibold text-foreground text-pretty">{dupWarning.text}</p>
+          <p className="text-sm text-muted-foreground">
+            Si es otra persona con el mismo nombre, puedes guardarla igual. Si es la misma, cancela y edita la ficha existente.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <PrimaryButton
+              className="h-11 px-4 text-sm"
+              onClick={async () => {
+                const retry = dupWarning.retry
+                setDupWarning(null)
+                await retry()
+              }}
+            >
+              Guardar igual
+            </PrimaryButton>
+            <PrimaryButton variant="ghost" className="h-11 px-4 text-sm" onClick={() => setDupWarning(null)}>
+              Cancelar
+            </PrimaryButton>
+          </div>
+        </div>
+      ) : null}
 
       <Section title="Personal de la unidad" hint="Desactivar quita el acceso sin borrar el historial.">
         <div className="flex flex-col gap-3">
@@ -136,8 +201,10 @@ export function StaffAdmin() {
                   </p>
                   <p className="text-sm text-muted-foreground">
                     {roleLabel(s.role)}
+                    {isDoctorRole(s.role) ? ` · ${s.specialty || 'Sin especialidad'}` : ''}
                     {s.role === 'matrona' ? ` · ${unitLabel(s.unit)}` : ''}
                     {s.role === 'matrona' && s.isAdmin ? ' · Permisos de Jefatura' : ''} · {s.active ? 'Activo' : 'Inactivo'}
+                    {s.hasPin === false ? ' · Sin PIN (inscrito desde el Libro de Partos)' : ''}
                     {s.lockedUntil && new Date(s.lockedUntil) > new Date() ? ` · Bloqueado hasta ${fmtDateTime(s.lockedUntil)}` : ''}
                   </p>
                 </div>
@@ -155,6 +222,7 @@ export function StaffAdmin() {
                       setEditRole(s.role)
                       setEditAdmin(s.isAdmin ? 'si' : 'no')
                       setEditUnit(s.unit ?? 'neonatologia')
+                      setEditSpecialty(s.specialty ?? '')
                       setResetId(null)
                     }}
                   >
@@ -186,6 +254,7 @@ export function StaffAdmin() {
                 <div className="flex flex-col gap-3 rounded-lg bg-muted p-4">
                   <TextField label="Nombre" required maxLength={80} value={editName} onChange={setEditName} />
                   <Choice label="Cargo (rol)" required columns={2} options={ROLES} value={editRole} onChange={setEditRole} />
+                  {isDoctorRole(editRole) ? <SpecialtyField id={`edit-${s.id}`} value={editSpecialty} onChange={setEditSpecialty} /> : null}
                   {editRole === 'matrona' ? (
                     <Choice
                       label="Unidad de trabajo"
@@ -216,6 +285,7 @@ export function StaffAdmin() {
                         !editRole ||
                         (editName.trim() === s.name &&
                           editRole === s.role &&
+                          (!isDoctorRole(editRole) || editSpecialty.trim() === (s.specialty ?? '')) &&
                           (editRole !== 'matrona' ||
                             ((editAdmin === 'si') === s.isAdmin && editUnit === (s.unit ?? 'neonatologia'))))
                       }
@@ -223,9 +293,14 @@ export function StaffAdmin() {
                         const body: Record<string, unknown> = { id: s.id }
                         if (editName.trim() !== s.name) body.name = editName.trim()
                         if (editRole !== s.role) body.role = editRole
+                        if (isDoctorRole(editRole) && editSpecialty.trim() !== (s.specialty ?? '')) body.specialty = editSpecialty.trim() || null
                         if (editRole === 'matrona' && (editAdmin === 'si') !== s.isAdmin) body.isAdmin = editAdmin === 'si'
                         if (editRole === 'matrona' && editUnit && editUnit !== (s.unit ?? 'neonatologia')) body.unit = editUnit
-                        if (await run(() => send('/api/admin/staff', 'PATCH', body), 'Datos de la persona actualizados.')) setEditId(null)
+                        const save = (extra: Record<string, unknown> = {}) =>
+                          run(() => send('/api/admin/staff', 'PATCH', { ...body, ...extra }), 'Datos de la persona actualizados.', async () => {
+                            if (await run(() => send('/api/admin/staff', 'PATCH', { ...body, confirmDuplicate: true }), 'Datos de la persona actualizados.')) setEditId(null)
+                          })
+                        if (await save()) setEditId(null)
                       }}
                     >
                       Guardar cambios
@@ -270,6 +345,7 @@ export function StaffAdmin() {
       <Section title="Agregar persona">
         <TextField label="Nombre" required value={name} onChange={setName} />
         <Choice label="Rol" required columns={2} options={ROLES} value={role} onChange={setRole} />
+        {isDoctorRole(role) ? <SpecialtyField id="new-staff" value={specialtyNew} onChange={setSpecialtyNew} /> : null}
         {role === 'matrona' ? (
           <Choice
             label="Unidad de trabajo"
@@ -303,11 +379,24 @@ export function StaffAdmin() {
         <PrimaryButton
           disabled={!name.trim() || !role || (pin.length !== 4 && pin.length !== 6)}
           onClick={async () => {
-            if (await run(() => send('/api/admin/staff', 'POST', { name, role, pin, isAdmin: role === 'matrona' && adminNew === 'si', unit: role === 'matrona' ? unitNew : 'neonatologia' }), 'Persona agregada.')) {
+            const body = {
+              name,
+              role,
+              pin,
+              specialty: isDoctorRole(role) ? specialtyNew.trim() || null : null,
+              isAdmin: role === 'matrona' && adminNew === 'si',
+              unit: role === 'matrona' ? unitNew : 'neonatologia',
+            }
+            const reset = () => {
               setName('')
               setAdminNew('no')
+              setSpecialtyNew('')
               setPin('')
             }
+            const ok = await run(() => send('/api/admin/staff', 'POST', body), 'Persona agregada.', async () => {
+              if (await run(() => send('/api/admin/staff', 'POST', { ...body, confirmDuplicate: true }), 'Persona agregada.')) reset()
+            })
+            if (ok) reset()
           }}
         >
           Agregar

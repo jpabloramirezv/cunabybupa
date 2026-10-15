@@ -56,7 +56,15 @@ export const BOOK_SOURCES: { value: string; label: string }[] = [
   { value: 'screening.PEA', label: 'UCI: screening auditivo (realizado)' },
   { value: 'screening.PEA.result', label: 'UCI: resultado screening auditivo' },
   { value: 'screening.CARDIO', label: 'UCI: screening cardiológico' },
+  { value: 'maternalHiv', label: 'UCI/Nursery: resultado de VIH/ELISA materno (negativo o positivo)' },
 ]
+
+/** Columnas que ya existían sin vínculo y ahora se completan solas desde Neonatología (solo si no tenían uno). */
+export const BOOK_LINK_UPGRADES: Record<string, string> = {
+  prevision: 'previsionLabel',
+  tipo_parto: 'deliveryLabel',
+  elisa_res: 'maternalHiv',
+}
 
 export type BookFieldDef = {
   key: string
@@ -80,7 +88,7 @@ export const DEFAULT_BOOK_FIELDS: BookFieldDef[] = [
   { key: 'fecha', label: 'Fecha', section: M, group: 'Admisión', type: 'date', source: 'birth.date' },
   { key: 'hora', label: 'Hora', section: M, group: 'Admisión', type: 'time', source: 'birth.time' },
   { key: 'n_admision', label: 'N° admisión', section: M, group: 'Admisión', type: 'text' },
-  { key: 'prevision', label: 'Previsión', section: M, group: 'Admisión', type: 'text' },
+  { key: 'prevision', label: 'Previsión', section: M, group: 'Admisión', type: 'text', source: 'previsionLabel' },
   { key: 'rut', label: 'RUT', section: M, group: 'Datos de la madre', type: 'text' },
   { key: 'nombre', label: 'Nombre', section: M, group: 'Datos de la madre', type: 'text', source: 'mother.nombre' },
   { key: 'ap_paterno', label: 'Apellido paterno', section: M, group: 'Datos de la madre', type: 'text', source: 'mother.paterno' },
@@ -97,6 +105,7 @@ export const DEFAULT_BOOK_FIELDS: BookFieldDef[] = [
     group: 'Parto o aborto',
     type: 'select',
     options: ['PARTO VAGINAL', 'CESÁREA ELECTIVA', 'CESÁREA DE URGENCIA', 'PARTO INSTRUMENTAL', 'ABORTO'],
+    source: 'deliveryLabel',
   },
   { key: 'robson', label: 'Clasificación Robson', section: M, group: 'Parto o aborto', type: 'text' },
   { key: 'causa_cesarea', label: 'Causa de cesárea', section: M, group: 'Parto o aborto', type: 'text' },
@@ -119,7 +128,7 @@ export const DEFAULT_BOOK_FIELDS: BookFieldDef[] = [
   { key: 'control_prenatal', label: 'Control prenatal', section: M, group: 'Antecedentes obstétricos', type: 'select', options: SN },
   // Exámenes
   { key: 'elisa_n', label: 'N° ELISA', section: M, group: 'Exámenes', type: 'number' },
-  { key: 'elisa_res', label: 'ELISA: resultado', section: M, group: 'Exámenes', type: 'select', options: NEG_POS },
+  { key: 'elisa_res', label: 'ELISA: resultado', section: M, group: 'Exámenes', type: 'select', options: NEG_POS, source: 'maternalHiv' },
   { key: 'vdrl_n', label: 'N° VDRL', section: M, group: 'Exámenes', type: 'number' },
   { key: 'vdrl_res', label: 'VDRL: resultado', section: M, group: 'Exámenes', type: 'select', options: ['NO REACTIVO', 'REACTIVO'] },
   { key: 'sgb', label: 'SGB', section: M, group: 'Exámenes', type: 'select', options: SN },

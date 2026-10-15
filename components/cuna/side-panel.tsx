@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { X } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 /**
  * Panel lateral para editar sin perder de vista la tabla: a la derecha en escritorio y a pantalla
@@ -13,10 +14,13 @@ export function SidePanel({
   subtitle,
   badges,
   footer,
+  wide = false,
   onRequestClose,
   children,
 }: {
   open: boolean
+  /** En escritorio ocupa la mayor parte de la pantalla, para formularios largos. */
+  wide?: boolean
   title: string
   subtitle?: string
   badges?: ReactNode
@@ -62,7 +66,10 @@ export function SidePanel({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="relative flex h-dvh w-full flex-col bg-background shadow-2xl outline-none sm:max-w-2xl lg:max-w-3xl sm:border-l sm:border-border"
+        className={cn(
+          'relative flex h-dvh w-full flex-col bg-background shadow-2xl outline-none sm:border-l sm:border-border',
+          wide ? 'sm:max-w-2xl lg:max-w-[min(94vw,72rem)] 2xl:max-w-[min(90vw,84rem)]' : 'sm:max-w-2xl lg:max-w-3xl',
+        )}
       >
         <header className="flex items-start gap-3 border-b border-border bg-card px-4 py-3 sm:px-6">
           <div className="min-w-0 flex-1">
