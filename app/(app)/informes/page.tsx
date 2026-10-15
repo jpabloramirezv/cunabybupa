@@ -8,6 +8,6 @@ export const dynamic = 'force-dynamic'
 
 export default async function InsightsPage() {
   const ctx = await getCtx()
-  if (!ctx?.canReports) redirect('/pizarra')
+  if (!ctx?.canReports) redirect(ctx?.canClinical === false && ctx.canBook ? '/libro' : '/pizarra')
   return <ReportsHub />
 }

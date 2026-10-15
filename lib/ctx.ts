@@ -43,6 +43,8 @@ export type Ctx = {
   /** Puede escribir las columnas de maternidad / neonatología del libro. */
   canEditMaternity: boolean
   canEditNeonatal: boolean
+  /** Matrona de Maternidad: solo ve y completa el Libro de Partos y Abortos. */
+  maternityOnly: boolean
 }
 
 export type Unit = 'neonatologia' | 'maternidad'
@@ -96,15 +98,21 @@ export async function getCtx(): Promise<Ctx | null> {
   const s = rows[0]?.s
   if (!s) return null
   const role = s.role as Role
+  const unit = normalizeUnit(s.unit)
+  const maternityOnly = role === 'matrona' && !s.isAdmin && unit === 'maternidad'
+  const base = permissionsFor(role, s.isAdmin)
   return {
     staffId: s.id,
     name: s.name,
     role,
     isAdmin: s.isAdmin,
     userId: account.id,
-    unit: normalizeUnit(s.unit),
-    ...permissionsFor(role, s.isAdmin),
-    ...bookPermissionsFor(role, s.isAdmin, normalizeUnit(s.unit)),
+    unit,
+    ...base,
+    // Maternidad no trabaja la Pizarra de Neonatología: solo el libro.
+    ...(maternityOnly ? { canWrite: false, canIdentity: false, canClinical: false } : {}),
+    ...bookPermissionsFor(role, s.isAdmin, unit),
+    maternityOnly,
   }
 }
 

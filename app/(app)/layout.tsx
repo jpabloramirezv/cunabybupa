@@ -13,7 +13,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <AppShell
       name={ctx.name}
-      roleLabel={roleLabelFor(ctx.role, ctx.isAdmin)}
+      roleLabel={
+        ctx.role === 'matrona' && !ctx.isAdmin
+          ? `${roleLabelFor(ctx.role, ctx.isAdmin)} · ${ctx.unit === 'maternidad' ? 'Maternidad' : 'Neonatología'}`
+          : roleLabelFor(ctx.role, ctx.isAdmin)
+      }
       canClinical={ctx.canClinical}
       canPanel={ctx.canPanel}
       canReports={ctx.canReports}

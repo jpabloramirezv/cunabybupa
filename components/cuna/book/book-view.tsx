@@ -426,41 +426,39 @@ export function BookView() {
     : []
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-xl font-bold text-navy text-balance sm:text-2xl">Libro de Partos y Abortos</h1>
           <ScopePill scope="libro" />
-          <h1 className="text-2xl font-bold text-navy text-balance sm:text-3xl">Libro de Partos y Abortos</h1>
-          <p className="max-w-2xl text-sm text-muted-foreground text-pretty">
-            Todos los nacimientos de la clínica: Nursery, UCI y abortos. Maternidad completa los datos de la madre y
-            Neonatología los del RN, en cualquier orden.
-          </p>
         </div>
-        <div className="flex flex-wrap gap-2 print:hidden">
+        <div className="flex flex-wrap items-center gap-2 print:hidden">
           {me?.canClinical ? (
             <Link
               href="/pizarra"
-              className="inline-flex h-12 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-primary hover:bg-secondary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+              className="inline-flex h-10 items-center gap-1.5 rounded-lg px-2.5 text-sm font-semibold text-primary hover:bg-secondary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
             >
-              Ir a la Pizarra de Neonatología
+              Pizarra
               <ArrowRight className="size-4" aria-hidden />
             </Link>
           ) : null}
           <a
             href={`/api/book/export${year ? `?year=${year}` : ''}`}
-            className="inline-flex h-12 items-center gap-2 rounded-lg border border-primary bg-card px-4 text-sm font-semibold text-primary hover:bg-secondary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+            title="Exportar el libro a Excel"
+            className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-sm font-semibold text-primary hover:bg-secondary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
           >
             <Download className="size-4" aria-hidden />
-            Exportar Excel
+            Excel
           </a>
           <a
             href={`/api/book/export?format=csv${year ? `&year=${year}` : ''}`}
-            className="inline-flex h-12 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+            title="Exportar el libro a CSV"
+            className="inline-flex h-10 items-center rounded-lg px-2 text-sm font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
           >
             CSV
           </a>
           {canCreate ? (
-            <PrimaryButton variant="accent" className="h-12 px-4 text-sm" onClick={() => create(me?.canEditMaternity ? 'materno' : 'neonatal')}>
+            <PrimaryButton variant="accent" className="h-10 px-4 text-sm" onClick={() => create(me?.canEditMaternity ? 'materno' : 'neonatal')}>
               <Plus className="size-5" aria-hidden />
               Nuevo Registro
             </PrimaryButton>
@@ -468,8 +466,8 @@ export function BookView() {
         </div>
       </div>
 
-      <details className="group rounded-xl border border-border bg-card px-4 py-3 print:hidden">
-        <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold text-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30 [&::-webkit-details-marker]:hidden">
+      <details className="group rounded-lg border border-border bg-card px-3 py-2 print:hidden">
+        <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium text-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30 [&::-webkit-details-marker]:hidden">
           <Info className="size-4" aria-hidden />
           ¿Cómo se llena este libro?
         </summary>
@@ -677,28 +675,56 @@ export function BookView() {
         }}
       />
 
-      <section aria-label="Registros del libro" className="flex flex-col gap-3">
-        <SearchField
-          ref={inputRef}
-          id="book-search"
-          label="Buscar en el libro"
-          placeholder="Buscar por madre, RUT, RN, médico, código (LP-00012) o cualquier dato"
-          value={query}
-          onChange={setQuery}
-          showShortcut
-        />
-        {years.length > 1 ? (
-          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filtrar por año">
-            {years.map((y) => (
-              <ChipToggle key={y} pressed={year === y} onClick={() => setYear(year === y ? null : y)}>
-                {y}
-              </ChipToggle>
+      <section aria-label="Registros del libro" className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+          <div className="min-w-0 flex-1">
+            <SearchField
+              ref={inputRef}
+              id="book-search"
+              label="Buscar en el libro"
+              placeholder="Buscar por madre, RUT, RN, médico, código (LP-00012) o cualquier dato"
+              value={query}
+              onChange={setQuery}
+              showShortcut
+            />
+          </div>
+          <div role="group" aria-label="Forma de ver el libro" className="inline-flex gap-1 self-start rounded-xl bg-muted p-1 print:hidden">
+            {(
+              [
+                { id: 'libro', label: 'Libro', Icon: Table2 },
+                { id: 'tarjetas', label: 'Tarjetas', Icon: LayoutList },
+              ] as const
+            ).map(({ id, label, Icon }) => (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={view === id}
+                onClick={() => setView(id)}
+                className={cn(
+                  'flex h-10 items-center gap-2 rounded-lg px-3.5 text-sm font-semibold transition-all',
+                  'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30',
+                  view === id ? 'bg-card text-navy shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <Icon className="size-4" aria-hidden />
+                {label}
+              </button>
             ))}
           </div>
-        ) : null}
-        {data ? <BookFilters fields={fields} records={records} value={facets} onChange={setFacets} /> : null}
-        <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        </div>
+
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 print:hidden">
+          {years.length > 1 ? (
+            <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filtrar por año">
+              {years.map((y) => (
+                <ChipToggle key={y} pressed={year === y} onClick={() => setYear(year === y ? null : y)}>
+                  {y}
+                </ChipToggle>
+              ))}
+            </div>
+          ) : null}
+          {data ? <BookFilters fields={fields} records={records} value={facets} onChange={setFacets} /> : null}
+          <div className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-1">
             <p className="text-sm text-muted-foreground" aria-live="polite">
               {data ? `${visible.length} de ${records.length} registros` : 'Cargando…'}
               {filter !== 'todos' || year || query.trim() ? (
@@ -722,29 +748,6 @@ export function BookView() {
               failed={!!error}
               onRefresh={() => void mutate()}
             />
-          </div>
-          <div role="group" aria-label="Forma de ver el libro" className="inline-flex gap-1 rounded-xl bg-muted p-1">
-            {(
-              [
-                { id: 'libro', label: 'Libro', Icon: Table2 },
-                { id: 'tarjetas', label: 'Tarjetas', Icon: LayoutList },
-              ] as const
-            ).map(({ id, label, Icon }) => (
-              <button
-                key={id}
-                type="button"
-                aria-pressed={view === id}
-                onClick={() => setView(id)}
-                className={cn(
-                  'flex h-10 items-center gap-2 rounded-lg px-3.5 text-sm font-semibold transition-all',
-                  'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30',
-                  view === id ? 'bg-card text-navy shadow-sm' : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                <Icon className="size-4" aria-hidden />
-                {label}
-              </button>
-            ))}
           </div>
         </div>
 

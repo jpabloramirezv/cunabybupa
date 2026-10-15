@@ -38,14 +38,14 @@ function Stat({
       onClick={onClick}
       title={hint}
       className={cn(
-        'flex min-h-12 items-center gap-2 rounded-xl border px-3.5 text-left transition-colors',
+        'flex min-h-9 items-center gap-1.5 rounded-lg border px-2.5 text-left transition-colors',
         'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30',
         pressed ? tone : 'border-border bg-card hover:bg-muted',
       )}
     >
       {icon}
-      <span className="text-sm font-semibold text-foreground">{label}</span>
-      <span className="text-lg font-bold tabular-nums text-navy">{count}</span>
+      <span className="text-sm font-medium text-foreground">{label}</span>
+      <span className="text-sm font-bold tabular-nums text-navy">{count}</span>
     </button>
   )
 }
@@ -58,7 +58,7 @@ function Pending({ pressed, onClick, label, count }: { pressed: boolean; onClick
       aria-pressed={pressed}
       onClick={onClick}
       className={cn(
-        'flex min-h-12 items-center gap-2 rounded-xl border px-3.5 text-left transition-colors',
+        'flex min-h-9 items-center gap-1.5 rounded-lg border px-2.5 text-left transition-colors',
         'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30',
         pressed
           ? 'border-warning-foreground/50 bg-warning text-warning-foreground'
@@ -68,8 +68,8 @@ function Pending({ pressed, onClick, label, count }: { pressed: boolean; onClick
       )}
     >
       {alert ? <AlertCircle className="size-4 shrink-0" aria-hidden /> : null}
-      <span className="text-sm font-semibold">{label}</span>
-      <span className="text-lg font-bold tabular-nums">{count}</span>
+      <span className="text-sm font-medium">{label}</span>
+      <span className="text-sm font-bold tabular-nums">{count}</span>
     </button>
   )
 }

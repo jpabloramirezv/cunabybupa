@@ -585,7 +585,7 @@ export function BookLedger({
           {emptyText}
         </p>
       ) : (
-        <div className="relative max-h-[calc(100dvh-15rem)] min-h-64 overflow-auto rounded-2xl border border-border/70 bg-card shadow-sm print:max-h-none print:overflow-visible print:rounded-none print:border-0 print:shadow-none">
+        <div className="relative max-h-[calc(100dvh-13rem)] min-h-64 overflow-auto rounded-2xl border border-border/70 bg-card shadow-sm print:max-h-none print:overflow-visible print:rounded-none print:border-0 print:shadow-none">
           <table className="w-max min-w-full border-separate border-spacing-0">
             <caption className="sr-only">
               Libro de Partos y Abortos. Cada registro es un recién nacido o un aborto. Usa las flechas arriba y abajo para

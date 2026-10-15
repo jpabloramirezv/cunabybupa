@@ -34,6 +34,7 @@ import { usePref } from '@/lib/use-pref'
 import { EpisodeGroup, EpisodeRow } from '@/components/cuna/episode-row'
 import { Ledger } from '@/components/cuna/ledger'
 import { NewEntryButton } from '@/components/cuna/book/new-entry-button'
+import { useBookSend } from '@/components/cuna/book/use-book-send'
 import { useSlashFocus } from '@/components/cuna/search-field'
 import { ScopePill, UnitBanner } from '@/components/cuna/unit-banner'
 import { Notice, PrimaryButton } from '@/components/cuna/ui'
@@ -249,6 +250,7 @@ function SegmentButton({
 export function Board() {
   const router = useRouter()
   const { data: me } = useMe()
+  const bookSend = useBookSend()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const libro = searchParams.get('vista') !== 'pizarra'
@@ -266,7 +268,7 @@ export function Board() {
   const [showGuide, setShowGuide] = useState(false)
   const [density, setDensity] = usePref<'comoda' | 'compacta'>('board.density', 'comoda')
   const [sort, setSort] = usePref<SortKey>('board.sort', 'urgencia')
-  const [bannerOff, setBannerOff, prefsReady] = usePref<boolean>('board.banner', false)
+  const [bannerOff, setBannerOff, prefsReady] = usePref<boolean>('board.banner', true)
   const inputRef = useRef<HTMLInputElement>(null)
   useSlashFocus(inputRef)
 
@@ -343,7 +345,7 @@ export function Board() {
         <div className="flex flex-col gap-1.5">
           <div className="flex flex-wrap items-center gap-3">
             <ScopePill scope="uci" />
-            <h1 className="text-2xl font-bold text-navy text-balance sm:text-3xl">
+            <h1 className="text-xl font-bold text-navy text-balance sm:text-2xl">
               {unit === 'uci'
                 ? 'Pizarra de UCI Neonatal'
                 : unit === 'nursery'
@@ -351,7 +353,7 @@ export function Board() {
                   : 'Pizarra de Neonatología'}
             </h1>
           </div>
-          <p className="text-sm text-muted-foreground text-pretty">
+          <p className="hidden text-sm text-muted-foreground text-pretty md:block">
             {libro
               ? unit === 'uci'
                 ? 'Libro de ingresos de UCI: historial completo de hospitalizaciones, con las mismas columnas del libro físico.'
@@ -427,7 +429,14 @@ export function Board() {
           ))}
         </div>
         <div className="flex w-full items-center justify-between gap-2 sm:ml-auto sm:w-auto">
-          {prefsReady && bannerOff && me?.canBook ? (
+          {bookSend && libro && bookSend.pendingCount(f.all.map((e) => e.id)) > 0 ? (
+            <span
+              role="status"
+              className="inline-flex h-9 items-center rounded-lg bg-warning px-3 text-sm font-semibold text-warning-foreground"
+            >
+              {bookSend.pendingCount(f.all.map((e) => e.id))} por enviar al libro
+            </span>
+          ) : prefsReady && bannerOff && me?.canBook ? (
             <Link
               href="/libro"
               className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-primary hover:bg-secondary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
@@ -594,7 +603,7 @@ export function Board() {
         ) : null}
 
         {libro && !isLoading && !showError ? (
-          <Ledger list={f.list} cat={f.cat} terms={f.terms} showIdentity={!!me?.canIdentity} />
+          <Ledger list={f.list} cat={f.cat} terms={f.terms} showIdentity={!!me?.canIdentity} book={bookSend} />
         ) : null}
 
         {(libro ? [] : sections).map((s) => (

@@ -101,6 +101,7 @@ export type MePayload = {
   canBook: boolean
   canEditMaternity: boolean
   canEditNeonatal: boolean
+  maternityOnly: boolean
 }
 
 export type IdentityPayload = {

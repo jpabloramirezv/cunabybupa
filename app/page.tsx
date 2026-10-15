@@ -7,5 +7,5 @@ export default async function Home() {
   if (!(await getAccount())) redirect('/acceso')
   const ctx = await getCtx()
   if (!ctx) redirect('/personal')
-  redirect(ctx.canClinical ? '/pizarra' : '/panel')
+  redirect(ctx.canClinical ? '/pizarra' : ctx.canBook ? '/libro' : '/panel')
 }
