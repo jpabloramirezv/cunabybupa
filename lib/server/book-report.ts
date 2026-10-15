@@ -66,7 +66,7 @@ const MAX_CATEGORIES = 12
 const MAX_BY_CATEGORIES = 8
 const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
 
-function kindOf(f: BookFieldRow): ColumnKind | null {
+export function kindOf(f: BookFieldRow): ColumnKind | null {
   if (EXCLUDED_KEYS.has(f.key) || (f.source && EXCLUDED_SOURCE.test(f.source))) return null
   if (f.type === 'select' || f.type === 'doctor') return 'categoria'
   if (f.type === 'text') return TEXT_CATEGORIES.has(f.key) ? 'categoria' : null
@@ -76,7 +76,7 @@ function kindOf(f: BookFieldRow): ColumnKind | null {
   return null
 }
 
-type Cat = { of: (v: string) => string; order: string[] }
+export type Cat = { of: (v: string) => string; order: string[] }
 
 const APGAR_ORDER = ['0 a 3', '4 a 6', '7 a 10']
 const apgarBin = (v: string) => {
@@ -140,7 +140,7 @@ const hourBin = (v: string) => {
   return h < 6 ? HOUR_ORDER[0] : h < 12 ? HOUR_ORDER[1] : h < 18 ? HOUR_ORDER[2] : HOUR_ORDER[3]
 }
 
-function makeCat(f: BookFieldRow, kind: ColumnKind, vals: string[], limit: number): Cat {
+export function makeCat(f: BookFieldRow, kind: ColumnKind, vals: string[], limit: number): Cat {
   if (kind === 'numero') return KNOWN[f.key] ?? numericCat(vals)
   if (kind === 'fecha') {
     const order = [...new Set(vals.map((v) => v.slice(0, 7)).filter((m) => /^\d{4}-\d{2}$/.test(m)))].sort().map(monthLabel)

@@ -8,6 +8,7 @@ import { InsightsView } from '@/components/cuna/insights/insights-view'
 import { BookStatsView } from '@/components/cuna/book/book-stats-view'
 import { BinomioView } from '@/components/cuna/book/binomio-view'
 import { BookColumnReport, REPORT_SCOPES } from '@/components/cuna/book/book-column-report'
+import { BookInsightsView } from '@/components/cuna/book/book-insights-view'
 import { SegmentSwitch, type StatsSegment } from '@/components/cuna/segment-switch'
 import { ScopePill } from '@/components/cuna/unit-banner'
 import { Notice } from '@/components/cuna/ui'
@@ -17,7 +18,7 @@ const inputClass =
   'h-12 rounded-lg border border-input bg-card px-3 text-base text-foreground focus-visible:border-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20'
 
 type Area = 'neonatologia' | 'libro'
-type LibroTab = 'columnas' | 'indicadores'
+type LibroTab = 'generador' | 'columnas' | 'indicadores'
 
 const AREAS: { id: Area; title: string; text: string; Icon: LucideIcon }[] = [
   {
@@ -146,6 +147,7 @@ function PeriodControls({
 
 function LibroTabs({ value, onChange }: { value: LibroTab; onChange: (t: LibroTab) => void }) {
   const tabs: { id: LibroTab; label: string }[] = [
+    { id: 'generador', label: 'Informe estadístico completo' },
     { id: 'columnas', label: 'Informes estadísticos por columna' },
     { id: 'indicadores', label: 'Indicadores y cruces del libro' },
   ]
@@ -181,7 +183,7 @@ export function ReportsHub() {
   const [area, setArea] = useState<Area | null>(null)
   const [segment, setSegment] = useState<StatsSegment>('uci')
   const [libroScope, setLibroScope] = useState<ReportScope>('todos')
-  const [libroTab, setLibroTab] = useState<LibroTab>('columnas')
+  const [libroTab, setLibroTab] = useState<LibroTab>('generador')
   const [to, setTo] = useState(todayYmd)
   const [from, setFrom] = useState(() => addDaysYmd(todayYmd(), -29))
   const valid = from <= to
@@ -203,14 +205,16 @@ export function ReportsHub() {
           <div className="max-w-3xl">
             <h1 className="text-2xl font-bold text-navy text-balance sm:text-3xl">Informes del Libro de Partos</h1>
             <p className="mt-1 text-sm text-muted-foreground text-pretty">
-              Se calculan con el Libro de Partos y Abortos, sin datos de identificación. Elige el período, qué registros
-              analizar y las columnas de Maternidad o Neonatología que quieres estudiar.
+              Se calculan con el Libro de Partos y Abortos, sin datos de identificación. Genera un informe completo con
+              filtros, pruebas estadísticas, PDF y Excel, o revisa columnas e indicadores puntuales.
             </p>
           </div>
-          <PeriodControls from={from} to={to} valid={valid} onFrom={setFrom} onTo={setTo} quick />
           <LibroTabs value={libroTab} onChange={setLibroTab} />
+          {libroTab !== 'generador' ? <PeriodControls from={from} to={to} valid={valid} onFrom={setFrom} onTo={setTo} quick /> : null}
 
-          {valid ? (
+          {libroTab === 'generador' ? <BookInsightsView /> : null}
+
+          {valid && libroTab !== 'generador' ? (
             <>
               <div className={cn(libroTab !== 'columnas' && 'hidden')}>
                 <BookColumnReport
