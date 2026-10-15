@@ -13,7 +13,6 @@ export const GET = handle(async () => {
   if (!ctx.canBook) throw new HttpError(403, 'Tu rol no permite abrir el libro.')
   const fields = await getBookFields()
   const records = await listRecords(fields)
-  await audit(ctx, 'leer', 'libro', null, 'Libro de Partos y Abortos')
   return Response.json({ fields, records })
 })
 

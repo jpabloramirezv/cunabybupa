@@ -1,5 +1,4 @@
 import { handle, HttpError } from '@/lib/api'
-import { audit } from '@/lib/audit'
 import { requireCtx } from '@/lib/ctx'
 import { computeBookStats, type StatsSegment } from '@/lib/server/book-stats'
 import { addDaysYmd, todayYmd } from '@/lib/time'
@@ -18,6 +17,5 @@ export const GET = handle(async (req) => {
   const seg = sp.get('segment')
   const segment: StatsSegment = seg === 'uci' || seg === 'nursery' ? seg : 'todos'
   const stats = await computeBookStats(from, to, segment)
-  await audit(ctx, 'leer', 'libro', null, `Indicadores ${segment} ${from} a ${to}`)
   return Response.json(stats)
 })

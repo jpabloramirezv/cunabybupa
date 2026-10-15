@@ -58,13 +58,18 @@ export const PATCH = handle<Ctx>(async (req, { params }) => {
     .update(birthRecord)
     .set({ ...set, data: merged, updatedAt: new Date(), updatedByName: ctx.name })
     .where(eq(birthRecord.id, id))
-  await audit(
-    ctx,
-    'modificar',
-    'libro',
-    set.episodeId ?? current.episodeId,
-    `Registro ${id.slice(0, 8)}: ${Object.keys(data).join(', ')}${set.episodeId !== undefined ? ' (vínculo UCI)' : ''}`,
-  )
+  const before = (current.data ?? {}) as Record<string, unknown>
+  const changedLabels = Object.keys(data)
+    .filter((k) => JSON.stringify(before[k] ?? null) !== JSON.stringify(merged[k] ?? null))
+    .map((k) => fields.find((f) => f.key === k)?.label ?? k)
+  const linkChanged = set.episodeId !== undefined && set.episodeId !== current.episodeId
+  if (changedLabels.length > 0 || linkChanged) {
+    const parts = [
+      changedLabels.length ? `Campos: ${changedLabels.join(', ')}` : '',
+      linkChanged ? (set.episodeId ? 'Vinculó ingreso de UCI' : 'Quitó vínculo con UCI') : '',
+    ].filter(Boolean)
+    await audit(ctx, 'modificar', 'libro', set.episodeId ?? current.episodeId, `Registro ${id.slice(0, 8)} · ${parts.join(' · ')}`)
+  }
   return Response.json({ record: await getRecord(id, fields) })
 })
 

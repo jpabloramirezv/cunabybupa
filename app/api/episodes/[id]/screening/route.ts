@@ -213,17 +213,19 @@ export const PATCH = handle<Params>(async (req, { params }) => {
   await db.update(episode).set({ updatedAt: now }).where(eq(episode.id, id))
   await recordChanges(ctx, id, changes, reason)
   const [epRow] = await db.select({ seq: episode.seq }).from(episode).where(eq(episode.id, id)).limit(1)
-  await audit(
-    ctx,
-    'modificar',
-    'seguimiento',
-    id,
-    explainChange({
-      block: 'seguimiento',
-      code: epRow ? episodeCode(epRow.seq) : null,
-      created: false,
-      changes,
-    }),
-  )
+  if (changes.length > 0) {
+    await audit(
+      ctx,
+      'modificar',
+      'seguimiento',
+      id,
+      explainChange({
+        block: 'seguimiento',
+        code: epRow ? episodeCode(epRow.seq) : null,
+        created: false,
+        changes,
+      }),
+    )
+  }
   return Response.json({ ok: true })
 })

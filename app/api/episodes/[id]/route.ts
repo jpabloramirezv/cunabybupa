@@ -101,13 +101,15 @@ export const PATCH = handle<Params>(async (req, { params }) => {
   const [fresh] = await db.select().from(episode).where(eq(episode.id, id)).limit(1)
   const [detail] = await buildDetails([fresh])
 
-  await audit(
-    ctx,
-    created ? 'crear' : 'modificar',
-    block,
-    id,
-    explainChange({ block, code: detail.code, created, changes }),
-  )
+  if (created || changes.length > 0) {
+    await audit(
+      ctx,
+      created ? 'crear' : 'modificar',
+      block,
+      id,
+      explainChange({ block, code: detail.code, created, changes }),
+    )
+  }
   return Response.json(detail)
 })
 

@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { assertEpisodeId, handle, HttpError, readJson } from '@/lib/api'
-import { audit } from '@/lib/audit'
+import { audit, auditAccess } from '@/lib/audit'
 import { explainChange } from '@/lib/audit-text'
 import { ensureEpisode, parseUnit } from '@/lib/server/create-episode'
 import { CONTACT_REASONS } from '@/lib/config'
@@ -39,7 +39,7 @@ export const GET = handle<Params>(async (_req, { params }) => {
   assertEpisodeId(id)
   await purgeExpiredContacts()
   const [row] = await db.select().from(episodeIdentity).where(eq(episodeIdentity.episodeId, id)).limit(1)
-  await audit(ctx, 'leer', 'identidad', id)
+  await auditAccess(ctx, 'identidad', id)
   if (!row) return Response.json(empty)
   const payload: IdentityPayload = {
     patientName: row.patientName,
@@ -158,17 +158,19 @@ export const PATCH = handle<Params>(async (req, { params }) => {
     changeReason,
   )
 
-  await audit(
-    ctx,
-    created ? 'crear' : current ? 'modificar' : 'crear',
-    'identidad',
-    id,
-    explainChange({
-      block: 'identidad',
-      code: episodeCode(fresh.seq),
-      created,
-      changes: touched.map((field) => ({ field, oldValue: null, newValue: null, sensitive: true })),
-    }),
-  )
+  if (created || touched.length > 0) {
+    await audit(
+      ctx,
+      created ? 'crear' : current ? 'modificar' : 'crear',
+      'identidad',
+      id,
+      explainChange({
+        block: 'identidad',
+        code: episodeCode(fresh.seq),
+        created,
+        changes: touched.map((field) => ({ field, oldValue: null, newValue: null, sensitive: true })),
+      }),
+    )
+  }
   return Response.json({ ok: true, contactDeleteAt: after?.contactDeleteAt?.toISOString() ?? null })
 })
