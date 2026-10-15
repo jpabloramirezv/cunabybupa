@@ -184,11 +184,11 @@ export function BinomioView({
             Libro de Partos y Abortos
           </p>
           <h2 id="binomio-title" className="text-xl font-bold text-navy text-balance sm:text-2xl">
-            Binomio recién nacido + madre
+            Cruces entre la madre y el recién nacido
           </h2>
           <p className="mt-1 text-sm text-muted-foreground text-pretty">
-            Un binomio es una fila del Libro de Partos y Abortos: reúne los datos de la madre (Maternidad) y del recién
-            nacido (Neonatología), sin importar si estuvo hospitalizado. Aquí se cruzan para {scopeText}, sin datos de
+            Cada registro del Libro de Partos y Abortos reúne los datos de la madre (Maternidad) y del recién nacido
+            (Neonatología), sin importar si estuvo hospitalizado. Aquí se cruzan para {scopeText}, sin datos de
             identificación. El libro no registra datos del padre.
           </p>
         </div>

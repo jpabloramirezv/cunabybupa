@@ -1,32 +1,36 @@
 'use client'
 
 import { useState } from 'react'
-import { BarChart3, Link2 } from 'lucide-react'
+import { BookOpenText, Stethoscope, type LucideIcon } from 'lucide-react'
 import { addDaysYmd, todayYmd } from '@/lib/time'
 import { cn } from '@/lib/utils'
 import { InsightsView } from '@/components/cuna/insights/insights-view'
 import { BookStatsView } from '@/components/cuna/book/book-stats-view'
 import { BinomioView } from '@/components/cuna/book/binomio-view'
+import { BookColumnReport, REPORT_SCOPES } from '@/components/cuna/book/book-column-report'
 import { SegmentSwitch, type StatsSegment } from '@/components/cuna/segment-switch'
 import { ScopePill } from '@/components/cuna/unit-banner'
+import { Notice } from '@/components/cuna/ui'
+import type { ReportScope } from '@/lib/server/book-report'
 
 const inputClass =
   'h-12 rounded-lg border border-input bg-card px-3 text-base text-foreground focus-visible:border-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20'
 
-type Area = 'unidad' | 'binomio'
+type Area = 'neonatologia' | 'libro'
+type LibroTab = 'columnas' | 'indicadores'
 
-const AREAS: { id: Area; title: string; text: string; Icon: typeof BarChart3 }[] = [
+const AREAS: { id: Area; title: string; text: string; Icon: LucideIcon }[] = [
   {
-    id: 'unidad',
-    title: 'Informe de la unidad',
-    text: 'Indicadores de hospitalización, estadía, diagnósticos y el generador de informes con filtros.',
-    Icon: BarChart3,
+    id: 'neonatologia',
+    title: 'Neonatología',
+    text: 'Pizarra de UCI Neonatal y Nursery: indicadores de hospitalización, estadía y diagnósticos, y el generador de informes estadísticos con filtros.',
+    Icon: Stethoscope,
   },
   {
-    id: 'binomio',
-    title: 'Binomio recién nacido + madre',
-    text: 'Cruces entre los datos de la madre y del RN desde el Libro de Partos, con período, impresión y descarga.',
-    Icon: Link2,
+    id: 'libro',
+    title: 'Libro de Partos',
+    text: 'Libro de Partos y Abortos con Maternidad y Neonatología: informes estadísticos según sus columnas, indicadores y cruces entre la madre y el recién nacido.',
+    Icon: BookOpenText,
   },
 ]
 
@@ -36,6 +40,9 @@ const QUICK_PERIODS = [
   { days: 365, label: '1 año' },
 ]
 
+const LIBRO_DEFAULT_COLUMNS = ['tipo_parto', 'paridad', 'sexo_rn', 'eg', 'peso']
+const NEONATOLOGIA_DEFAULT_COLUMNS = ['sexo_rn', 'eg', 'peso', 'apgar5', 'alimentacion_alta']
+
 function AreaChooser({ onPick }: { onPick: (a: Area) => void }) {
   return (
     <section aria-labelledby="areas-title" className="flex flex-col gap-4">
@@ -44,7 +51,7 @@ function AreaChooser({ onPick }: { onPick: (a: Area) => void }) {
           ¿Por qué sección quieres comenzar?
         </h1>
         <p className="mt-1 text-sm text-muted-foreground text-pretty">
-          Podrás cambiar de sección en cualquier momento.
+          Cada sección tiene sus propios informes estadísticos. Podrás cambiar en cualquier momento.
         </p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
@@ -89,61 +96,175 @@ function AreaSwitch({ value, onChange }: { value: Area; onChange: (a: Area) => v
   )
 }
 
+function PeriodControls({
+  from,
+  to,
+  valid,
+  onFrom,
+  onTo,
+  quick,
+}: {
+  from: string
+  to: string
+  valid: boolean
+  onFrom: (v: string) => void
+  onTo: (v: string) => void
+  quick?: boolean
+}) {
+  return (
+    <div className="flex flex-wrap items-end gap-3 print:hidden">
+      <label className="flex flex-col gap-1 text-sm font-semibold text-foreground">
+        Desde
+        <input type="date" value={from} max={to} onChange={(e) => onFrom(e.target.value)} className={inputClass} />
+      </label>
+      <label className="flex flex-col gap-1 text-sm font-semibold text-foreground">
+        Hasta
+        <input type="date" value={to} min={from} onChange={(e) => onTo(e.target.value)} className={inputClass} />
+      </label>
+      {quick ? (
+        <div role="group" aria-label="Períodos rápidos" className="inline-flex gap-1 rounded-xl bg-muted p-1">
+          {QUICK_PERIODS.map((p) => (
+            <button
+              key={p.days}
+              type="button"
+              onClick={() => {
+                const end = todayYmd()
+                onTo(end)
+                onFrom(addDaysYmd(end, -(p.days - 1)))
+              }}
+              className="h-10 rounded-lg px-3.5 text-sm font-semibold text-muted-foreground transition-all hover:bg-card hover:text-foreground focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {!valid ? <p className="pb-3 text-sm text-destructive">La fecha inicial debe ser anterior a la final.</p> : null}
+    </div>
+  )
+}
+
+function LibroTabs({ value, onChange }: { value: LibroTab; onChange: (t: LibroTab) => void }) {
+  const tabs: { id: LibroTab; label: string }[] = [
+    { id: 'columnas', label: 'Informes estadísticos por columna' },
+    { id: 'indicadores', label: 'Indicadores y cruces del libro' },
+  ]
+  return (
+    <div role="group" aria-label="Tipo de informe del libro" className="inline-flex w-full flex-wrap gap-1 rounded-xl bg-muted p-1 print:hidden sm:w-fit">
+      {tabs.map((t) => (
+        <button
+          key={t.id}
+          type="button"
+          aria-pressed={value === t.id}
+          onClick={() => onChange(t.id)}
+          className={cn(
+            'h-11 flex-1 rounded-lg px-4 text-sm font-semibold transition-all sm:flex-none',
+            'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30',
+            value === t.id ? 'bg-card text-navy shadow-sm' : 'text-muted-foreground hover:text-foreground',
+          )}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 /**
- * Informes: UCI mantiene el generador completo de siempre; Nursery y "todos los nacimientos"
- * usan los indicadores del Libro de Partos y Abortos.
+ * Informes tiene dos familias:
+ * - Neonatología: UCI mantiene el generador completo de siempre; Nursery y "todos los nacimientos"
+ *   usan los indicadores del libro y un informe estadístico por columna de Neonatología.
+ * - Libro de Partos: informe estadístico por cualquier columna de Maternidad o Neonatología,
+ *   más los indicadores y los cruces entre la madre y el recién nacido.
  */
 export function ReportsHub() {
   const [area, setArea] = useState<Area | null>(null)
   const [segment, setSegment] = useState<StatsSegment>('uci')
+  const [libroScope, setLibroScope] = useState<ReportScope>('todos')
+  const [libroTab, setLibroTab] = useState<LibroTab>('columnas')
   const [to, setTo] = useState(todayYmd)
   const [from, setFrom] = useState(() => addDaysYmd(todayYmd(), -29))
   const valid = from <= to
+
+  const libroSegment: StatsSegment | null = libroScope === 'aborto' || libroScope === 'nacimientos' ? null : libroScope
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3 print:hidden">
         <ScopePill scope="analisis" />
         {area ? <AreaSwitch value={area} onChange={setArea} /> : null}
-        {area ? <SegmentSwitch value={segment} onChange={setSegment} /> : null}
+        {area === 'neonatologia' ? <SegmentSwitch value={segment} onChange={setSegment} /> : null}
       </div>
 
       {area === null ? <AreaChooser onPick={setArea} /> : null}
 
-      {area === 'binomio' ? (
+      {area === 'libro' ? (
         <div className="flex flex-col gap-6">
-          <div className="flex flex-wrap items-end gap-3 print:hidden">
-            <label className="flex flex-col gap-1 text-sm font-semibold text-foreground">
-              Desde
-              <input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} className={inputClass} />
-            </label>
-            <label className="flex flex-col gap-1 text-sm font-semibold text-foreground">
-              Hasta
-              <input type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} className={inputClass} />
-            </label>
-            <div role="group" aria-label="Períodos rápidos" className="inline-flex gap-1 rounded-xl bg-muted p-1">
-              {QUICK_PERIODS.map((p) => (
-                <button
-                  key={p.days}
-                  type="button"
-                  onClick={() => {
-                    const end = todayYmd()
-                    setTo(end)
-                    setFrom(addDaysYmd(end, -(p.days - 1)))
-                  }}
-                  className="h-10 rounded-lg px-3.5 text-sm font-semibold text-muted-foreground transition-all hover:bg-card hover:text-foreground focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-            {!valid ? <p className="pb-3 text-sm text-destructive">La fecha inicial debe ser anterior a la final.</p> : null}
+          <div className="max-w-3xl">
+            <h1 className="text-2xl font-bold text-navy text-balance sm:text-3xl">Informes del Libro de Partos</h1>
+            <p className="mt-1 text-sm text-muted-foreground text-pretty">
+              Se calculan con el Libro de Partos y Abortos, sin datos de identificación. Elige el período, qué registros
+              analizar y las columnas de Maternidad o Neonatología que quieres estudiar.
+            </p>
           </div>
-          {valid ? <BinomioView segment={segment} from={from} to={to} tools /> : null}
+          <PeriodControls from={from} to={to} valid={valid} onFrom={setFrom} onTo={setTo} quick />
+          <LibroTabs value={libroTab} onChange={setLibroTab} />
+
+          {valid ? (
+            <>
+              <div className={cn(libroTab !== 'columnas' && 'hidden')}>
+                <BookColumnReport
+                  scope={libroScope}
+                  onScopeChange={setLibroScope}
+                  from={from}
+                  to={to}
+                  defaultKeys={LIBRO_DEFAULT_COLUMNS}
+                  title="Informe estadístico por columna"
+                  description="Marca las columnas del libro que quieres analizar. Cada una muestra su distribución o resumen numérico, y puedes compararlas según otra columna. Se puede imprimir o descargar."
+                />
+              </div>
+
+              {libroTab === 'indicadores' ? (
+                <div className="flex flex-col gap-6">
+                  <div className="flex flex-col gap-2 print:hidden">
+                    <span className="text-sm font-semibold text-foreground">Qué registros analizar</span>
+                    <div role="group" aria-label="Registros a analizar" className="inline-flex w-full flex-wrap gap-1 rounded-xl bg-muted p-1 sm:w-fit">
+                      {REPORT_SCOPES.map((s) => (
+                        <button
+                          key={s.value}
+                          type="button"
+                          aria-pressed={libroScope === s.value}
+                          onClick={() => setLibroScope(s.value)}
+                          className={cn(
+                            'h-10 flex-1 rounded-lg px-3.5 text-sm font-semibold transition-all sm:flex-none',
+                            'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30',
+                            libroScope === s.value ? 'bg-card text-navy shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                          )}
+                        >
+                          {s.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {libroSegment ? (
+                    <>
+                      <BookStatsView segment={libroSegment} from={from} to={to} />
+                      <BinomioView segment={libroSegment} from={from} to={to} tools />
+                    </>
+                  ) : (
+                    <Notice
+                      tone="info"
+                      title="Los indicadores y cruces no se calculan solo para abortos. Usa el informe estadístico por columna para analizarlos."
+                    />
+                  )}
+                </div>
+              ) : null}
+            </>
+          ) : null}
         </div>
       ) : null}
 
-      {area !== 'unidad' ? null : segment === 'uci' ? (
+      {area !== 'neonatologia' ? null : segment === 'uci' ? (
         <>
           <InsightsView />
           <BinomioView segment="uci" withPeriod />
@@ -159,18 +280,19 @@ export function ReportsHub() {
               está en UCI Neonatal.
             </p>
           </div>
-          <div className="flex flex-wrap items-end gap-3 print:hidden">
-            <label className="flex flex-col gap-1 text-sm font-semibold text-foreground">
-              Desde
-              <input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} className={inputClass} />
-            </label>
-            <label className="flex flex-col gap-1 text-sm font-semibold text-foreground">
-              Hasta
-              <input type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} className={inputClass} />
-            </label>
-            {!valid ? <p className="pb-3 text-sm text-destructive">La fecha inicial debe ser anterior a la final.</p> : null}
-          </div>
+          <PeriodControls from={from} to={to} valid={valid} onFrom={setFrom} onTo={setTo} />
           {valid ? <BookStatsView segment={segment} from={from} to={to} /> : null}
+          {valid ? (
+            <BookColumnReport
+              scope={segment === 'nursery' ? 'nursery' : 'nacimientos'}
+              from={from}
+              to={to}
+              sections={['neonatal']}
+              defaultKeys={NEONATOLOGIA_DEFAULT_COLUMNS}
+              title="Informe estadístico por columna de Neonatología"
+              description="Marca las columnas de Neonatología que quieres analizar para este período. Puedes compararlas según otra columna, imprimir o descargar el resumen."
+            />
+          ) : null}
           {valid ? <BinomioView segment={segment} from={from} to={to} /> : null}
         </div>
       )}
