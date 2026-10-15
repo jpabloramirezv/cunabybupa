@@ -35,7 +35,7 @@ export async function buildLibroWorkbook(report: LibroReport, data: Record<strin
   if (report.flow) {
     const sh = new Sheet(wb, 'Actividad', [24, 14, 14, 14, 14])
     sh.title(`Actividad (${report.flow.granularity === 'dia' ? 'diaria' : report.flow.granularity === 'semana' ? 'semanal' : 'mensual'})`)
-    sh.table(['Período', 'Nursery', 'UCI Neonatal', 'Abortos', 'Total'], report.flow.points.map((p) => [p.label, p.nursery, p.uci, p.abortos, p.total]), 4)
+    sh.table(['Período', 'Nursery', 'UPC Neonatal', 'Abortos', 'Total'], report.flow.points.map((p) => [p.label, p.nursery, p.uci, p.abortos, p.total]), 4)
     sh.heading('Por día de la semana')
     sh.table(['Día', 'Registros', '%'], bars(report.flow.weekday), 1)
   }

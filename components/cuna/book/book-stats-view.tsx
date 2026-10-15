@@ -76,7 +76,7 @@ function Series({ stats }: { stats: BookStats }) {
   const dense = stats.series.length > 24
   return (
     <div>
-      <div className="flex h-40 items-end gap-px" role="img" aria-label="Nacimientos por período, Nursery y UCI">
+      <div className="flex h-40 items-end gap-px" role="img" aria-label="Nacimientos por período, Nursery y UPC">
         {stats.series.map((s) => {
           const total = s.nursery + s.uci
           return (
@@ -102,7 +102,7 @@ function Series({ stats }: { stats: BookStats }) {
         {showUci ? (
           <span className="flex items-center gap-2">
             <span className="size-3 rounded-sm bg-navy" aria-hidden />
-            UCI Neonatal
+            UPC Neonatal
           </span>
         ) : null}
       </div>
@@ -110,7 +110,7 @@ function Series({ stats }: { stats: BookStats }) {
   )
 }
 
-/** Indicadores del Libro de Partos y Abortos: Nursery, UCI o todos los nacimientos. */
+/** Indicadores del Libro de Partos y Abortos: Nursery, UPC o todos los nacimientos. */
 export function BookStatsView({ segment, days, from, to }: { segment: StatsSegment; days?: number; from?: string; to?: string }) {
   const range = useMemo(() => {
     const end = to ?? todayYmd()
@@ -125,7 +125,7 @@ export function BookStatsView({ segment, days, from, to }: { segment: StatsSegme
   if (isLoading || !data) return <p className="py-10 text-center text-muted-foreground">Calculando…</p>
 
   const t = data.totals
-  const label = segment === 'nursery' ? 'de Nursery' : segment === 'uci' ? 'de UCI' : ''
+  const label = segment === 'nursery' ? 'de Nursery' : segment === 'uci' ? 'de UPC' : ''
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
@@ -139,7 +139,7 @@ export function BookStatsView({ segment, days, from, to }: { segment: StatsSegme
           {segment === 'todos' ? (
             <>
               <Big value={t.nursery} label="Nursery (sin hospitalizar)" />
-              <Big value={t.uci} label={`UCI Neonatal (${pct(t.uciPct)} de los nacimientos)`} />
+              <Big value={t.uci} label={`UPC Neonatal (${pct(t.uciPct)} de los nacimientos)`} />
               <Big value={t.abortos} label="Abortos" />
             </>
           ) : (

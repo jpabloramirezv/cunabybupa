@@ -7,9 +7,9 @@ export type LibroGranularity = 'auto' | 'dia' | 'semana' | 'mes'
 
 export const LIBRO_SCOPES: { value: LibroScope; label: string; hint: string }[] = [
   { value: 'todos', label: 'Todo el Libro', hint: 'Nacimientos y abortos' },
-  { value: 'nacimientos', label: 'Solo nacimientos', hint: 'Nursery y UCI, sin abortos' },
+  { value: 'nacimientos', label: 'Solo nacimientos', hint: 'Nursery y UPC, sin abortos' },
   { value: 'nursery', label: 'Nursery', hint: 'Recién nacidos con estadía normal' },
-  { value: 'uci', label: 'UCI Neonatal', hint: 'Recién nacidos hospitalizados' },
+  { value: 'uci', label: 'UPC Neonatal', hint: 'Recién nacidos hospitalizados' },
   { value: 'aborto', label: 'Abortos', hint: 'Solo datos maternos' },
 ]
 
@@ -64,8 +64,8 @@ export const LIBRO_KPIS: { key: LibroKpiKey; label: string; group: string }[] = 
   { key: 'partos', label: 'Nacimientos', group: 'Actividad' },
   { key: 'abortos', label: 'Abortos', group: 'Actividad' },
   { key: 'nursery', label: 'RN en Nursery', group: 'Actividad' },
-  { key: 'uci', label: 'RN en UCI Neonatal', group: 'Actividad' },
-  { key: 'uciPct', label: '% de RN en UCI', group: 'Actividad' },
+  { key: 'uci', label: 'RN en UPC Neonatal', group: 'Actividad' },
+  { key: 'uciPct', label: '% de RN en UPC', group: 'Actividad' },
   { key: 'promedioDia', label: 'Nacimientos por día', group: 'Actividad' },
   { key: 'cesarea', label: 'Tasa de cesárea', group: 'Parto' },
   { key: 'cesareaUrgencia', label: 'Cesárea de urgencia', group: 'Parto' },

@@ -115,7 +115,7 @@ export function BookOverview({
         pressed={filter === 'uci'}
         onClick={() => toggle('uci')}
         icon={<Stethoscope className="size-4 text-primary" aria-hidden />}
-        label="UCI"
+        label="UPC"
         count={counts.uci}
         tone="border-navy bg-navy/10"
         hint="Hospitalizados: su ficha clínica está en la Pizarra y sus datos llegan solos."

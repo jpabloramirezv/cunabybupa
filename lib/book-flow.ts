@@ -7,12 +7,12 @@ export type BookSegment = 'nursery' | 'uci' | 'aborto'
 
 export const SEGMENT_LABEL: Record<BookSegment, string> = {
   nursery: 'Nursery',
-  uci: 'UCI Neonatal',
+  uci: 'UPC Neonatal',
   aborto: 'Aborto',
 }
 
 /**
- * Un recién nacido es de UCI si está vinculado a un ingreso de la Pizarra o si se marcó Hospitalización = SI.
+ * Un recién nacido es de UPC si está vinculado a un ingreso de la Pizarra o si se marcó Hospitalización = SI.
  * Si no, es de Nursery (estadía normal). Los abortos no tienen recién nacido.
  */
 export function segmentOf(values: Values, episodeId?: string | null): BookSegment {

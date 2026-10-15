@@ -97,10 +97,10 @@ export function PanelView() {
           <h1 className="text-2xl font-bold text-navy sm:text-3xl">Panel de indicadores</h1>
           <p className="text-sm text-muted-foreground">
             {segment === 'uci'
-              ? 'Calculado sobre los ingresos a UCI Neonatal del período. Sin datos de identificación.'
+              ? 'Calculado sobre los ingresos a UPC Neonatal del período. Sin datos de identificación.'
               : segment === 'nursery'
                 ? 'Calculado sobre los recién nacidos de Nursery del período. Sin datos de identificación.'
-                : 'Calculado sobre UCI Neonatal y Nursery juntos, más el Libro de Partos y Abortos. Sin datos de identificación.'}
+                : 'Calculado sobre UPC Neonatal y Nursery juntos, más el Libro de Partos y Abortos. Sin datos de identificación.'}
           </p>
         </div>
         {uci ? (

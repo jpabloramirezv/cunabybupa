@@ -488,8 +488,8 @@ export function BookView() {
             queda pendiente para la otra unidad y no se duplica.
           </li>
           <li>
-            <strong className="text-foreground">Nursery o UCI.</strong> Si el RN se hospitaliza, vincula su ingreso de
-            la Pizarra o marca Hospitalización en SI: pasa a UCI y sus datos clínicos se completan solos. Si no, queda
+            <strong className="text-foreground">Nursery o UPC.</strong> Si el RN se hospitaliza, vincula su ingreso de
+            la Pizarra o marca Hospitalización en SI: pasa a UPC y sus datos clínicos se completan solos. Si no, queda
             como Nursery. Los gemelos van en registros separados con los datos de la madre copiados.
           </li>
         </ul>

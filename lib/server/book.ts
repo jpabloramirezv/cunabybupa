@@ -183,7 +183,7 @@ function resolveSource(source: string, d: EpisodeDetail, labels: Labels): string
   }
 }
 
-/** Valores que ya existen en el episodio de UCI vinculado, indexados por clave de columna. */
+/** Valores que ya existen en el episodio de UPC vinculado, indexados por clave de columna. */
 export async function resolveLinked(
   episodeIds: (string | null)[],
   fields: BookFieldRow[],
@@ -275,7 +275,7 @@ export type BookRecordOut = {
   updatedAt: string
 }
 
-/** Combina lo digitado con lo que ya está en UCI: lo digitado manda. */
+/** Combina lo digitado con lo que ya está en UPC: lo digitado manda. */
 export const effectiveValues = (data: Record<string, string>, linked: Record<string, string>) => {
   const out: Record<string, string> = { ...linked }
   for (const [k, v] of Object.entries(data)) if (v !== '') out[k] = v

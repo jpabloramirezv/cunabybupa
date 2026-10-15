@@ -41,7 +41,7 @@ export function EpisodeLinker({
     <div className="flex flex-col gap-3 rounded-lg border border-border bg-muted/50 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-foreground">Ingreso a UCI Neonatal</p>
+          <p className="text-sm font-semibold text-foreground">Ingreso a UPC Neonatal</p>
           <p className="text-sm text-muted-foreground text-pretty">
             {episodeId
               ? `Vinculado a ${episodeCode ?? 'un ingreso'}. Peso, Apgar, vacunas y alta se completan solos.`
@@ -67,7 +67,7 @@ export function EpisodeLinker({
         <div className="flex flex-col gap-2">
           <SearchField
             id="book-episode-search"
-            label="Buscar ingreso de UCI"
+            label="Buscar ingreso de UPC"
             placeholder="Nombre, madre, RUT, N° de admisión o código"
             value={q}
             onChange={setQ}

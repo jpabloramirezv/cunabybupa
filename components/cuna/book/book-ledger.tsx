@@ -329,7 +329,7 @@ export function BookLedger({
             group: 'Estado',
             section: null,
             label: 'Tipo',
-            title: 'Nursery, UCI o aborto',
+            title: 'Nursery, UPC o aborto',
             min: 'min-w-[8rem]',
             sort: (x) => x.seg,
             cell: (x) => (

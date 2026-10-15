@@ -3,7 +3,7 @@
 import { Fragment, useMemo, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { BookOpenCheck, Check, ChevronDown, ChevronUp, ChevronsUpDown, Loader2, Printer, Send } from 'lucide-react'
+import { BookOpenCheck, Check, ChevronDown, ChevronUp, ChevronsUpDown, Printer, Send } from 'lucide-react'
 import type { BookSend } from '@/components/cuna/book/use-book-send'
 import { cn } from '@/lib/utils'
 import { CARE_LEVEL_OPTIONS, DELIVERY_OPTIONS, FEEDING_OPTIONS, SCREENING_KINDS, SEX_OPTIONS, TZ } from '@/lib/config'
@@ -204,16 +204,14 @@ const COLUMNS: Col[] = [
             En el libro
           </Link>
         )
-      const busy = b.sending === e.id
       return (
         <button
           type="button"
-          disabled={busy || b.sending !== null}
-          onClick={() => void b.send(e.id)}
-          className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30 disabled:opacity-60"
+          onClick={() => b.open(e.id)}
+          className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
         >
-          {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Send className="size-4" aria-hidden />}
-          {busy ? 'Enviando…' : 'Enviar al libro'}
+          <Send className="size-4" aria-hidden />
+          Enviar al libro
         </button>
       )
     },
@@ -342,7 +340,7 @@ const COLUMNS: Col[] = [
     id: 'careLevel',
     group: 'ingreso',
     label: 'Nivel de cuidado',
-    title: 'Básico, UTI o UCI',
+    title: 'Básico, UTI o UPC',
     sort: (e) => labelIn([...CARE_LEVEL_OPTIONS], e.careLevel),
     cell: (e) => labelIn([...CARE_LEVEL_OPTIONS], e.careLevel) ?? <Empty />,
   },

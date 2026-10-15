@@ -70,7 +70,7 @@ function BookInput({
   }
   const { data: cat } = useCatalogs()
   const fromUci = !value && linked ? linked : null
-  const hint = fromUci ? `Viene de UCI: ${fromUci}. Escribe para reemplazarlo.` : undefined
+  const hint = fromUci ? `Viene de UPC: ${fromUci}. Escribe para reemplazarlo.` : undefined
 
   if (field.type === 'doctor') {
     const docs = (cat?.items ?? [])
@@ -149,7 +149,7 @@ function BookInput({
           onChange={(e) => onChange(e.target.value)}
           className={inputClass}
         >
-          <option value="">{fromUci ? `${fromUci} (desde UCI)` : 'Seleccionar'}</option>
+          <option value="">{fromUci ? `${fromUci} (desde UPC)` : 'Seleccionar'}</option>
           {field.options.map((o) => (
             <option key={o} value={o}>
               {o}

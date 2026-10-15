@@ -203,7 +203,7 @@ const num = (x: Item, k: string): number | null => {
 const nums = (pool: Item[], k: string) => pool.map((x) => num(x, k)).filter((n): n is number => n !== null)
 const isCes = (x: Item) => up(x, 'tipo_parto').startsWith('CES')
 const tipoKnown = (x: Item) => up(x, 'tipo_parto') !== '' && up(x, 'tipo_parto') !== 'ABORTO'
-const segLabel = (s: BookSegment) => (s === 'uci' ? 'UCI Neonatal' : s === 'nursery' ? 'Nursery' : 'Aborto')
+const segLabel = (s: BookSegment) => (s === 'uci' ? 'UPC Neonatal' : s === 'nursery' ? 'Nursery' : 'Aborto')
 
 export async function libroFacet(cfg: Pick<LibroConfig, 'from' | 'to' | 'scope' | 'basis'>, key: string) {
   const { items, byKey } = await loadCohort(cfg)
@@ -310,7 +310,7 @@ export async function computeLibroReport(cfg: LibroConfig, generatedBy: string) 
     of: (x) => (tipoKnown(x) ? up(x, 'tipo_parto') : ''),
     order: ['PARTO VAGINAL', 'PARTO INSTRUMENTAL', 'CESÁREA ELECTIVA', 'CESÁREA DE URGENCIA'],
   }
-  const segAcc: Acc = { label: 'Unidad del recién nacido', of: (x) => (x.seg === 'aborto' ? '' : segLabel(x.seg)), order: ['Nursery', 'UCI Neonatal'] }
+  const segAcc: Acc = { label: 'Unidad del recién nacido', of: (x) => (x.seg === 'aborto' ? '' : segLabel(x.seg)), order: ['Nursery', 'UPC Neonatal'] }
 
   const mSec = fields.find((f) => f.key === 'fecha')?.section
   const nSec = fields.find((f) => f.key === 'eg')?.section
@@ -414,7 +414,7 @@ export async function computeLibroReport(cfg: LibroConfig, generatedBy: string) 
   const topCes = [...cesByAge, ...cesByParity].filter((b) => b.n >= 10).sort((a, b) => (b.pct ?? 0) - (a.pct ?? 0))[0]
   if (topCes && cesRate.total) highlights.push(`La mayor proporción de cesáreas se observó en «${topCes.label}»: ${fmtPct(topCes.pct)} de ${topCes.n} partos.`)
   if (prem.total) highlights.push(`${fmtPct(prem.pct)} de los recién nacidos fue prematuro y ${fmtPct(lowW.pct)} tuvo bajo peso al nacer.`)
-  if (uciRate.total) highlights.push(`${fmtPct(uciRate.pct)} de los recién nacidos fue hospitalizado en UCI Neonatal.`)
+  if (uciRate.total) highlights.push(`${fmtPct(uciRate.pct)} de los recién nacidos fue hospitalizado en UPC Neonatal.`)
   if (rows.length && completeRows.length / rows.length < 0.9) {
     highlights.push(`Solo ${fmtPct(pct(completeRows.length, rows.length))} de los registros está completo: interpreta las cifras considerando los datos faltantes.`)
   }
@@ -611,7 +611,7 @@ export async function computeLibroReport(cfg: LibroConfig, generatedBy: string) 
     const stayTest: KruskalResult | null = kruskalWallis(byType.groups)
     report.discharge = {
       feeding: bars(births.map((x) => up(x, 'alimentacion_alta')), ['LACTANCIA EXCLUSIVA', 'LACTANCIA MIXTA', 'FÓRMULA', 'OTRA']),
-      segment: bars(births.map((x) => segLabel(x.seg)), ['Nursery', 'UCI Neonatal']),
+      segment: bars(births.map((x) => segLabel(x.seg)), ['Nursery', 'UPC Neonatal']),
       stay: hist('Estadía del recién nacido', 'días', withStay.map((x) => stayOf(x) as number), 1),
       stayBySegment: bySeg.boxes,
       stayByType: byType.boxes,

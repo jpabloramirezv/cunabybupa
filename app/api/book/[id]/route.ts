@@ -37,7 +37,7 @@ export const PATCH = handle<Ctx>(async (req, { params }) => {
     } else if (typeof b.episodeId === 'string') {
       assertEpisodeId(b.episodeId)
       const [ep] = await db.select({ id: episode.id }).from(episode).where(eq(episode.id, b.episodeId)).limit(1)
-      if (!ep) throw new HttpError(404, 'No encontramos ese ingreso de UCI.')
+      if (!ep) throw new HttpError(404, 'No encontramos ese ingreso de UPC.')
       const [dup] = await db
         .select({ id: birthRecord.id })
         .from(birthRecord)
@@ -66,7 +66,7 @@ export const PATCH = handle<Ctx>(async (req, { params }) => {
   if (changedLabels.length > 0 || linkChanged) {
     const parts = [
       changedLabels.length ? `Campos: ${changedLabels.join(', ')}` : '',
-      linkChanged ? (set.episodeId ? 'Vinculó ingreso de UCI' : 'Quitó vínculo con UCI') : '',
+      linkChanged ? (set.episodeId ? 'Vinculó ingreso de UPC' : 'Quitó vínculo con UPC') : '',
     ].filter(Boolean)
     await audit(ctx, 'modificar', 'libro', set.episodeId ?? current.episodeId, `Registro ${id.slice(0, 8)} · ${parts.join(' · ')}`)
   }

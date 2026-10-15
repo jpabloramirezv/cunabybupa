@@ -24,7 +24,7 @@ const AREAS: { id: Area; title: string; text: string; Icon: LucideIcon }[] = [
   {
     id: 'neonatologia',
     title: 'Neonatología',
-    text: 'Pizarra de UCI Neonatal y Nursery: indicadores de hospitalización, estadía y diagnósticos, y el generador de informes estadísticos con filtros.',
+    text: 'Pizarra de UPC Neonatal y Nursery: indicadores de hospitalización, estadía y diagnósticos, y el generador de informes estadísticos con filtros.',
     Icon: Stethoscope,
   },
   {
@@ -174,7 +174,7 @@ function LibroTabs({ value, onChange }: { value: LibroTab; onChange: (t: LibroTa
 
 /**
  * Informes tiene dos familias:
- * - Neonatología: UCI mantiene el generador completo de siempre; Nursery y "todos los nacimientos"
+ * - Neonatología: UPC mantiene el generador completo de siempre; Nursery y "todos los nacimientos"
  *   usan los indicadores del libro y un informe estadístico por columna de Neonatología.
  * - Libro de Partos: informe estadístico por cualquier columna de Maternidad o Neonatología,
  *   más los indicadores y los cruces entre la madre y el recién nacido.
@@ -281,7 +281,7 @@ export function ReportsHub() {
             </h1>
             <p className="mt-1 text-sm text-muted-foreground text-pretty">
               Se calcula con el Libro de Partos y Abortos. El generador de informes personalizados con filtros y Excel
-              está en UCI Neonatal.
+              está en UPC Neonatal.
             </p>
           </div>
           <PeriodControls from={from} to={to} valid={valid} onFrom={setFrom} onTo={setTo} />

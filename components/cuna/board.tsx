@@ -34,9 +34,10 @@ import { usePref } from '@/lib/use-pref'
 import { EpisodeGroup, EpisodeRow } from '@/components/cuna/episode-row'
 import { Ledger } from '@/components/cuna/ledger'
 import { NewEntryButton } from '@/components/cuna/book/new-entry-button'
+import { BookSendDialog } from '@/components/cuna/book/book-send-dialog'
 import { useBookSend } from '@/components/cuna/book/use-book-send'
 import { useSlashFocus } from '@/components/cuna/search-field'
-import { ScopePill, UnitBanner } from '@/components/cuna/unit-banner'
+import { UnitBanner } from '@/components/cuna/unit-banner'
 import { Notice, PrimaryButton } from '@/components/cuna/ui'
 
 type BoardUnit = 'uci' | 'nursery' | 'todos'
@@ -44,21 +45,21 @@ type BoardUnit = 'uci' | 'nursery' | 'todos'
 const UNIT_OPTIONS: { value: BoardUnit; label: string; hint: string; empty: string }[] = [
   {
     value: 'uci',
-    label: 'UCI',
-    hint: 'Recién nacidos hospitalizados en UCI Neonatal.',
-    empty: 'Cuando ingreses un RN a UCI aparecerá aquí.',
+    label: 'UPC',
+    hint: 'Recién nacidos hospitalizados en UPC Neonatal.',
+    empty: 'Cuando ingreses un RN a UPC aparecerá aquí.',
   },
   {
     value: 'nursery',
     label: 'Nursery',
-    hint: 'RN con estadía normal en Nursery, sin hospitalización. Se registran igual que un ingreso a UCI.',
+    hint: 'RN con estadía normal en Nursery, sin hospitalización. Se registran igual que un ingreso a UPC.',
     empty: 'Cuando registres el ingreso de un RN a Nursery aparecerá aquí.',
   },
   {
     value: 'todos',
-    label: 'UCI + Nursery',
+    label: 'UPC + Nursery',
     hint: 'Todos los RN de Neonatología juntos.',
-    empty: 'Cuando ingreses un RN a UCI o Nursery aparecerá aquí.',
+    empty: 'Cuando ingreses un RN a UPC o Nursery aparecerá aquí.',
   },
 ]
 
@@ -108,7 +109,7 @@ function TriageChip({
       title={hint}
       onClick={onClick}
       className={cn(
-        'flex h-14 items-center gap-3 rounded-xl border px-3 text-left transition-colors',
+        'flex h-10 items-center gap-2 rounded-lg border px-2.5 text-left transition-colors',
         'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30',
         warn
           ? 'border-warning-foreground/40 bg-warning text-warning-foreground'
@@ -119,8 +120,8 @@ function TriageChip({
       )}
     >
       <span className={cn('shrink-0', warn ? '' : 'text-muted-foreground')}>{icon}</span>
-      <span className="text-2xl font-bold tabular-nums">{count}</span>
-      <span className="min-w-0 text-sm font-semibold leading-tight text-pretty">{title}</span>
+      <span className="text-lg font-bold tabular-nums">{count}</span>
+      <span className="min-w-0 truncate text-xs font-semibold leading-tight">{title}</span>
     </button>
   )
 }
@@ -236,7 +237,7 @@ function SegmentButton({
       title={title}
       onClick={onClick}
       className={cn(
-        'flex h-11 items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition-all',
+        'flex h-8 items-center justify-center gap-1.5 rounded-md px-3 text-sm font-semibold transition-all',
         'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30',
         active ? 'bg-card text-navy shadow-sm' : 'text-muted-foreground hover:text-foreground',
         className,
@@ -318,6 +319,9 @@ export function Board() {
   }
 
   const unitCopy = UNIT_OPTIONS.find((o) => o.value === unit) ?? UNIT_OPTIONS[0]
+  const pageHint = libro
+    ? `Historial completo de ingresos y egresos: ${unitCopy.label}.`
+    : `${unitCopy.label}: registros abiertos y los cerrados en los últimos 7 días.`
   const sorted = useMemo(() => (libro ? f.list : sortEpisodes(f.list, sort)), [libro, f.list, sort])
 
   const sections =
@@ -341,37 +345,49 @@ export function Board() {
           'relative left-1/2 w-[calc(100vw-2rem)] max-w-[96rem] -translate-x-1/2 print:left-0 print:w-full print:max-w-none print:translate-x-0',
       )}
     >
-      <div className="flex flex-col gap-3 pb-1 sm:flex-row sm:items-end sm:justify-between">
-        <div className="flex flex-col gap-1.5">
-          <div className="flex flex-wrap items-center gap-3">
-            <ScopePill scope="uci" />
-            <h1 className="text-xl font-bold text-navy text-balance sm:text-2xl">
-              {unit === 'uci'
-                ? 'Pizarra de UCI Neonatal'
-                : unit === 'nursery'
-                  ? 'Pizarra de Nursery'
-                  : 'Pizarra de Neonatología'}
-            </h1>
-          </div>
-          <p className="hidden text-sm text-muted-foreground text-pretty md:block">
-            {libro
-              ? unit === 'uci'
-                ? 'Libro de ingresos de UCI: historial completo de hospitalizaciones, con las mismas columnas del libro físico.'
-                : unit === 'nursery'
-                  ? 'Historial completo de ingresos y egresos de Nursery.'
-                  : 'Historial completo de ingresos y egresos de UCI y Nursery.'
-              : unit === 'uci'
-                ? 'Recién nacidos hospitalizados: registros abiertos y los cerrados en los últimos 7 días.'
-                : unit === 'nursery'
-                  ? 'RN de Nursery: registros abiertos y los cerrados en los últimos 7 días.'
-                  : 'RN de UCI y Nursery: registros abiertos y los cerrados en los últimos 7 días.'}
-          </p>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 print:hidden">
+        <h1 className="mr-1 text-lg font-bold text-navy text-balance" title={pageHint}>
+          {unit === 'uci' ? 'UPC Neonatal' : unit === 'nursery' ? 'Nursery' : 'Neonatología'}
+        </h1>
+        <div role="group" aria-label="Qué RN mostrar" className="flex gap-0.5 rounded-lg bg-muted p-0.5">
+          {UNIT_OPTIONS.map((o) => (
+            <SegmentButton key={o.value} active={unit === o.value} onClick={() => setUnit(o.value)} title={o.hint}>
+              {o.label}
+            </SegmentButton>
+          ))}
         </div>
-        <div className="flex items-center gap-3 print:hidden">
+        <div role="group" aria-label="Tipo de vista" className="flex gap-0.5 rounded-lg bg-muted p-0.5">
+          {(
+            [
+              { key: 'tarjetas', label: 'Pizarra', Icon: LayoutList },
+              { key: 'libro', label: 'Libro', Icon: BookOpen },
+            ] as const
+          ).map(({ key: k, label, Icon }) => (
+            <SegmentButton key={k} active={(k === 'libro') === libro} onClick={() => setView(k)}>
+              <Icon className="size-4" aria-hidden />
+              {label}
+            </SegmentButton>
+          ))}
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          {bookSend && libro && bookSend.pendingCount(f.all.map((e) => e.id)) > 0 ? (
+            <span
+              role="status"
+              className="inline-flex h-8 items-center rounded-lg bg-warning px-2.5 text-xs font-semibold text-warning-foreground"
+            >
+              {bookSend.pendingCount(f.all.map((e) => e.id))} por enviar al libro
+            </span>
+          ) : null}
+          <FreshnessIndicator
+            updatedAt={updatedAt}
+            validating={isValidating}
+            failed={stale}
+            onRefresh={() => void mutate()}
+          />
           {me?.canBook && (me.canEditMaternity || me.canEditNeonatal) ? (
             <NewEntryButton canNeonatal={me.canWrite} canMaternity={me.canEditMaternity} onNeonatal={newEpisode} />
           ) : me?.canWrite ? (
-            <PrimaryButton variant="accent" onClick={newEpisode} className="w-full sm:w-auto">
+            <PrimaryButton variant="accent" onClick={newEpisode}>
               <Plus className="size-5" aria-hidden />
               Nuevo ingreso
             </PrimaryButton>
@@ -387,74 +403,10 @@ export function Board() {
           hrefLabel="Abrir Libro de Partos"
           onDismiss={() => setBannerOff(true)}
         >
-          Aquí están los RN de Neonatología: UCI (hospitalizados) y Nursery (estadía normal). Elige abajo cuál ver, o
+          Aquí están los RN de Neonatología: UPC (hospitalizados) y Nursery (estadía normal). Elige abajo cuál ver, o
           ambos. Los datos de Maternidad se completan en el Libro de Partos y Abortos.
         </UnitBanner>
       ) : null}
-
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 print:hidden">
-        <div
-          role="group"
-          aria-label="Qué RN mostrar"
-          className="flex w-full gap-1 rounded-xl bg-muted p-1 sm:w-auto"
-        >
-          {UNIT_OPTIONS.map((o) => (
-            <SegmentButton
-              key={o.value}
-              active={unit === o.value}
-              onClick={() => setUnit(o.value)}
-              title={o.hint}
-              className="flex-1 sm:flex-none"
-            >
-              {o.label}
-            </SegmentButton>
-          ))}
-        </div>
-        <div role="group" aria-label="Tipo de vista" className="flex w-full gap-1 rounded-xl bg-muted p-1 sm:w-auto">
-          {(
-            [
-              { key: 'tarjetas', label: 'Pizarra', Icon: LayoutList },
-              { key: 'libro', label: 'Libro', Icon: BookOpen },
-            ] as const
-          ).map(({ key: k, label, Icon }) => (
-            <SegmentButton
-              key={k}
-              active={(k === 'libro') === libro}
-              onClick={() => setView(k)}
-              className="flex-1 sm:flex-none"
-            >
-              <Icon className="size-4" aria-hidden />
-              {label}
-            </SegmentButton>
-          ))}
-        </div>
-        <div className="flex w-full items-center justify-between gap-2 sm:ml-auto sm:w-auto">
-          {bookSend && libro && bookSend.pendingCount(f.all.map((e) => e.id)) > 0 ? (
-            <span
-              role="status"
-              className="inline-flex h-9 items-center rounded-lg bg-warning px-3 text-sm font-semibold text-warning-foreground"
-            >
-              {bookSend.pendingCount(f.all.map((e) => e.id))} por enviar al libro
-            </span>
-          ) : prefsReady && bannerOff && me?.canBook ? (
-            <Link
-              href="/libro"
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-primary hover:bg-secondary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
-            >
-              Abrir Libro de Partos
-              <ArrowRight className="size-4" aria-hidden />
-            </Link>
-          ) : (
-            <span />
-          )}
-          <FreshnessIndicator
-            updatedAt={updatedAt}
-            validating={isValidating}
-            failed={stale}
-            onRefresh={() => void mutate()}
-          />
-        </div>
-      </div>
 
       {libro ? null : (
         <div className="flex flex-col gap-3 pb-1 print:hidden">
@@ -514,7 +466,7 @@ export function Board() {
                   <select
                     value={sort}
                     onChange={(ev) => setSort(ev.target.value as SortKey)}
-                    className="h-12 rounded-xl border border-input bg-card px-3 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+                    className="h-10 rounded-lg border border-input bg-card px-2.5 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
                   >
                     {SORT_OPTIONS.map((o) => (
                       <option key={o.value} value={o.value}>
@@ -528,8 +480,9 @@ export function Board() {
                   aria-pressed={density === 'compacta'}
                   onClick={() => setDensity(density === 'compacta' ? 'comoda' : 'compacta')}
                   title="Más registros por pantalla"
+                  aria-label="Vista compacta"
                   className={cn(
-                    'hidden h-12 shrink-0 items-center gap-2 rounded-xl border px-4 text-sm font-semibold transition-colors md:flex',
+                    'hidden size-10 shrink-0 items-center justify-center rounded-lg border transition-colors md:flex',
                     'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30',
                     density === 'compacta'
                       ? 'border-primary/40 bg-secondary text-secondary-foreground'
@@ -537,15 +490,15 @@ export function Board() {
                   )}
                 >
                   <AlignJustify className="size-4" aria-hidden />
-                  Compacta
                 </button>
                 <button
                   type="button"
                   aria-pressed={grouped}
                   onClick={() => setGrouped((v) => !v)}
                   title="Agrupar por estado"
+                  aria-label="Agrupar por estado"
                   className={cn(
-                    'hidden h-12 shrink-0 items-center gap-2 rounded-xl border px-4 text-sm font-semibold transition-colors md:flex',
+                    'hidden size-10 shrink-0 items-center justify-center rounded-lg border transition-colors md:flex',
                     'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30',
                     grouped
                       ? 'border-primary/40 bg-secondary text-secondary-foreground'
@@ -553,7 +506,6 @@ export function Board() {
                   )}
                 >
                   <Rows3 className="size-4" aria-hidden />
-                  Agrupar
                 </button>
                 <button
                   type="button"
@@ -562,7 +514,7 @@ export function Board() {
                   title="Cómo leer esta pizarra"
                   onClick={() => setShowGuide((v) => !v)}
                   className={cn(
-                    'flex size-12 shrink-0 items-center justify-center rounded-xl border transition-colors',
+                    'flex size-10 shrink-0 items-center justify-center rounded-lg border transition-colors',
                     'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30',
                     showGuide
                       ? 'border-primary/40 bg-secondary text-secondary-foreground'
@@ -624,6 +576,7 @@ export function Board() {
           </EpisodeGroup>
         ))}
       </div>
+      <BookSendDialog book={bookSend} />
     </div>
   )
 }

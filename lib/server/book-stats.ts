@@ -215,13 +215,13 @@ function computeBinomio(fields: Awaited<ReturnType<typeof getBookFields>>, items
   if (segment === 'todos') {
     crosses.push(
       cross(
-        { id: 'parto-uci', title: 'Tipo de parto e ingreso a UCI', hint: 'Porcentaje de RN que se hospitalizaron según el tipo de parto.', outcome: 'Hospitalizados en UCI' },
+        { id: 'parto-uci', title: 'Tipo de parto e ingreso a UPC', hint: 'Porcentaje de RN que se hospitalizaron según el tipo de parto.', outcome: 'Hospitalizados en UPC' },
         items,
         (r) => r.values.tipo_parto ?? '',
         (x) => x.seg === 'uci',
       ),
       cross(
-        { id: 'edad-uci', title: 'Edad materna e ingreso a UCI', hint: 'Porcentaje de RN hospitalizados según la edad de la madre.', outcome: 'Hospitalizados en UCI' },
+        { id: 'edad-uci', title: 'Edad materna e ingreso a UPC', hint: 'Porcentaje de RN hospitalizados según la edad de la madre.', outcome: 'Hospitalizados en UPC' },
         items,
         (r) => ageBin(r.values.edad),
         (x) => x.seg === 'uci',
@@ -264,7 +264,7 @@ function computeBinomio(fields: Awaited<ReturnType<typeof getBookFields>>, items
     {
       label: 'Madre con VDRL reactivo',
       mothers: count((r) => v(r, 'vdrl_res') === 'REACTIVO'),
-      follow: 'RN hospitalizados en UCI',
+      follow: 'RN hospitalizados en UPC',
       followN: items.filter((x) => x.r.values.vdrl_res === 'REACTIVO' && x.seg === 'uci').length,
       expect: 'todos',
     },

@@ -14,7 +14,7 @@ const montserrat = Montserrat({
 export const metadata: Metadata = {
   title: 'CUNA by Bupa Reñaca',
   description:
-    'Captura Unificada de Neonatos Admitidos: registro interno de recién nacidos hospitalizados en la UCI Neonatología de Clínica Bupa Reñaca.',
+    'Captura Unificada de Neonatos Admitidos: registro interno de recién nacidos hospitalizados en la UPC Neonatología de Clínica Bupa Reñaca.',
   robots: { index: false, follow: false },
 }
 

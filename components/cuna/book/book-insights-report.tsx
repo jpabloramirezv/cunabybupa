@@ -101,7 +101,7 @@ function Activity({ flow }: { flow: NonNullable<LibroReport['flow']> }) {
   const max = Math.max(...flow.points.map((p) => p.total), 1)
   const legend = [
     { label: 'Nursery', cls: 'bg-primary' },
-    { label: 'UCI Neonatal', cls: 'bg-magenta' },
+    { label: 'UPC Neonatal', cls: 'bg-magenta' },
     { label: 'Abortos', cls: 'bg-border' },
   ]
   return (
@@ -120,7 +120,7 @@ function Activity({ flow }: { flow: NonNullable<LibroReport['flow']> }) {
             <div
               key={p.key}
               className="flex h-full min-w-[14px] flex-1 flex-col justify-end"
-              title={`${p.label}: ${p.total} (Nursery ${p.nursery}, UCI ${p.uci}, Abortos ${p.abortos})`}
+              title={`${p.label}: ${p.total} (Nursery ${p.nursery}, UPC ${p.uci}, Abortos ${p.abortos})`}
             >
               <div className="flex flex-col-reverse overflow-hidden rounded-t" style={{ height: `${(p.total / max) * 100}%` }}>
                 <div className="bg-primary" style={{ flexGrow: p.nursery }} />
@@ -141,7 +141,7 @@ function Activity({ flow }: { flow: NonNullable<LibroReport['flow']> }) {
           <table className="w-full text-left">
             <thead className="sticky top-0 bg-card text-muted-foreground">
               <tr>
-                {['Período', 'Nursery', 'UCI', 'Abortos', 'Total'].map((h, i) => (
+                {['Período', 'Nursery', 'UPC', 'Abortos', 'Total'].map((h, i) => (
                   <th key={h} scope="col" className={`py-1.5 font-semibold ${i ? 'px-2 text-right' : 'pr-3'}`}>{h}</th>
                 ))}
               </tr>

@@ -251,12 +251,14 @@ export function EpisodeToolbar({
   }, [open])
 
   const total = f.all.length
+  const statusActive = f.status !== 'todos'
+  const activeCount = f.chips.length + (statusActive ? 1 : 0)
   const summary = f.isFiltering
     ? `${f.list.length} de ${total} ${total === 1 ? 'registro' : 'registros'}`
     : `${total} ${total === 1 ? 'registro' : 'registros'}`
 
   return (
-    <div className="sticky top-0 z-20 -mx-4 flex flex-col gap-3 bg-background/85 px-4 py-3 backdrop-blur-md print:hidden">
+    <div className="sticky top-0 z-20 -mx-4 flex flex-col gap-2 bg-background/85 px-4 py-2 backdrop-blur-md print:hidden">
       <div ref={wrapRef} className="relative flex items-center gap-2">
         <SearchField
           ref={inputRef}
@@ -276,22 +278,25 @@ export function EpisodeToolbar({
           aria-controls={panelId}
           onClick={() => setOpen((v) => !v)}
           className={cn(
-            'flex h-12 shrink-0 items-center gap-2 rounded-xl border px-4 text-sm font-semibold transition-colors',
-            'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30',
-            open || f.chips.length > 0
-              ? 'border-primary/40 bg-secondary text-secondary-foreground'
-              : 'border-input bg-card text-foreground hover:bg-muted',
-          )}
-        >
-          <ListFilter className="size-4" aria-hidden />
-          Filtros
-          {f.chips.length > 0 ? (
-            <span className="flex size-5 items-center justify-center rounded-full bg-primary text-xs tabular-nums text-primary-foreground">
-              {f.chips.length}
-            </span>
-          ) : null}
-        </button>
-        {trailing}
+  'flex h-10 shrink-0 items-center gap-2 rounded-lg border px-3 text-sm font-semibold transition-colors',
+  'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30',
+  open || activeCount > 0
+  ? 'border-primary/40 bg-secondary text-secondary-foreground'
+  : 'border-input bg-card text-foreground hover:bg-muted',
+  )}
+  >
+  <ListFilter className="size-4" aria-hidden />
+  <span className="hidden sm:inline">Filtros</span>
+  {activeCount > 0 ? (
+  <span className="flex size-5 items-center justify-center rounded-full bg-primary text-xs tabular-nums text-primary-foreground">
+  {activeCount}
+  </span>
+  ) : null}
+  </button>
+  <p role="status" aria-live="polite" className="hidden shrink-0 text-sm tabular-nums text-muted-foreground lg:block">
+  {summary}
+  </p>
+  {trailing}
 
         {open ? (
           <div
@@ -300,8 +305,21 @@ export function EpisodeToolbar({
             aria-label="Filtros avanzados"
             className="absolute right-0 top-full z-30 mt-2 flex max-h-[min(72vh,36rem)] w-full flex-col overflow-hidden rounded-2xl border border-border bg-popover text-popover-foreground shadow-xl sm:w-[36rem]"
           >
-            <div className="flex flex-col gap-6 overflow-y-auto p-5">
-              {f.facets.map((facet) => (
+  <div className="flex flex-col gap-6 overflow-y-auto p-5">
+  <fieldset className="flex flex-col gap-2.5">
+  <legend className="mb-2.5 text-sm font-semibold text-muted-foreground">Estado</legend>
+  <div className="flex flex-wrap gap-2">
+  {STATUS_TABS.map((t) => (
+  <ChipToggle key={t.key} pressed={f.status === t.key} onClick={() => f.setStatus(t.key)}>
+  {t.label}
+  <span className={cn('tabular-nums', f.status === t.key ? 'opacity-80' : 'text-muted-foreground')}>
+  {f.statusCounts[t.key]}
+  </span>
+  </ChipToggle>
+  ))}
+  </div>
+  </fieldset>
+  {f.facets.map((facet) => (
                 <fieldset key={facet.key} className="flex flex-col gap-2.5">
                   <legend className="mb-2.5 text-sm font-semibold text-muted-foreground">{facet.label}</legend>
                   <div className="flex flex-wrap gap-2">
@@ -340,39 +358,20 @@ export function EpisodeToolbar({
         ) : null}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div role="tablist" aria-label="Filtrar por estado" className="inline-flex rounded-xl bg-muted p-1">
-          {STATUS_TABS.map((t) => {
-            const active = f.status === t.key
-            return (
-              <button
-                key={t.key}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => f.setStatus(t.key)}
-                className={cn(
-                  'h-9 rounded-lg px-3.5 text-sm font-semibold transition-all',
-                  'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30',
-                  active ? 'bg-card text-navy shadow-sm' : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {t.label}
-                <span className={cn('ml-1.5 tabular-nums', active ? 'text-muted-foreground' : 'opacity-70')}>
-                  {f.statusCounts[t.key]}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-        <p role="status" aria-live="polite" className="text-sm tabular-nums text-muted-foreground">
-          {summary}
-        </p>
-      </div>
-
-      {f.chips.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-2">
-          {f.chips.map((c) => (
+  {activeCount > 0 ? (
+  <div className="flex flex-wrap items-center gap-2">
+  {statusActive ? (
+  <button
+  type="button"
+  onClick={() => f.setStatus('todos')}
+  aria-label="Quitar filtro de estado"
+  className="inline-flex h-8 items-center gap-1.5 rounded-full bg-secondary pl-3 pr-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/70 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+  >
+  {STATUS_TABS.find((t) => t.key === f.status)?.label}
+  <X className="size-3.5" aria-hidden />
+  </button>
+  ) : null}
+  {f.chips.map((c) => (
             <button
               key={`${c.facetKey}:${c.value}`}
               type="button"
@@ -386,7 +385,10 @@ export function EpisodeToolbar({
           ))}
           <button
             type="button"
-            onClick={f.clearFacets}
+            onClick={() => {
+            f.clearFacets()
+            f.setStatus('todos')
+          }}
             className="h-8 rounded-full px-3 text-sm font-semibold text-primary hover:bg-secondary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
           >
             Limpiar todo

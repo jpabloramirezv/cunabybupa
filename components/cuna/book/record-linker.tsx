@@ -91,7 +91,7 @@ function CandidateRow({
             {r.values.rut ? <span className="text-sm text-muted-foreground">{r.values.rut}</span> : null}
           </span>
           <span className="text-sm text-muted-foreground">
-            {[r.values.fecha, r.values.hora, r.values.tipo_parto, r.episodeCode ? `UCI ${r.episodeCode}` : null]
+            {[r.values.fecha, r.values.hora, r.values.tipo_parto, r.episodeCode ? `UPC ${r.episodeCode}` : null]
               .filter(Boolean)
               .join(' · ')}
           </span>
@@ -132,7 +132,7 @@ function EpisodeRow({ episode: e, onPick }: { episode: PendingEpisode; onPick: (
               Ingreso de Pizarra sin fila en el libro
             </span>
             <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
-              {e.unit === 'nursery' ? 'Estadía normal' : 'UCI'} · {STATUS_LABEL[e.status]}
+              {e.unit === 'nursery' ? 'Estadía normal' : 'UPC'} · {STATUS_LABEL[e.status]}
             </span>
           </span>
         </span>

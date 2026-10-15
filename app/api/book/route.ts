@@ -32,7 +32,7 @@ export const POST = handle(async (req) => {
   if (typeof b.episodeId === 'string' && b.episodeId) {
     assertEpisodeId(b.episodeId)
     const [ep] = await db.select({ id: episode.id }).from(episode).where(eq(episode.id, b.episodeId)).limit(1)
-    if (!ep) throw new HttpError(404, 'No encontramos ese ingreso de UCI.')
+    if (!ep) throw new HttpError(404, 'No encontramos ese ingreso de UPC.')
     episodeId = ep.id
     const [dup] = await db
       .select({ id: birthRecord.id })

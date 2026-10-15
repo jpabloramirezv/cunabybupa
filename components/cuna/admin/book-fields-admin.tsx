@@ -174,7 +174,7 @@ export function BookFieldsAdmin() {
             ) : null}
             <div>
               <label htmlFor="bf-source" className="mb-2 block text-sm font-semibold text-foreground">
-                Dato que se completa solo desde UCI
+                Dato que se completa solo desde UPC
               </label>
               <select
                 id="bf-source"
@@ -224,7 +224,7 @@ export function BookFieldsAdmin() {
                   {[
                     f.group || 'Sin grupo',
                     BOOK_FIELD_TYPES.find((t) => t.value === f.type)?.label ?? f.type,
-                    f.source && f.source !== 'user' ? 'Desde UCI' : null,
+                    f.source && f.source !== 'user' ? 'Desde UPC' : null,
                     f.required ? 'Obligatoria' : null,
                     f.active ? null : 'Desactivada',
                   ]

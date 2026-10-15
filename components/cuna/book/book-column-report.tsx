@@ -16,15 +16,15 @@ const num = (n: number) => n.toLocaleString('es-CL', { maximumFractionDigits: 1 
 export const REPORT_SCOPES: { value: ReportScope; label: string }[] = [
   { value: 'todos', label: 'Todos los registros' },
   { value: 'nursery', label: 'Nursery' },
-  { value: 'uci', label: 'UCI Neonatal' },
+  { value: 'uci', label: 'UPC Neonatal' },
   { value: 'aborto', label: 'Abortos' },
 ]
 
 const SCOPE_LABEL: Record<ReportScope, string> = {
   todos: 'Todos los registros',
-  nacimientos: 'Todos los nacimientos (Nursery + UCI)',
+  nacimientos: 'Todos los nacimientos (Nursery + UPC)',
   nursery: 'Nursery',
-  uci: 'UCI Neonatal',
+  uci: 'UPC Neonatal',
   aborto: 'Abortos',
 }
 
