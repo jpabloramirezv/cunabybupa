@@ -1,4 +1,4 @@
-import { asc, eq, inArray } from 'drizzle-orm'
+import { asc, eq, inArray, sql } from 'drizzle-orm'
 import { matchNames } from '@/lib/name-match'
 import { DOCTOR_ROLES, type Role } from '@/lib/rules'
 import { handle, HttpError, readJson } from '@/lib/api'
@@ -7,12 +7,19 @@ import { normalizeUnit, requireCtx } from '@/lib/ctx'
 import { db } from '@/lib/db'
 import { staff } from '@/lib/db/schema'
 import { hashPin, isValidPinFormat } from '@/lib/pin'
-import { syncDoctorItem, syncDoctorItemById } from '@/lib/server/doctors'
+import { importDoctorsFromBook, NO_PIN_HASH, syncDoctorItem, syncDoctorItemById } from '@/lib/server/doctors'
 
 const ROLES = ['matrona', 'medico', 'medico_jefe', 'jefatura', 'analista']
 
 export const GET = handle(async () => {
-  await requireCtx('admin')
+  const ctx = await requireCtx('admin')
+  let imported = 0
+  try {
+    imported = await importDoctorsFromBook()
+  } catch (e) {
+    console.error('No se pudieron importar los médicos del libro', e)
+  }
+  if (imported > 0) await audit(ctx, 'crear', 'administracion', null, `Médicos importados desde el Libro de Partos: ${imported}`)
   const rows = await db
     .select({
       id: staff.id,
@@ -23,6 +30,7 @@ export const GET = handle(async () => {
       specialty: staff.specialty,
       active: staff.active,
       lockedUntil: staff.lockedUntil,
+      hasPin: sql<boolean>`${staff.pinHash} <> ${NO_PIN_HASH}`,
     })
     .from(staff)
     .orderBy(asc(staff.name))

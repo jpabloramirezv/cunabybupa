@@ -263,7 +263,7 @@ export function BookForm({
           {g.filled} de {g.items.length}
         </span>
       </div>
-      <div className="grid gap-4 p-5 sm:grid-cols-2">
+      <div className="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-3">
         {g.items.map((f) => (
           <div key={f.key} className="animate-in fade-in slide-in-from-bottom-1 duration-300">
             <BookInput

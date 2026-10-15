@@ -485,6 +485,7 @@ export function BookView() {
       {draft ? (
         <SidePanel
           open
+          wide
           title={draft.id ? 'Editar registro del libro' : 'Nuevo registro del libro'}
           subtitle={
             draft.id

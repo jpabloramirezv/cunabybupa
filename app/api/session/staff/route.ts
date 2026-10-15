@@ -1,5 +1,6 @@
-import { asc, eq } from 'drizzle-orm'
+import { and, asc, eq, ne } from 'drizzle-orm'
 import { handle, HttpError } from '@/lib/api'
+import { NO_PIN_HASH } from '@/lib/server/doctors'
 import { getAccount } from '@/lib/ctx'
 import { db } from '@/lib/db'
 import { staff } from '@/lib/db/schema'
@@ -9,7 +10,7 @@ export const GET = handle(async () => {
   const rows = await db
     .select({ id: staff.id, name: staff.name, role: staff.role, isAdmin: staff.isAdmin, pinLength: staff.pinLength })
     .from(staff)
-    .where(eq(staff.active, true))
+    .where(and(eq(staff.active, true), ne(staff.pinHash, NO_PIN_HASH)))
     .orderBy(asc(staff.name))
   return Response.json(rows)
 })

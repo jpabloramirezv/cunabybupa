@@ -18,6 +18,7 @@ type StaffRow = {
   specialty?: string | null
   active: boolean
   lockedUntil: string | null
+  hasPin?: boolean
 }
 
 const UNITS = [
@@ -203,6 +204,7 @@ export function StaffAdmin() {
                     {isDoctorRole(s.role) ? ` · ${s.specialty || 'Sin especialidad'}` : ''}
                     {s.role === 'matrona' ? ` · ${unitLabel(s.unit)}` : ''}
                     {s.role === 'matrona' && s.isAdmin ? ' · Permisos de Jefatura' : ''} · {s.active ? 'Activo' : 'Inactivo'}
+                    {s.hasPin === false ? ' · Sin PIN (inscrito desde el Libro de Partos)' : ''}
                     {s.lockedUntil && new Date(s.lockedUntil) > new Date() ? ` · Bloqueado hasta ${fmtDateTime(s.lockedUntil)}` : ''}
                   </p>
                 </div>
