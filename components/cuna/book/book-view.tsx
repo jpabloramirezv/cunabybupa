@@ -28,7 +28,6 @@ import { ConfirmDialog } from '@/components/cuna/confirm-dialog'
 import { FreshnessIndicator, RowsSkeleton } from '@/components/cuna/page-status'
 import { ScopePill } from '@/components/cuna/unit-banner'
 import { BookForm } from '@/components/cuna/book/book-form'
-import { BookOverview, type BookFilter } from '@/components/cuna/book/book-overview'
 import { BookLedger } from '@/components/cuna/book/book-ledger'
 import { BookFilters, emptyFacets, matchesFacets, type BookFacets } from '@/components/cuna/book/book-filters'
 import { EpisodeLinker } from '@/components/cuna/book/episode-linker'
@@ -105,10 +104,6 @@ export function BookView() {
   const [section, setSection] = useState<BookSection>('materno')
   const [query, setQuery] = useState(() => params.get('q') ?? '')
   const [year, setYear] = useState<string | null>(() => params.get('anio'))
-  const [filter, setFilter] = useState<BookFilter>(() => {
-    const f = params.get('seg')
-    return f === 'nursery' || f === 'uci' || f === 'aborto' || f === 'falta-mat' || f === 'falta-neo' ? f : 'todos'
-  })
   const [view, setView] = useState<'libro' | 'tarjetas'>(() => (params.get('vista') === 'tarjetas' ? 'tarjetas' : 'libro'))
   const [confirmClose, setConfirmClose] = useState(false)
   const [facets, setFacets] = useState<BookFacets>(emptyFacets)
@@ -144,34 +139,18 @@ export function BookView() {
 
   const years = useMemo(() => [...new Set(records.map(yearOf))].sort().reverse(), [records])
   const inYear = useMemo(() => rows.filter((x) => !year || yearOf(x.r) === year), [rows, year])
-  const counts = useMemo(
-    () => ({
-      todos: inYear.length,
-      nursery: inYear.filter((x) => x.seg === 'nursery').length,
-      uci: inYear.filter((x) => x.seg === 'uci').length,
-      aborto: inYear.filter((x) => x.seg === 'aborto').length,
-      faltaMat: inYear.filter((x) => x.mat.state !== 'completo').length,
-      faltaNeo: inYear.filter((x) => x.neo.state !== 'completo').length,
-    }),
-    [inYear],
-  )
 
   const terms = parseQuery(query)
   const visible = useMemo(
     () =>
       [...inYear].reverse().filter((x) => {
-        if (filter === 'nursery' && x.seg !== 'nursery') return false
-        if (filter === 'uci' && x.seg !== 'uci') return false
-        if (filter === 'aborto' && x.seg !== 'aborto') return false
-        if (filter === 'falta-mat' && x.mat.state === 'completo') return false
-        if (filter === 'falta-neo' && x.neo.state === 'completo') return false
         if (!matchesFacets(x.r.values, facets)) return false
         return matchesAll(
           haystackOf(`${Object.values(x.r.values).join(' ')} ${x.r.episodeCode ?? ''} ${linkCode(x.r.seq)}`),
           terms,
         )
       }),
-    [inYear, filter, terms, facets],
+    [inYear, terms, facets],
   )
 
   const dirty = useMemo(() => {
@@ -200,13 +179,13 @@ export function BookView() {
       const set = (k: string, v: string | null) => (v ? p.set(k, v) : p.delete(k))
       set('q', query.trim() || null)
       set('anio', year)
-      set('seg', filter === 'todos' ? null : filter)
+      set('seg', null)
       set('vista', view === 'tarjetas' ? 'tarjetas' : null)
       const next = p.toString()
       if (next !== before) router.replace(next ? `/libro?${next}` : '/libro', { scroll: false })
     }, 300)
     return () => clearTimeout(t)
-  }, [query, year, filter, view, router])
+  }, [query, year, view, router])
 
   function scrollToForm() {
     requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
@@ -426,41 +405,43 @@ export function BookView() {
     : []
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-xl font-bold text-navy text-balance sm:text-2xl">Libro de Partos y Abortos</h1>
           <ScopePill scope="libro" />
-          <h1 className="text-2xl font-bold text-navy text-balance sm:text-3xl">Libro de Partos y Abortos</h1>
-          <p className="max-w-2xl text-sm text-muted-foreground text-pretty">
-            Todos los nacimientos de la clínica: Nursery, UCI y abortos. Maternidad completa los datos de la madre y
-            Neonatología los del RN, en cualquier orden.
-          </p>
         </div>
-        <div className="flex flex-wrap gap-2 print:hidden">
+        <div className="flex flex-wrap items-center gap-2 print:hidden">
           {me?.canClinical ? (
             <Link
               href="/pizarra"
-              className="inline-flex h-12 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-primary hover:bg-secondary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+              className="inline-flex h-10 items-center gap-1.5 rounded-lg px-2.5 text-sm font-semibold text-primary hover:bg-secondary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
             >
-              Ir a la Pizarra de Neonatología
+              Pizarra
               <ArrowRight className="size-4" aria-hidden />
             </Link>
           ) : null}
-          <a
-            href={`/api/book/export${year ? `?year=${year}` : ''}`}
-            className="inline-flex h-12 items-center gap-2 rounded-lg border border-primary bg-card px-4 text-sm font-semibold text-primary hover:bg-secondary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
-          >
-            <Download className="size-4" aria-hidden />
-            Exportar Excel
-          </a>
-          <a
-            href={`/api/book/export?format=csv${year ? `&year=${year}` : ''}`}
-            className="inline-flex h-12 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
-          >
-            CSV
-          </a>
+          {me?.canAdmin ? (
+            <>
+              <a
+                href={`/api/book/export${year ? `?year=${year}` : ''}`}
+                title="Exportar el libro a Excel"
+                className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-sm font-semibold text-primary hover:bg-secondary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+              >
+                <Download className="size-4" aria-hidden />
+                Excel
+              </a>
+              <a
+                href={`/api/book/export?format=csv${year ? `&year=${year}` : ''}`}
+                title="Exportar el libro a CSV"
+                className="inline-flex h-10 items-center rounded-lg px-2 text-sm font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+              >
+                CSV
+              </a>
+            </>
+          ) : null}
           {canCreate ? (
-            <PrimaryButton variant="accent" className="h-12 px-4 text-sm" onClick={() => create(me?.canEditMaternity ? 'materno' : 'neonatal')}>
+            <PrimaryButton variant="accent" className="h-10 px-4 text-sm" onClick={() => create(me?.canEditMaternity ? 'materno' : 'neonatal')}>
               <Plus className="size-5" aria-hidden />
               Nuevo Registro
             </PrimaryButton>
@@ -468,8 +449,8 @@ export function BookView() {
         </div>
       </div>
 
-      <details className="group rounded-xl border border-border bg-card px-4 py-3 print:hidden">
-        <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold text-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30 [&::-webkit-details-marker]:hidden">
+      <details className="group rounded-lg border border-border bg-card px-3 py-2 print:hidden">
+        <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium text-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30 [&::-webkit-details-marker]:hidden">
           <Info className="size-4" aria-hidden />
           ¿Cómo se llena este libro?
         </summary>
@@ -490,14 +471,12 @@ export function BookView() {
             queda pendiente para la otra unidad y no se duplica.
           </li>
           <li>
-            <strong className="text-foreground">Nursery o UCI.</strong> Si el RN se hospitaliza, vincula su ingreso de
-            la Pizarra o marca Hospitalización en SI: pasa a UCI y sus datos clínicos se completan solos. Si no, queda
+            <strong className="text-foreground">Nursery o UPC.</strong> Si el RN se hospitaliza, vincula su ingreso de
+            la Pizarra o marca Hospitalización en SI: pasa a UPC y sus datos clínicos se completan solos. Si no, queda
             como Nursery. Los gemelos van en registros separados con los datos de la madre copiados.
           </li>
         </ul>
       </details>
-
-      <BookOverview counts={counts} filter={filter} onFilter={setFilter} />
 
       {message && !draft ? <Notice tone={message.tone} title={message.text} /> : null}
 
@@ -677,53 +656,20 @@ export function BookView() {
         }}
       />
 
-      <section aria-label="Registros del libro" className="flex flex-col gap-3">
-        <SearchField
-          ref={inputRef}
-          id="book-search"
-          label="Buscar en el libro"
-          placeholder="Buscar por madre, RUT, RN, médico, código (LP-00012) o cualquier dato"
-          value={query}
-          onChange={setQuery}
-          showShortcut
-        />
-        {years.length > 1 ? (
-          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filtrar por año">
-            {years.map((y) => (
-              <ChipToggle key={y} pressed={year === y} onClick={() => setYear(year === y ? null : y)}>
-                {y}
-              </ChipToggle>
-            ))}
-          </div>
-        ) : null}
-        {data ? <BookFilters fields={fields} records={records} value={facets} onChange={setFacets} /> : null}
-        <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <p className="text-sm text-muted-foreground" aria-live="polite">
-              {data ? `${visible.length} de ${records.length} registros` : 'Cargando…'}
-              {filter !== 'todos' || year || query.trim() ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFilter('todos')
-                    setYear(null)
-                    setQuery('')
-                  }}
-                  className="ml-2 inline-flex items-center gap-1 rounded px-1 font-semibold text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
-                >
-                  <X className="size-3.5" aria-hidden />
-                  Quitar filtros
-                </button>
-              ) : null}
-            </p>
-            <FreshnessIndicator
-              updatedAt={updatedAt}
-              validating={isValidating}
-              failed={!!error}
-              onRefresh={() => void mutate()}
+      <section aria-label="Registros del libro" className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+          <div className="min-w-0 flex-1">
+            <SearchField
+              ref={inputRef}
+              id="book-search"
+              label="Buscar en el libro"
+              placeholder="Buscar por madre, RUT, RN, médico, código (LP-00012) o cualquier dato"
+              value={query}
+              onChange={setQuery}
+              showShortcut
             />
           </div>
-          <div role="group" aria-label="Forma de ver el libro" className="inline-flex gap-1 rounded-xl bg-muted p-1">
+          <div role="group" aria-label="Forma de ver el libro" className="inline-flex gap-1 self-start rounded-xl bg-muted p-1 print:hidden">
             {(
               [
                 { id: 'libro', label: 'Libro', Icon: Table2 },
@@ -748,10 +694,50 @@ export function BookView() {
           </div>
         </div>
 
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 print:hidden">
+          {years.length > 1 ? (
+            <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filtrar por año">
+              {years.map((y) => (
+                <ChipToggle key={y} pressed={year === y} onClick={() => setYear(year === y ? null : y)}>
+                  {y}
+                </ChipToggle>
+              ))}
+            </div>
+          ) : null}
+          {data ? <BookFilters fields={fields} records={records} value={facets} onChange={setFacets} /> : null}
+          <div className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-1">
+            <p className="text-sm text-muted-foreground" aria-live="polite">
+              {data ? `${visible.length} de ${records.length} registros` : 'Cargando…'}
+              {year || query.trim() ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setYear(null)
+                    setQuery('')
+                  }}
+                  className="ml-2 inline-flex items-center gap-1 rounded px-1 font-semibold text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+                >
+                  <X className="size-3.5" aria-hidden />
+                  Quitar filtros
+                </button>
+              ) : null}
+            </p>
+            <FreshnessIndicator
+              updatedAt={updatedAt}
+              validating={isValidating}
+              failed={!!error}
+              onRefresh={() => void mutate()}
+            />
+          </div>
+        </div>
+
         {!data ? <RowsSkeleton rows={8} label="Cargando el libro" /> : null}
 
         {view === 'libro' && data ? (
           <BookLedger
+            key={me?.canEditNeonatal && !me?.canEditMaternity ? 'neonatal' : me?.canEditMaternity && !me?.canEditNeonatal ? 'materno' : 'todo'}
+            canDownload={!!me?.canAdmin}
+            defaultPreset={me?.canEditNeonatal && !me?.canEditMaternity ? 'neonatal' : me?.canEditMaternity && !me?.canEditNeonatal ? 'materno' : 'todo'}
             rows={visible}
             fields={fields}
             terms={terms}

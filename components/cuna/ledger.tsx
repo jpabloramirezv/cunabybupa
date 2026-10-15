@@ -1,9 +1,11 @@
 'use client'
 
+import { DownloadGate } from '@/components/cuna/download-gate'
 import { Fragment, useMemo, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Check, ChevronDown, ChevronUp, ChevronsUpDown, Printer } from 'lucide-react'
+import { BookOpenCheck, Check, ChevronDown, ChevronUp, ChevronsUpDown, Printer, Send } from 'lucide-react'
+import type { BookSend } from '@/components/cuna/book/use-book-send'
 import { cn } from '@/lib/utils'
 import { CARE_LEVEL_OPTIONS, DELIVERY_OPTIONS, FEEDING_OPTIONS, SCREENING_KINDS, SEX_OPTIONS, TZ } from '@/lib/config'
 import { fmtDateTime } from '@/lib/time'
@@ -36,6 +38,7 @@ type Ctx = {
   terms: string[]
   item: (id: number | null) => string | null
   dx: (id: number | null) => { code: string; name: string } | null
+  book: BookSend | null
 }
 
 type SortValue = string | number | null
@@ -183,6 +186,38 @@ const COLUMNS: Col[] = [
       ),
   },
   {
+    id: 'book',
+    group: 'registro',
+    label: 'Libro',
+    title: 'Enviar este ingreso al Libro de Partos y Abortos',
+    min: 'min-w-[9.5rem]',
+    cell: (e, c) => {
+      const b = c.book
+      if (!b) return null
+      const rowId = b.sent[e.id]
+      if (rowId)
+        return (
+          <Link
+            href={`/libro?q=${encodeURIComponent(e.code)}`}
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-success hover:bg-success/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            <BookOpenCheck className="size-4" aria-hidden />
+            En el libro
+          </Link>
+        )
+      return (
+        <button
+          type="button"
+          onClick={() => b.open(e.id)}
+          className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+        >
+          <Send className="size-4" aria-hidden />
+          Enviar al libro
+        </button>
+      )
+    },
+  },
+  {
     id: 'rut',
     group: 'registro',
     label: 'RUT',
@@ -306,7 +341,7 @@ const COLUMNS: Col[] = [
     id: 'careLevel',
     group: 'ingreso',
     label: 'Nivel de cuidado',
-    title: 'Básico, UTI o UCI',
+    title: 'Básico, UTI o UPC',
     sort: (e) => labelIn([...CARE_LEVEL_OPTIONS], e.careLevel),
     cell: (e) => labelIn([...CARE_LEVEL_OPTIONS], e.careLevel) ?? <Empty />,
   },
@@ -452,11 +487,14 @@ export function Ledger({
   cat,
   terms,
   showIdentity,
+  book = null,
 }: {
   list: EpisodeDetail[]
   cat?: CatalogsPayload
   terms: string[]
   showIdentity: boolean
+  /** Si viene, agrega la columna "Enviar al libro" a cada fila. */
+  book?: BookSend | null
 }) {
   const router = useRouter()
   const [sort, setSort] = useState<{ id: string; dir: 'asc' | 'desc' }>({ id: 'seq', dir: 'desc' })
@@ -477,13 +515,19 @@ export function Ledger({
       terms,
       item: (id) => (id == null ? null : (items.get(id) ?? null)),
       dx: (id) => (id == null ? null : (dxs.get(id) ?? null)),
+      book,
     }
-  }, [cat, terms])
+  }, [cat, terms, book])
 
   const columns = useMemo(
     () =>
-      COLUMNS.filter((c) => (showIdentity || !c.identity) && (!(c.group in shown) || shown[c.group as ToggleGroup])),
-    [showIdentity, shown],
+      COLUMNS.filter(
+        (c) =>
+          (showIdentity || !c.identity) &&
+          (c.id !== 'book' || !!book) &&
+          (!(c.group in shown) || shown[c.group as ToggleGroup]),
+      ),
+    [showIdentity, shown, book],
   )
   const toggles = TOGGLES.filter((g) => showIdentity || g !== 'madre')
 
@@ -523,7 +567,7 @@ export function Ledger({
   }
 
   function open(ev: React.MouseEvent, id: string) {
-    if ((ev.target as HTMLElement).closest('a')) return
+    if ((ev.target as HTMLElement).closest('a, button')) return
     router.push(`/registro/${id}`)
   }
 
@@ -544,18 +588,20 @@ export function Ledger({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <ResetWidthsButton widths={colW} />
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="flex h-10 items-center gap-2 rounded-lg border border-input bg-card px-4 text-sm font-semibold text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
-          >
-            <Printer className="size-4" aria-hidden />
-            Imprimir libro
-          </button>
+          <DownloadGate>
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="flex h-10 items-center gap-2 rounded-lg border border-input bg-card px-4 text-sm font-semibold text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+            >
+              <Printer className="size-4" aria-hidden />
+              Imprimir libro
+            </button>
+          </DownloadGate>
         </div>
       </div>
 
-      <div className="relative max-h-[calc(100dvh-16rem)] min-h-64 overflow-auto rounded-2xl border border-border/70 bg-card shadow-sm print:max-h-none print:overflow-visible print:rounded-none print:border-0 print:shadow-none">
+      <div className="relative max-h-[calc(100dvh-12rem)] min-h-64 overflow-auto rounded-2xl border border-border/70 bg-card shadow-sm print:max-h-none print:overflow-visible print:rounded-none print:border-0 print:shadow-none">
         <table className="w-max min-w-full border-separate border-spacing-0 text-sm">
           <caption className="sr-only">
             Libro de registro de recién nacidos. Cada fila es un ingreso; usa las flechas arriba y abajo para recorrerlas.

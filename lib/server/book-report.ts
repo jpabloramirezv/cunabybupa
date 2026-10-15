@@ -16,7 +16,7 @@ import {
   type Dist,
 } from '@/lib/server/book-stats'
 
-/** `nacimientos` reúne Nursery y UCI, sin abortos. */
+/** `nacimientos` reúne Nursery y UPC, sin abortos. */
 export type ReportScope = 'todos' | 'nacimientos' | 'nursery' | 'uci' | 'aborto'
 export type ColumnKind = 'categoria' | 'numero' | 'fecha' | 'hora'
 

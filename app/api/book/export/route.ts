@@ -57,7 +57,7 @@ const SECTION_LIGHT: Record<string, string> = { materno: 'FFFBE4EF', neonatal: '
  */
 export const GET = handle(async (req) => {
   const ctx = await requireCtx()
-  if (!ctx.canBook) throw new HttpError(403, 'Tu rol no permite exportar el libro.')
+  if (!ctx.canAdmin) throw new HttpError(403, 'Solo Jefatura puede descargar datos del libro.')
   const params = new URL(req.url).searchParams
   const year = params.get('year')
   const format = params.get('format') === 'csv' ? 'csv' : 'xlsx'

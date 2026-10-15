@@ -4,7 +4,7 @@ import { audit } from '@/lib/audit'
 import { requireCtx } from '@/lib/ctx'
 import { db } from '@/lib/db'
 import { birthRecord, episode } from '@/lib/db/schema'
-import { canonicalizeBookDoctors, getBookFields, sanitizeData } from '@/lib/server/book'
+import { canonicalizeBookDoctors, canonicalizeBookPrevision, getBookFields, sanitizeData } from '@/lib/server/book'
 import { activeRecord, getRecord, withDefaults } from '@/lib/server/book-records'
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -23,12 +23,15 @@ export const PATCH = handle<Ctx>(async (req, { params }) => {
 
   const b = await readJson<{ data?: unknown; episodeId?: unknown }>(req)
   const fields = await getBookFields()
-  const { data, errors } = sanitizeData(b.data, fields, {
-    materno: ctx.canEditMaternity,
-    neonatal: ctx.canEditNeonatal,
-  })
+  const { data, errors } = sanitizeData(
+    b.data,
+    fields,
+    { materno: ctx.canEditMaternity, neonatal: ctx.canEditNeonatal },
+    (current.data ?? {}) as Record<string, unknown>,
+  )
   if (errors.length) throw new HttpError(422, errors[0])
   await canonicalizeBookDoctors(data, fields)
+  await canonicalizeBookPrevision(data, fields)
 
   const set: Partial<typeof birthRecord.$inferInsert> = {}
   if (b.episodeId !== undefined) {
@@ -37,7 +40,7 @@ export const PATCH = handle<Ctx>(async (req, { params }) => {
     } else if (typeof b.episodeId === 'string') {
       assertEpisodeId(b.episodeId)
       const [ep] = await db.select({ id: episode.id }).from(episode).where(eq(episode.id, b.episodeId)).limit(1)
-      if (!ep) throw new HttpError(404, 'No encontramos ese ingreso de UCI.')
+      if (!ep) throw new HttpError(404, 'No encontramos ese ingreso de UPC.')
       const [dup] = await db
         .select({ id: birthRecord.id })
         .from(birthRecord)
@@ -66,7 +69,7 @@ export const PATCH = handle<Ctx>(async (req, { params }) => {
   if (changedLabels.length > 0 || linkChanged) {
     const parts = [
       changedLabels.length ? `Campos: ${changedLabels.join(', ')}` : '',
-      linkChanged ? (set.episodeId ? 'Vinculó ingreso de UCI' : 'Quitó vínculo con UCI') : '',
+      linkChanged ? (set.episodeId ? 'Vinculó ingreso de UPC' : 'Quitó vínculo con UPC') : '',
     ].filter(Boolean)
     await audit(ctx, 'modificar', 'libro', set.episodeId ?? current.episodeId, `Registro ${id.slice(0, 8)} · ${parts.join(' · ')}`)
   }

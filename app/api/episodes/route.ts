@@ -5,7 +5,7 @@ import { db } from '@/lib/db'
 import { episode } from '@/lib/db/schema'
 import { attachIdentity, buildDetails, purgeExpiredContacts } from '@/lib/server/episodes'
 
-/** uci (por defecto, lo que ve la Pizarra), nursery o todos (UCI + Nursery). */
+/** uci (por defecto, lo que ve la Pizarra), nursery o todos (UPC + Nursery). */
 function unitFilter(value: string | null): SQL | undefined {
   if (value === 'todos') return undefined
   return eq(episode.unit, value === 'nursery' ? 'nursery' : 'uci')

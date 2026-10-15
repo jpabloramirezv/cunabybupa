@@ -100,9 +100,9 @@ function ScopeTile({
 }
 
 const UNIT_LABEL: Record<ShiftUnitFilter, string> = {
-  uci: 'UCI Neonatal',
+  uci: 'UPC Neonatal',
   nursery: 'Nursery',
-  todos: 'UCI Neonatal + Nursery',
+  todos: 'UPC Neonatal + Nursery',
 }
 
 function BalanceStat({
@@ -164,7 +164,7 @@ function BalancePanel({ balance, isCurrent }: { balance: ShiftBalance; isCurrent
       </div>
       {balance.unit === 'todos' ? (
         <ul className="mt-4 flex flex-col gap-1.5 border-t border-border/70 pt-3">
-          {unitRow('UCI Neonatal', balance.byUnit.uci)}
+          {unitRow('UPC Neonatal', balance.byUnit.uci)}
           {unitRow('Nursery', balance.byUnit.nursery)}
         </ul>
       ) : null}
@@ -569,7 +569,7 @@ export function ShiftView() {
         <div className="flex flex-col gap-2">
           <ScopePill scope="uci" />
           <h1 className="text-2xl font-bold text-navy text-balance sm:text-3xl">
-            {unit === 'uci' ? 'Mi turno en UCI' : unit === 'nursery' ? 'Mi turno en Nursery' : 'Mi turno en Neonatología'}
+            {unit === 'uci' ? 'Mi turno en UPC' : unit === 'nursery' ? 'Mi turno en Nursery' : 'Mi turno en Neonatología'}
           </h1>
           <p className="text-sm text-muted-foreground text-pretty">
             {mode === 'turno'

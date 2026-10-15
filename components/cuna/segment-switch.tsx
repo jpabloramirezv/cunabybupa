@@ -7,17 +7,17 @@ export type StatsSegment = 'uci' | 'nursery' | 'todos'
 const OPTIONS: { value: StatsSegment; title: string; hint: string }[] = [
   {
     value: 'uci',
-    title: 'UCI Neonatal',
+    title: 'UPC Neonatal',
     hint: 'Recién nacidos hospitalizados en la unidad (ingresos y egresos de la Pizarra).',
   },
   {
     value: 'nursery',
     title: 'Nursery',
-    hint: 'Recién nacidos con estadía normal, sin hospitalización. Se registran igual que un ingreso UCI.',
+    hint: 'Recién nacidos con estadía normal, sin hospitalización. Se registran igual que un ingreso UPC.',
   },
   {
     value: 'todos',
-    title: 'UCI Neonatal + Nursery',
+    title: 'UPC Neonatal + Nursery',
     hint: 'Todos los recién nacidos de la unidad juntos, más el bloque de maternidad del Libro de Partos y Abortos.',
   },
 ]

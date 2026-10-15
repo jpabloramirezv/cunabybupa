@@ -69,7 +69,7 @@ export function EpisodeRow({
   showIdentity: boolean
   allMissing?: boolean
   badges?: React.ReactNode
-  /** Muestra la unidad (UCI o Nursery) en cada fila; útil cuando se ven ambas juntas. */
+  /** Muestra la unidad (UPC o Nursery) en cada fila; útil cuando se ven ambas juntas. */
   showUnit?: boolean
   compact?: boolean
 }) {
@@ -96,7 +96,7 @@ export function EpisodeRow({
         </p>
         {showUnit && e.unit !== 'nursery' ? (
           <span className="mt-1 inline-block rounded-full bg-navy/10 px-2.5 py-0.5 text-xs font-semibold text-navy">
-            UCI
+            UPC
           </span>
         ) : null}
         {e.unit === 'nursery' ? (

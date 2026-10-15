@@ -11,7 +11,7 @@ export const parseUnit = (v: unknown): EpisodeUnit => (v === 'nursery' ? 'nurser
 /**
  * Crea el registro si todavía no existe. Se usa desde Identificación (primer paso de un
  * registro nuevo) y desde Ingreso (registros que ya venían en cola de guardado).
- * La unidad (UCI o Nursery) solo se define al crear.
+ * La unidad (UPC o Nursery) solo se define al crear.
  */
 export async function ensureEpisode(
   id: string,

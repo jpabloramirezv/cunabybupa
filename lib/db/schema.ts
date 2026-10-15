@@ -232,7 +232,7 @@ export const bookField = pgTable('book_field', {
   position: integer('position').notNull().default(0),
   required: boolean('required').notNull().default(false),
   active: boolean('active').notNull().default(true),
-  /** Dato que se completa solo desde el episodio de UCI vinculado (o el usuario que crea). */
+  /** Dato que se completa solo desde el episodio de UPC vinculado (o el usuario que crea). */
   source: text('source'),
 })
 

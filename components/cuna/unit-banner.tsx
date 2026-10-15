@@ -19,7 +19,7 @@ const TINT: Record<Scope, string> = {
   analisis: 'border-primary/25 bg-secondary/60',
 }
 
-/** Etiqueta pequeña que dice en qué parte de la clínica estás (UCI, Libro de Partos o Análisis). */
+/** Etiqueta pequeña que dice en qué parte de la clínica estás (UPC, Libro de Partos o Análisis). */
 export function ScopePill({ scope, label, className }: { scope: Scope; label?: string; className?: string }) {
   const p = PILL[scope]
   return (

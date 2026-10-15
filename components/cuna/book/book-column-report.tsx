@@ -1,5 +1,6 @@
 'use client'
 
+import { DownloadGate } from '@/components/cuna/download-gate'
 import { useMemo, useState } from 'react'
 import useSWR from 'swr'
 import { Check, ChevronDown, Download, Printer, SlidersHorizontal } from 'lucide-react'
@@ -16,15 +17,15 @@ const num = (n: number) => n.toLocaleString('es-CL', { maximumFractionDigits: 1 
 export const REPORT_SCOPES: { value: ReportScope; label: string }[] = [
   { value: 'todos', label: 'Todos los registros' },
   { value: 'nursery', label: 'Nursery' },
-  { value: 'uci', label: 'UCI Neonatal' },
+  { value: 'uci', label: 'UPC Neonatal' },
   { value: 'aborto', label: 'Abortos' },
 ]
 
 const SCOPE_LABEL: Record<ReportScope, string> = {
   todos: 'Todos los registros',
-  nacimientos: 'Todos los nacimientos (Nursery + UCI)',
+  nacimientos: 'Todos los nacimientos (Nursery + UPC)',
   nursery: 'Nursery',
-  uci: 'UCI Neonatal',
+  uci: 'UPC Neonatal',
   aborto: 'Abortos',
 }
 
@@ -314,6 +315,7 @@ export function BookColumnReport({
       </div>
 
       {data && visible.length > 0 ? (
+        <DownloadGate>
         <div className="flex flex-wrap gap-2 print:hidden">
           <button
             type="button"
@@ -332,6 +334,7 @@ export function BookColumnReport({
             Descargar resumen (CSV)
           </button>
         </div>
+        </DownloadGate>
       ) : null}
 
       {error ? <Notice tone="danger" title="No pudimos calcular el informe por columnas." /> : null}

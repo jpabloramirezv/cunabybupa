@@ -1,5 +1,6 @@
 'use client'
 
+import { DownloadGate } from '@/components/cuna/download-gate'
 import { useMemo, useRef, useState } from 'react'
 import { BarChart3, ChevronDown, FileSpreadsheet, FileText, Loader2, SlidersHorizontal, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -201,14 +202,16 @@ export function InsightsView() {
             {busy === 'run' ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <BarChart3 className="size-4" aria-hidden />}
             {report ? (stale ? 'Actualizar informe' : 'Volver a generar') : 'Generar informe'}
           </PrimaryButton>
-          <PrimaryButton variant="outline" className="h-11 px-4 text-sm" disabled={!report || busy !== null} onClick={printPdf}>
-            <FileText className="size-4" aria-hidden />
-            PDF
-          </PrimaryButton>
-          <PrimaryButton variant="outline" className="h-11 px-4 text-sm" disabled={!report || busy !== null} onClick={downloadExcel}>
-            {busy === 'excel' ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <FileSpreadsheet className="size-4" aria-hidden />}
-            Excel
-          </PrimaryButton>
+          <DownloadGate>
+            <PrimaryButton variant="outline" className="h-11 px-4 text-sm" disabled={!report || busy !== null} onClick={printPdf}>
+              <FileText className="size-4" aria-hidden />
+              PDF
+            </PrimaryButton>
+            <PrimaryButton variant="outline" className="h-11 px-4 text-sm" disabled={!report || busy !== null} onClick={downloadExcel}>
+              {busy === 'excel' ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <FileSpreadsheet className="size-4" aria-hidden />}
+              Excel
+            </PrimaryButton>
+          </DownloadGate>
         </div>
       </div>
 

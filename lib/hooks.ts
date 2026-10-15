@@ -26,6 +26,11 @@ export const useMe = () =>
 export const useCatalogs = () =>
   useSWR<CatalogsPayload>('/api/catalogs', fetcher, { revalidateOnFocus: false })
 
+export const useBookValues = (key: string | null) =>
+  useSWR<{ values: string[] }>(key ? `/api/book/values?key=${encodeURIComponent(key)}` : null, fetcher, {
+    revalidateOnFocus: false,
+  })
+
 export const useOutbox = () =>
   useSyncExternalStore(subscribeOutbox, getOutboxSnapshot, getServerOutboxSnapshot)
 

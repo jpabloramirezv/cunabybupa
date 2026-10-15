@@ -5,7 +5,7 @@ import { addDaysYmd, todayYmd } from '@/lib/time'
 
 const YMD = /^\d{4}-\d{2}-\d{2}$/
 
-/** Indicadores agregados (sin datos de identificación) de Nursery, UCI o todos los nacimientos del libro. */
+/** Indicadores agregados (sin datos de identificación) de Nursery, UPC o todos los nacimientos del libro. */
 export const GET = handle(async (req) => {
   const ctx = await requireCtx()
   if (!ctx.canPanel && !ctx.canReports && !ctx.canBook) throw new HttpError(403, 'Tu rol no permite ver estos indicadores.')

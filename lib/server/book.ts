@@ -1,6 +1,16 @@
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
 import { TZ } from '@/lib/config'
-import { BOOK_LINK_UPGRADES, DEFAULT_BOOK_FIELDS, DOCTOR_BOOK_KEYS, type BookFieldType, type BookSection } from '@/lib/book-fields'
+import {
+  BOOK_FIELD_TYPE_VALUES,
+  BOOK_LINK_UPGRADES,
+  DEFAULT_BOOK_FIELDS,
+  DOCTOR_BOOK_KEYS,
+  EQUIPO_PARTO,
+  PROFILAXIS_OPTIONS,
+  ROBSON_OPTIONS,
+  type BookFieldType,
+  type BookSection,
+} from '@/lib/book-fields'
 import { db } from '@/lib/db'
 import { appSetting, bookField, catalogItem, episode } from '@/lib/db/schema'
 import { HttpError } from '@/lib/api'
@@ -29,7 +39,7 @@ const toField = (r: typeof bookField.$inferSelect): BookFieldRow => ({
   label: r.label,
   section: r.section === 'neonatal' ? 'neonatal' : 'materno',
   group: r.groupName,
-  type: (['text', 'number', 'decimal', 'date', 'time', 'select', 'doctor'].includes(r.type) ? r.type : 'text') as BookFieldType,
+  type: ((BOOK_FIELD_TYPE_VALUES as string[]).includes(r.type) ? r.type : 'text') as BookFieldType,
   options: r.options ?? [],
   position: r.position,
   required: r.required,
@@ -62,7 +72,57 @@ export async function ensureBookFields() {
   }
   await migrateDoctorFields()
   await migrateLinkSources()
+  await migrateFieldRevision()
   seeded = true
+}
+
+const REVISION_MIGRATION = 'book_field_revision_v2'
+
+/**
+ * Una sola vez: lleva las columnas ya creadas a la versión nueva del formulario (listas con buscador,
+ * Robson 1-10, profilaxis completa/incompleta/sin profilaxis, placenta junto a exámenes y sin neonatólogo).
+ * Los datos ya escritos no se tocan; el neonatólogo solo se oculta.
+ */
+async function migrateFieldRevision() {
+  const [done] = await db.select().from(appSetting).where(eq(appSetting.key, REVISION_MIGRATION)).limit(1)
+  if (done) return
+  const patch = (key: string, set: Partial<typeof bookField.$inferInsert>) =>
+    db.update(bookField).set(set).where(eq(bookField.key, key))
+
+  await patch('prevision', { type: 'prevision' })
+  await patch('prevision_rn', { type: 'prevision' })
+  await patch('pais_origen', { type: 'country' })
+  await patch('robson', { type: 'select', options: ROBSON_OPTIONS })
+  await patch('profilaxis_rpm', { options: PROFILAXIS_OPTIONS })
+  await patch('prof_sgb', { options: PROFILAXIS_OPTIONS })
+  await patch('elisa_n', { type: 'digit' })
+  await patch('procedencia', { label: 'Comuna de residencia', type: 'comuna' })
+  await patch('matrona_quirurgica', { type: 'suggest' })
+  await patch('neonatologo', { active: false })
+
+  const [chagas] = await db.select({ position: bookField.position }).from(bookField).where(eq(bookField.key, 'chagas_res')).limit(1)
+  await patch('entrega_placenta', chagas ? { groupName: 'Exámenes', position: chagas.position + 1 } : { groupName: 'Exámenes' })
+  await db
+    .update(bookField)
+    .set({ groupName: EQUIPO_PARTO })
+    .where(and(inArray(bookField.key, ['medico', 'ayudante', 'anestesista', 'matrona_quirurgica']), eq(bookField.groupName, 'Placenta y equipo')))
+
+  const [paridad] = await db.select({ position: bookField.position }).from(bookField).where(eq(bookField.key, 'paridad')).limit(1)
+  if (paridad) {
+    await db
+      .insert(bookField)
+      .values({
+        key: 'paridad_n',
+        label: 'Cantidad de partos previos',
+        section: 'materno',
+        groupName: 'Antecedentes obstétricos',
+        type: 'number',
+        options: [],
+        position: paridad.position + 1,
+      })
+      .onConflictDoNothing({ target: bookField.key })
+  }
+  await db.insert(appSetting).values({ key: REVISION_MIGRATION, value: '1' }).onConflictDoNothing()
 }
 
 const LINK_MIGRATION = 'book_link_sources_v1'
@@ -183,7 +243,7 @@ function resolveSource(source: string, d: EpisodeDetail, labels: Labels): string
   }
 }
 
-/** Valores que ya existen en el episodio de UCI vinculado, indexados por clave de columna. */
+/** Valores que ya existen en el episodio de UPC vinculado, indexados por clave de columna. */
 export async function resolveLinked(
   episodeIds: (string | null)[],
   fields: BookFieldRow[],
@@ -222,6 +282,7 @@ export function sanitizeData(
   raw: unknown,
   fields: BookFieldRow[],
   canEdit: Record<BookSection, boolean>,
+  previous: Record<string, unknown> = {},
 ): { data: Record<string, string>; errors: string[] } {
   const data: Record<string, string> = {}
   const errors: string[] = []
@@ -235,7 +296,13 @@ export function sanitizeData(
       data[f.key] = ''
       continue
     }
-    if (f.type === 'number' && !/^-?\d+$/.test(s)) errors.push(`${f.label} debe ser un número entero.`)
+    // Un valor que ya estaba guardado y no cambió se conserva aunque el formato sea el de una versión anterior.
+    if (s === previous[f.key]) {
+      data[f.key] = s
+      continue
+    }
+    if (f.type === 'digit' && !/^[0-9]$/.test(s)) errors.push(`${f.label} debe ser un número del 0 al 9.`)
+    else if (f.type === 'number' && !/^-?\d+$/.test(s)) errors.push(`${f.label} debe ser un número entero.`)
     else if (f.type === 'decimal' && !/^-?\d+([.,]\d+)?$/.test(s)) errors.push(`${f.label} debe ser un número.`)
     else if (f.type === 'date' && (!DATE_RE.test(s) || Number.isNaN(new Date(s).getTime())))
       errors.push(`${f.label} no es una fecha válida.`)
@@ -260,6 +327,22 @@ export async function canonicalizeBookDoctors(data: Record<string, string>, fiel
   }
 }
 
+/**
+ * Previsión tiene una única fuente: el catálogo que usa Neonatología. Si lo escrito coincide con una
+ * opción (sin importar mayúsculas ni tildes) se guarda con el nombre oficial del catálogo.
+ */
+export async function canonicalizeBookPrevision(data: Record<string, string>, fields: BookFieldRow[]) {
+  const target = fields.filter((f) => f.type === 'prevision' && data[f.key])
+  if (target.length === 0) return
+  const items = await db.select({ label: catalogItem.label }).from(catalogItem).where(eq(catalogItem.kind, 'prevision'))
+  const fold = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase()
+  const byFold = new Map(items.map((i) => [fold(i.label), i.label]))
+  for (const f of target) {
+    const official = byFold.get(fold(data[f.key]))
+    if (official) data[f.key] = official
+  }
+}
+
 export type BookRecordOut = {
   id: string
   n: number
@@ -275,7 +358,7 @@ export type BookRecordOut = {
   updatedAt: string
 }
 
-/** Combina lo digitado con lo que ya está en UCI: lo digitado manda. */
+/** Combina lo digitado con lo que ya está en UPC: lo digitado manda. */
 export const effectiveValues = (data: Record<string, string>, linked: Record<string, string>) => {
   const out: Record<string, string> = { ...linked }
   for (const [k, v] of Object.entries(data)) if (v !== '') out[k] = v

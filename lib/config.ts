@@ -92,7 +92,7 @@ export type ScreeningStatus = (typeof SCREENING_STATUS)[number]['key']
 export const CARE_LEVEL_OPTIONS = [
   { value: 'basico', label: 'Básico' },
   { value: 'uti', label: 'UTI' },
-  { value: 'uci', label: 'UCI' },
+  { value: 'uci', label: 'UPC' },
 ] as const
 
 export const SEX_OPTIONS = [

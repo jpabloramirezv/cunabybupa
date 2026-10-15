@@ -125,7 +125,7 @@ export function EpisodeEditor({ id }: { id: string }) {
               isNursery ? 'bg-secondary text-primary' : 'bg-navy text-primary-foreground',
             )}
           >
-            {isNursery ? 'Nursery' : 'UCI Neonatal'}
+            {isNursery ? 'Nursery' : 'UPC Neonatal'}
           </span>
         </div>
         <p className="mt-1 text-sm text-muted-foreground">

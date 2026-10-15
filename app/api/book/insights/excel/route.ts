@@ -9,7 +9,7 @@ export const maxDuration = 60
 /** Excel del informe del Libro: tablas por sección y hoja de datos sin identificación. */
 export const POST = handle(async (req) => {
   const ctx = await requireCtx()
-  if (!ctx.canReports && !ctx.canBook) throw new HttpError(403, 'Tu rol no permite exportar estos informes.')
+  if (!ctx.canAdmin) throw new HttpError(403, 'Solo Jefatura puede descargar informes.')
   const body = await readJson<{ config?: unknown }>(req)
   const cfg = sanitizeLibroConfig(body.config ?? body)
   if (!cfg) throw new HttpError(400, 'Revisa el período del informe.')
