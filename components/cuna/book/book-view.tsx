@@ -735,9 +735,8 @@ export function BookView() {
 
         {view === 'libro' && data ? (
           <BookLedger
-            key={me?.canEditNeonatal && !me?.canEditMaternity ? 'neonatal' : me?.canEditMaternity && !me?.canEditNeonatal ? 'materno' : 'todo'}
             canDownload={!!me?.canAdmin}
-            defaultPreset={me?.canEditNeonatal && !me?.canEditMaternity ? 'neonatal' : me?.canEditMaternity && !me?.canEditNeonatal ? 'materno' : 'todo'}
+            defaultPreset="todo"
             rows={visible}
             fields={fields}
             terms={terms}

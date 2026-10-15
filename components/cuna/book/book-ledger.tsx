@@ -45,13 +45,13 @@ type PresetId = LedgerPreset
 const PRESETS: { id: PresetId; label: string; hint: string; pick: (f: BookFieldRow) => boolean }[] = [
   {
     id: 'neonatal',
-    label: 'Neonatología',
+    label: 'Datos neonatales',
     hint: 'Todas las columnas del RN: datos al nacer, Apgar, alta, vacunas y tamizajes.',
     pick: (f) => f.section === 'neonatal',
   },
   {
     id: 'materno',
-    label: 'Maternidad',
+    label: 'Datos maternos',
     hint: 'Todas las columnas de la madre, el parto, los antecedentes obstétricos y los exámenes.',
     pick: (f) => f.section === 'materno',
   },
