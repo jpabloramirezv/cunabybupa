@@ -5,7 +5,7 @@ import { audit } from '@/lib/audit'
 import { requireCtx } from '@/lib/ctx'
 import { db } from '@/lib/db'
 import { birthRecord, episode } from '@/lib/db/schema'
-import { canonicalizeBookDoctors, getBookFields, sanitizeData } from '@/lib/server/book'
+import { canonicalizeBookDoctors, canonicalizeBookPrevision, getBookFields, sanitizeData } from '@/lib/server/book'
 import { getRecord, listRecords, withDefaults } from '@/lib/server/book-records'
 
 export const GET = handle(async () => {
@@ -27,6 +27,7 @@ export const POST = handle(async (req) => {
   })
   if (errors.length) throw new HttpError(422, errors[0])
   await canonicalizeBookDoctors(data, fields)
+  await canonicalizeBookPrevision(data, fields)
 
   let episodeId: string | null = null
   if (typeof b.episodeId === 'string' && b.episodeId) {

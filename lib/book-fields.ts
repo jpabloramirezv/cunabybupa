@@ -1,5 +1,21 @@
 export type BookSection = 'materno' | 'neonatal'
-export type BookFieldType = 'text' | 'number' | 'decimal' | 'date' | 'time' | 'select' | 'doctor'
+export type BookFieldType =
+  | 'text'
+  | 'number'
+  | 'decimal'
+  | 'date'
+  | 'time'
+  | 'select'
+  | 'doctor'
+  | 'prevision'
+  | 'country'
+  | 'comuna'
+  | 'digit'
+  | 'suggest'
+
+export const BOOK_FIELD_TYPE_VALUES: BookFieldType[] = [
+  'text', 'number', 'decimal', 'date', 'time', 'select', 'doctor', 'prevision', 'country', 'comuna', 'digit', 'suggest',
+]
 
 /** Columnas del libro que corresponden a médicos y deben ser personas inscritas en la app. */
 export const DOCTOR_BOOK_KEYS = ['medico', 'ayudante', 'anestesista', 'neonatologo'] as const
@@ -17,7 +33,20 @@ export const BOOK_FIELD_TYPES: { value: BookFieldType; label: string }[] = [
   { value: 'time', label: 'Hora' },
   { value: 'select', label: 'Lista de opciones' },
   { value: 'doctor', label: 'Médico inscrito en la app' },
+  { value: 'prevision', label: 'Previsión (misma lista que Neonatología)' },
+  { value: 'country', label: 'País (lista mundial con buscador)' },
+  { value: 'comuna', label: 'Comuna de Chile (con buscador)' },
+  { value: 'digit', label: 'Un dígito (0 a 9)' },
+  { value: 'suggest', label: 'Texto con sugerencias de registros anteriores' },
 ]
+
+/** Valores de Profilaxis (RPM y SGB). */
+export const PROFILAXIS_OPTIONS = ['COMPLETA', 'INCOMPLETA', 'SIN PROFILAXIS']
+
+/** Clasificación de Robson: grupos 1 a 10. */
+export const ROBSON_OPTIONS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
+
+export const MULTIPARA = 'MULTÍPARA'
 
 /**
  * Datos que se completan solos desde el episodio de UPC vinculado.
@@ -79,6 +108,8 @@ export type BookFieldDef = {
 const SN = ['SI', 'NO']
 const NEG_POS = ['NEGATIVO', 'POSITIVO']
 
+export const EQUIPO_PARTO = 'Equipo de parto'
+
 const M = 'materno' as const
 const N = 'neonatal' as const
 
@@ -88,14 +119,14 @@ export const DEFAULT_BOOK_FIELDS: BookFieldDef[] = [
   { key: 'fecha', label: 'Fecha', section: M, group: 'Admisión', type: 'date', source: 'birth.date' },
   { key: 'hora', label: 'Hora', section: M, group: 'Admisión', type: 'time', source: 'birth.time' },
   { key: 'n_admision', label: 'N° admisión', section: M, group: 'Admisión', type: 'text' },
-  { key: 'prevision', label: 'Previsión', section: M, group: 'Admisión', type: 'text', source: 'previsionLabel' },
+  { key: 'prevision', label: 'Previsión', section: M, group: 'Admisión', type: 'prevision', source: 'previsionLabel' },
   { key: 'rut', label: 'RUT', section: M, group: 'Datos de la madre', type: 'text' },
   { key: 'nombre', label: 'Nombre', section: M, group: 'Datos de la madre', type: 'text', source: 'mother.nombre' },
   { key: 'ap_paterno', label: 'Apellido paterno', section: M, group: 'Datos de la madre', type: 'text', source: 'mother.paterno' },
   { key: 'ap_materno', label: 'Apellido materno', section: M, group: 'Datos de la madre', type: 'text', source: 'mother.materno' },
   { key: 'edad', label: 'Edad', section: M, group: 'Datos de la madre', type: 'number' },
   { key: 'imc', label: 'IMC', section: M, group: 'Datos de la madre', type: 'decimal' },
-  { key: 'pais_origen', label: 'País de origen', section: M, group: 'Datos de la madre', type: 'text' },
+  { key: 'pais_origen', label: 'País de origen', section: M, group: 'Datos de la madre', type: 'country' },
   { key: 'pueblo_originario', label: 'Pueblo originario', section: M, group: 'Datos de la madre', type: 'select', options: SN },
   // Parto o aborto
   {
@@ -107,12 +138,12 @@ export const DEFAULT_BOOK_FIELDS: BookFieldDef[] = [
     options: ['PARTO VAGINAL', 'CESÁREA ELECTIVA', 'CESÁREA DE URGENCIA', 'PARTO INSTRUMENTAL', 'ABORTO'],
     source: 'deliveryLabel',
   },
-  { key: 'robson', label: 'Clasificación Robson', section: M, group: 'Parto o aborto', type: 'text' },
+  { key: 'robson', label: 'Clasificación Robson', section: M, group: 'Parto o aborto', type: 'select', options: ROBSON_OPTIONS },
   { key: 'causa_cesarea', label: 'Causa de cesárea', section: M, group: 'Parto o aborto', type: 'text' },
   { key: 'induccion', label: 'Inducción', section: M, group: 'Parto o aborto', type: 'select', options: SN },
   { key: 'rpm', label: 'RPM', section: M, group: 'Parto o aborto', type: 'select', options: SN },
   { key: 'tiempo_rpm', label: 'Tiempo de RPM', section: M, group: 'Parto o aborto', type: 'text' },
-  { key: 'profilaxis_rpm', label: 'Profilaxis RPM', section: M, group: 'Parto o aborto', type: 'select', options: SN },
+  { key: 'profilaxis_rpm', label: 'Profilaxis RPM', section: M, group: 'Parto o aborto', type: 'select', options: PROFILAXIS_OPTIONS },
   // Antecedentes obstétricos
   {
     key: 'paridad',
@@ -120,31 +151,31 @@ export const DEFAULT_BOOK_FIELDS: BookFieldDef[] = [
     section: M,
     group: 'Antecedentes obstétricos',
     type: 'select',
-    options: ['PRIMIGESTA', 'MULTÍPARA'],
+    options: ['PRIMIGESTA', MULTIPARA],
   },
+  { key: 'paridad_n', label: 'Cantidad de partos previos', section: M, group: 'Antecedentes obstétricos', type: 'number' },
   { key: 'slg', label: 'SLG', section: M, group: 'Antecedentes obstétricos', type: 'select', options: SN },
   { key: 'cca', label: 'CCA', section: M, group: 'Antecedentes obstétricos', type: 'number' },
-  { key: 'procedencia', label: 'Procedencia', section: M, group: 'Antecedentes obstétricos', type: 'text' },
+  { key: 'procedencia', label: 'Comuna de residencia', section: M, group: 'Antecedentes obstétricos', type: 'comuna' },
   { key: 'control_prenatal', label: 'Control prenatal', section: M, group: 'Antecedentes obstétricos', type: 'select', options: SN },
   // Exámenes
-  { key: 'elisa_n', label: 'N° ELISA', section: M, group: 'Exámenes', type: 'number' },
+  { key: 'elisa_n', label: 'N° ELISA', section: M, group: 'Exámenes', type: 'digit' },
   { key: 'elisa_res', label: 'ELISA: resultado', section: M, group: 'Exámenes', type: 'select', options: NEG_POS, source: 'maternalHiv' },
   { key: 'vdrl_n', label: 'N° VDRL', section: M, group: 'Exámenes', type: 'number' },
   { key: 'vdrl_res', label: 'VDRL: resultado', section: M, group: 'Exámenes', type: 'select', options: ['NO REACTIVO', 'REACTIVO'] },
   { key: 'sgb', label: 'SGB', section: M, group: 'Exámenes', type: 'select', options: SN },
   { key: 'sgb_res', label: 'SGB: resultado', section: M, group: 'Exámenes', type: 'select', options: NEG_POS },
-  { key: 'prof_sgb', label: 'Profilaxis SGB', section: M, group: 'Exámenes', type: 'select', options: ['SI', 'NO', 'NO APLICA'] },
+  { key: 'prof_sgb', label: 'Profilaxis SGB', section: M, group: 'Exámenes', type: 'select', options: PROFILAXIS_OPTIONS },
   { key: 'hb', label: 'Hepatitis B', section: M, group: 'Exámenes', type: 'select', options: SN },
   { key: 'hb_res', label: 'Hepatitis B: resultado', section: M, group: 'Exámenes', type: 'select', options: NEG_POS },
   { key: 'chagas', label: 'Chagas', section: M, group: 'Exámenes', type: 'select', options: SN },
   { key: 'chagas_res', label: 'Chagas: resultado', section: M, group: 'Exámenes', type: 'select', options: NEG_POS },
-  // Placenta y equipo
-  { key: 'entrega_placenta', label: 'Entrega de placenta', section: M, group: 'Placenta y equipo', type: 'select', options: SN },
-  { key: 'medico', label: 'Médico', section: M, group: 'Placenta y equipo', type: 'doctor' },
-  { key: 'ayudante', label: 'Ayudante', section: M, group: 'Placenta y equipo', type: 'doctor' },
-  { key: 'anestesista', label: 'Anestesista', section: M, group: 'Placenta y equipo', type: 'doctor' },
-  { key: 'neonatologo', label: 'Neonatólogo', section: M, group: 'Placenta y equipo', type: 'doctor', source: 'medicoLabel' },
-  { key: 'matrona_quirurgica', label: 'Matrona equipo quirúrgico', section: M, group: 'Placenta y equipo', type: 'text' },
+  { key: 'entrega_placenta', label: 'Entrega de placenta', section: M, group: 'Exámenes', type: 'select', options: SN },
+  // Equipo (el neonatólogo lo incorpora Neonatología desde su perfil)
+  { key: 'medico', label: 'Médico', section: M, group: EQUIPO_PARTO, type: 'doctor' },
+  { key: 'ayudante', label: 'Ayudante', section: M, group: EQUIPO_PARTO, type: 'doctor' },
+  { key: 'anestesista', label: 'Anestesista', section: M, group: EQUIPO_PARTO, type: 'doctor' },
+  { key: 'matrona_quirurgica', label: 'Matrona equipo quirúrgico', section: M, group: EQUIPO_PARTO, type: 'suggest' },
 
   // Neonatología
   { key: 'matrona_neo_ati', label: 'Matrona neo ATI', section: N, group: 'Equipo', type: 'text', source: 'user' },
@@ -170,7 +201,7 @@ export const DEFAULT_BOOK_FIELDS: BookFieldDef[] = [
   { key: 'apego', label: 'Apego', section: N, group: 'Evaluación al nacer', type: 'select', options: SN },
   { key: 'lm_1h', label: 'Lactancia en la primera hora', section: N, group: 'Evaluación al nacer', type: 'select', options: SN },
   { key: 'malformacion', label: 'Malformación congénita', section: N, group: 'Evaluación al nacer', type: 'select', options: SN },
-  { key: 'prevision_rn', label: 'Previsión RN', section: N, group: 'Alta', type: 'text', source: 'previsionLabel' },
+  { key: 'prevision_rn', label: 'Previsión RN', section: N, group: 'Alta', type: 'prevision', source: 'previsionLabel' },
   { key: 'hospitalizado', label: 'Hospitalización', section: N, group: 'Alta', type: 'select', options: SN, source: 'hospitalized' },
   { key: 'fecha_alta_rn', label: 'Fecha de alta RN', section: N, group: 'Alta', type: 'date', source: 'dischargeAt' },
   { key: 'peso_alta', label: 'Peso al alta (g)', section: N, group: 'Alta', type: 'number', source: 'dischargeWeightG' },

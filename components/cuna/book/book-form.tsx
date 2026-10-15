@@ -4,10 +4,19 @@ import { useId, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, ArrowRight, Check, Rows3 } from 'lucide-react'
 import { BOOK_SECTION_LABEL, type BookSection } from '@/lib/book-fields'
 import { GROUP_HINTS, isFieldVisible } from '@/lib/book-flow'
-import { useCatalogs } from '@/lib/hooks'
+import { COMUNAS, COUNTRIES } from '@/lib/geo-data'
+import { useBookValues, useCatalogs } from '@/lib/hooks'
 import type { BookFieldRow } from '@/lib/server/book'
 import { cn } from '@/lib/utils'
+import { SearchCombobox, type ComboOption } from '@/components/cuna/search-combobox'
 import { Choice, FieldLabel, Hint } from '@/components/cuna/ui'
+
+const COUNTRY_OPTIONS: ComboOption[] = COUNTRIES.map((c) => ({ value: c }))
+const COMUNA_OPTIONS: ComboOption[] = COMUNAS.map((c) => ({ value: c.name, detail: c.region }))
+
+/** Si el valor guardado no está en la lista (dato de antes), se agrega para que se vea y pueda corregirse. */
+const withCurrent = (options: ComboOption[], current: string) =>
+  current && !options.some((o) => o.value === current) ? [{ value: current, detail: 'valor anterior' }, ...options] : options
 
 const inputClass =
   'h-12 w-full rounded-lg border border-input bg-card px-3 text-base text-foreground placeholder:text-muted-foreground/70 focus-visible:border-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground'
@@ -69,8 +78,83 @@ function BookInput({
     )
   }
   const { data: cat } = useCatalogs()
+  const { data: known } = useBookValues(field.type === 'suggest' ? field.key : null)
   const fromUci = !value && linked ? linked : null
   const hint = fromUci ? `Viene de UPC: ${fromUci}. Escribe para reemplazarlo.` : undefined
+
+  if (field.type === 'prevision') {
+    const current = value || fromUci || ''
+    const names = (cat?.items ?? [])
+      .filter((i) => i.kind === 'prevision' && i.active)
+      .map((i) => i.label)
+      .sort((a, b) => a.localeCompare(b, 'es'))
+    const legacy = current && !names.includes(current)
+    return (
+      <div>
+        <FieldLabel htmlFor={id} required={field.required}>
+          {field.label}
+        </FieldLabel>
+        <select id={id} disabled={disabled} value={current} onChange={(e) => onChange(e.target.value)} className={inputClass}>
+          <option value="">Seleccionar previsión</option>
+          {legacy ? <option value={current}>{`${current} (no está en la lista)`}</option> : null}
+          {names.map((n) => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
+        </select>
+        <Hint>
+          {legacy
+            ? 'Este valor no está en la lista de previsiones. Elige una para corregirlo.'
+            : 'Misma lista de previsiones que usa Neonatología.'}
+        </Hint>
+      </div>
+    )
+  }
+
+  if (field.type === 'country' || field.type === 'comuna') {
+    const isCountry = field.type === 'country'
+    return (
+      <div>
+        <FieldLabel htmlFor={id} required={field.required}>
+          {field.label}
+        </FieldLabel>
+        <SearchCombobox
+          id={id}
+          disabled={disabled}
+          value={value}
+          onChange={onChange}
+          options={withCurrent(isCountry ? COUNTRY_OPTIONS : COMUNA_OPTIONS, value)}
+          placeholder={isCountry ? 'Seleccionar país' : 'Seleccionar comuna'}
+          searchPlaceholder={isCountry ? 'Buscar país…' : 'Buscar comuna…'}
+          emptyText={isCountry ? 'No hay países con ese nombre.' : 'No hay comunas con ese nombre.'}
+        />
+        {hint ? <Hint>{hint}</Hint> : null}
+      </div>
+    )
+  }
+
+  if (field.type === 'suggest') {
+    return (
+      <div>
+        <FieldLabel htmlFor={id} required={field.required}>
+          {field.label}
+        </FieldLabel>
+        <SearchCombobox
+          id={id}
+          disabled={disabled}
+          value={value}
+          onChange={onChange}
+          allowCustom
+          options={withCurrent((known?.values ?? []).map((v) => ({ value: v })), value)}
+          placeholder="Escribir o elegir"
+          searchPlaceholder="Escribe el nombre…"
+          emptyText="Escribe el nombre completo para agregarla."
+        />
+        <Hint>Si ya fue registrada antes, elige su nombre de la lista para no duplicarla.</Hint>
+      </div>
+    )
+  }
 
   if (field.type === 'doctor') {
     const docs = (cat?.items ?? [])
@@ -163,12 +247,13 @@ function BookInput({
           value={value}
           placeholder={fromUci ?? undefined}
           type={field.type === 'date' ? 'date' : field.type === 'time' ? 'time' : 'text'}
-          inputMode={field.type === 'number' ? 'numeric' : field.type === 'decimal' ? 'decimal' : undefined}
+          inputMode={field.type === 'number' || field.type === 'digit' ? 'numeric' : field.type === 'decimal' ? 'decimal' : undefined}
           autoComplete="off"
-          maxLength={300}
+          maxLength={field.type === 'digit' ? 1 : 300}
           onChange={(e) => {
             const v = e.target.value
-            if (field.type === 'number') onChange(v.replace(/[^\d-]/g, ''))
+            if (field.type === 'digit') onChange(v.replace(/\D/g, '').slice(-1))
+            else if (field.type === 'number') onChange(v.replace(/[^\d-]/g, ''))
             else if (field.type === 'decimal') onChange(v.replace(/[^\d.,-]/g, ''))
             else onChange(v)
           }}

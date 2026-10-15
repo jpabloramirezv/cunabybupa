@@ -4,7 +4,7 @@ import { audit } from '@/lib/audit'
 import { requireCtx } from '@/lib/ctx'
 import { db } from '@/lib/db'
 import { birthRecord, episode } from '@/lib/db/schema'
-import { canonicalizeBookDoctors, getBookFields, sanitizeData } from '@/lib/server/book'
+import { canonicalizeBookDoctors, canonicalizeBookPrevision, getBookFields, sanitizeData } from '@/lib/server/book'
 import { activeRecord, getRecord, withDefaults } from '@/lib/server/book-records'
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -23,12 +23,15 @@ export const PATCH = handle<Ctx>(async (req, { params }) => {
 
   const b = await readJson<{ data?: unknown; episodeId?: unknown }>(req)
   const fields = await getBookFields()
-  const { data, errors } = sanitizeData(b.data, fields, {
-    materno: ctx.canEditMaternity,
-    neonatal: ctx.canEditNeonatal,
-  })
+  const { data, errors } = sanitizeData(
+    b.data,
+    fields,
+    { materno: ctx.canEditMaternity, neonatal: ctx.canEditNeonatal },
+    (current.data ?? {}) as Record<string, unknown>,
+  )
   if (errors.length) throw new HttpError(422, errors[0])
   await canonicalizeBookDoctors(data, fields)
+  await canonicalizeBookPrevision(data, fields)
 
   const set: Partial<typeof birthRecord.$inferInsert> = {}
   if (b.episodeId !== undefined) {
