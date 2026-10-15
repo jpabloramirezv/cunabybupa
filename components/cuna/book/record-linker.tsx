@@ -4,8 +4,10 @@ import { useMemo, useState } from 'react'
 import { ChevronDown, FilePlus2, Link2, X } from 'lucide-react'
 import { BOOK_SECTION_LABEL, type BookSection } from '@/lib/book-fields'
 import { linkCode, type SectionProgress } from '@/lib/book-flow'
+import { STATUS_LABEL, type EpisodeStatus } from '@/lib/rules'
 import { haystackOf, matchesAll, parseQuery } from '@/lib/search'
 import type { BookRecordOut } from '@/lib/server/book'
+import { fmtDateTime } from '@/lib/time'
 import { cn } from '@/lib/utils'
 import { PrimaryButton } from '@/components/cuna/ui'
 import { SearchField } from '@/components/cuna/search-field'
@@ -17,6 +19,21 @@ export type LinkCandidate = {
   /** Avance de la otra unidad, para ver quién ya empezó la fila. */
   other?: SectionProgress
 }
+
+/** Ingreso de la Pizarra que todavía no tiene fila en el libro. */
+export type PendingEpisode = {
+  id: string
+  code: string
+  createdAt: string
+  status: EpisodeStatus
+  unit: string
+  patientName: string | null
+  motherName: string | null
+  rut: string | null
+  admissionNumber: string | null
+}
+
+type Item = { kind: 'record'; c: LinkCandidate } | { kind: 'episode'; e: PendingEpisode }
 
 const VISIBLE_FIRST = 5
 
@@ -89,6 +106,42 @@ function CandidateRow({
   )
 }
 
+function EpisodeRow({ episode: e, onPick }: { episode: PendingEpisode; onPick: (e: PendingEpisode) => void }) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => onPick(e)}
+        className="flex w-full items-center gap-4 rounded-xl border border-border bg-background p-4 text-left transition-colors hover:border-primary hover:bg-secondary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+      >
+        <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="text-xs font-bold tabular-nums text-muted-foreground">{e.code}</span>
+            <span className="truncate text-base font-semibold text-foreground">
+              {e.motherName || e.patientName || 'Ingreso sin nombre'}
+            </span>
+            {e.rut ? <span className="text-sm text-muted-foreground">{e.rut}</span> : null}
+          </span>
+          <span className="text-sm text-muted-foreground">
+            {[e.patientName && e.motherName ? `RN: ${e.patientName}` : null, e.admissionNumber ? `Adm. ${e.admissionNumber}` : null, fmtDateTime(e.createdAt)]
+              .filter(Boolean)
+              .join(' · ')}
+          </span>
+          <span className="flex flex-wrap gap-1.5">
+            <span className="rounded-full bg-warning px-2.5 py-0.5 text-xs font-semibold text-warning-foreground">
+              Ingreso de Pizarra sin fila en el libro
+            </span>
+            <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
+              {e.unit === 'nursery' ? 'Estadía normal' : 'UCI'} · {STATUS_LABEL[e.status]}
+            </span>
+          </span>
+        </span>
+        <Link2 className="size-5 shrink-0 text-primary" aria-hidden />
+      </button>
+    </li>
+  )
+}
+
 /**
  * Paso previo a crear una fila: muestra el total de filas incompletas que esperan la parte de quien registra,
  * para que Maternidad y Neonatología completen la misma fila en cualquier orden.
@@ -96,14 +149,19 @@ function CandidateRow({
 export function RecordLinker({
   section,
   candidates,
+  episodes = [],
   onPick,
+  onPickEpisode,
   onNew,
   onCancel,
   onSwitch,
 }: {
   section: BookSection
   candidates: LinkCandidate[]
+  /** Ingresos de la Pizarra que aún no tienen fila en el libro. */
+  episodes?: PendingEpisode[]
   onPick: (r: BookRecordOut) => void
+  onPickEpisode?: (e: PendingEpisode) => void
   onNew: () => void
   onCancel: () => void
   /** Solo si la persona puede registrar por ambas unidades: elige quién empieza o continúa. */
@@ -114,25 +172,50 @@ export function RecordLinker({
   const other = section === 'neonatal' ? 'Maternidad' : 'Neonatología'
   const terms = parseQuery(q)
 
-  const matching = useMemo(() => {
-    const rank = (c: LinkCandidate) => (waitsForMine(c) ? (c.progress.state === 'pendiente' ? 0 : 1) : 2)
-    return [...candidates]
-      .filter((c) =>
+  const pendingEpisodes = onPickEpisode ? episodes : []
+
+  const matching = useMemo<Item[]>(() => {
+    const rankOf = (it: Item) =>
+      it.kind === 'record'
+        ? waitsForMine(it.c)
+          ? it.c.progress.state === 'pendiente'
+            ? 1
+            : 2
+          : 3
+        : 0
+    const items: Item[] = [
+      ...candidates.map((c): Item => ({ kind: 'record', c })),
+      ...pendingEpisodes.map((e): Item => ({ kind: 'episode', e })),
+    ]
+    const when = (it: Item) => (it.kind === 'record' ? it.c.record.seq : new Date(it.e.createdAt).getTime() / 1e9)
+    return items
+      .filter((it) =>
         matchesAll(
-          haystackOf(`${Object.values(c.record.values).join(' ')} ${linkCode(c.record.seq)} ${c.record.episodeCode ?? ''}`),
+          haystackOf(
+            it.kind === 'record'
+              ? `${Object.values(it.c.record.values).join(' ')} ${linkCode(it.c.record.seq)} ${it.c.record.episodeCode ?? ''}`
+              : [it.e.code, it.e.patientName, it.e.motherName, it.e.rut, it.e.admissionNumber].filter(Boolean).join(' '),
+          ),
           terms,
         ),
       )
-      .sort((a, b) => rank(a) - rank(b) || b.record.seq - a.record.seq)
+      .sort((a, b) => rankOf(a) - rankOf(b) || when(b) - when(a))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candidates, q])
+  }, [candidates, pendingEpisodes, q])
+
+  const renderItem = (it: Item) =>
+    it.kind === 'record' ? (
+      <CandidateRow key={it.c.record.id} candidate={it.c} section={section} onPick={onPick} />
+    ) : (
+      <EpisodeRow key={`ep-${it.e.id}`} episode={it.e} onPick={onPickEpisode!} />
+    )
 
   const first = matching.slice(0, VISIBLE_FIRST)
   const rest = matching.slice(VISIBLE_FIRST)
   const showRest = expanded || (terms.length > 0 && rest.length > 0)
   const startedByOther = candidates.filter((c) => c.other && c.other.state !== 'pendiente').length
   const waitingMine = candidates.filter(waitsForMine).length
-  const total = candidates.length
+  const total = candidates.length + pendingEpisodes.length
 
   return (
     <section
@@ -187,8 +270,11 @@ export function RecordLinker({
           {total} {total === 1 ? 'registro incompleto' : 'registros incompletos'}
         </p>
         <p className="text-sm text-muted-foreground">
-          {waitingMine} {waitingMine === 1 ? 'espera' : 'esperan'} la parte de {BOOK_SECTION_LABEL[section]}
+          {waitingMine} {waitingMine === 1 ? 'fila espera' : 'filas esperan'} la parte de {BOOK_SECTION_LABEL[section]}
           {startedByOther > 0 ? ` · ${startedByOther} con avance de ${other}` : ''}
+          {pendingEpisodes.length > 0
+            ? ` · ${pendingEpisodes.length} ${pendingEpisodes.length === 1 ? 'ingreso' : 'ingresos'} de la Pizarra sin fila en el libro`
+            : ''}
         </p>
       </div>
 
@@ -206,9 +292,7 @@ export function RecordLinker({
             {q ? 'Ninguna fila incompleta coincide. Prueba con otro dato o crea una fila nueva.' : 'No hay filas esperando.'}
           </li>
         ) : null}
-        {first.map((c) => (
-          <CandidateRow key={c.record.id} candidate={c} section={section} onPick={onPick} />
-        ))}
+        {first.map(renderItem)}
       </ul>
 
       {rest.length > 0 ? (
@@ -225,9 +309,7 @@ export function RecordLinker({
           </button>
           {showRest ? (
             <ul id="book-link-rest" className="flex max-h-[28rem] flex-col gap-2 overflow-y-auto pr-1">
-              {rest.map((c) => (
-                <CandidateRow key={c.record.id} candidate={c} section={section} onPick={onPick} />
-              ))}
+              {rest.map(renderItem)}
             </ul>
           ) : null}
         </div>
