@@ -58,7 +58,8 @@ type AuditRow = {
 }
 
 export function AuditAdmin() {
-  const { data, error, isLoading } = useSWR<AuditRow[]>('/api/admin/audit', fetcher)
+  const [vista, setVista] = useState<'cambios' | 'accesos'>('cambios')
+  const { data, error, isLoading } = useSWR<AuditRow[]>(`/api/admin/audit?vista=${vista}`, fetcher)
   const [query, setQuery] = useState('')
   const [action, setAction] = useState<string | null>(null)
   const terms = parseQuery(query)
@@ -69,9 +70,39 @@ export function AuditAdmin() {
       matchesAll(haystackOf(`${r.staffName ?? 'Sistema'} ${r.action} ${r.block} ${AUDIT_BLOCK_LABELS[r.block] ?? ''} ${r.code ?? ''} ${r.detail ?? ''} ${fmtDateTime(r.at)}`), terms),
   )
   return (
-    <Section title="Últimos 200 movimientos" hint="Quién hizo qué, en qué registro y cuándo, con el valor anterior y el nuevo. Nunca muestra el contenido de datos de identificación.">
+    <Section
+      title={vista === 'cambios' ? 'Trazabilidad: últimos 200 cambios' : 'Accesos a datos sensibles: últimos 200'}
+      hint={
+        vista === 'cambios'
+          ? 'Quién creó, modificó, eliminó o exportó registros, campos, turnos y administración, con el valor anterior y el nuevo. Nunca muestra el contenido de datos de identificación. No se registran consultas generales como abrir el libro o ver indicadores.'
+          : 'Quién abrió los datos de identificación de un paciente y quién inició sesión. Varias aperturas del mismo registro por la misma persona en 15 minutos cuentan una vez.'
+      }
+    >
+      <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Tipo de auditoría">
+        <ChipToggle
+          pressed={vista === 'cambios'}
+          onClick={() => {
+            setVista('cambios')
+            setAction(null)
+          }}
+        >
+          Cambios y trazabilidad
+        </ChipToggle>
+        <ChipToggle
+          pressed={vista === 'accesos'}
+          onClick={() => {
+            setVista('accesos')
+            setAction(null)
+          }}
+        >
+          Accesos a datos sensibles
+        </ChipToggle>
+      </div>
       {error ? <Notice tone="danger" title="No pudimos cargar la auditoría." /> : null}
       {isLoading ? <p className="text-muted-foreground">Cargando…</p> : null}
+      {data && data.length === 0 ? (
+        <p className="text-muted-foreground">Aún no hay movimientos en esta vista.</p>
+      ) : null}
       {data && data.length > 0 ? (
         <div className="flex flex-col gap-3">
           <SearchField

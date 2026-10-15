@@ -21,6 +21,7 @@ export const AUDIT_BLOCK_LABELS: Record<string, string> = {
   panel: 'Panel',
   turno: 'Turno',
   insights: 'Informes',
+  libro: 'Libro de Partos',
 }
 
 export type AuditChange = {
