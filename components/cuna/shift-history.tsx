@@ -258,7 +258,15 @@ function dayHeading(ymd: string) {
   return fmtYmd(ymd)
 }
 
-export function ShiftHistory({ onOpenShift }: { onOpenShift: (key: string) => void }) {
+export function ShiftHistory({
+  onOpenShift,
+  unit = 'uci',
+  ready = true,
+}: {
+  onOpenShift: (key: string) => void
+  unit?: 'uci' | 'nursery' | 'todos'
+  ready?: boolean
+}) {
   const [scope, setScope] = useState<'todos' | 'mios'>('todos')
   const [kind, setKind] = useState<'ambos' | 'D' | 'N'>('ambos')
   const [days, setDays] = useState<'7' | '14' | '30' | 'fechas'>('14')
@@ -283,7 +291,7 @@ export function ShiftHistory({ onOpenShift }: { onOpenShift: (key: string) => vo
 
   const periodQuery = days === 'fechas' ? `from=${from}&to=${to}` : `days=${days}`
   const { data, error, isLoading } = useSWR<ShiftHistoryPayload>(
-    `/api/shift/history?${periodQuery}${scope === 'mios' ? '&mine=1' : ''}`,
+    ready ? `/api/shift/history?${periodQuery}${scope === 'mios' ? '&mine=1' : ''}&unidad=${unit}` : null,
     fetcher,
     { refreshInterval: 60000, keepPreviousData: true },
   )

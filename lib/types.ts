@@ -122,6 +122,7 @@ export type ShiftEvent = {
   staffId: number | null
   staffName: string | null
   patientName?: string | null
+  unit?: 'uci' | 'nursery'
 }
 
 export type ShiftHistoryEntry = {
@@ -148,6 +149,28 @@ export type ShiftHistoryPayload = {
   shifts: ShiftHistoryEntry[]
 }
 
+export type ShiftUnitFilter = 'uci' | 'nursery' | 'todos'
+
+export type ShiftBalanceUnit = {
+  /** Recién nacidos en la unidad al comenzar el turno. */
+  censoInicio: number
+  ingresos: number
+  egresos: number
+  /** censoInicio + ingresos - egresos: recién nacidos en la unidad al terminar el turno. */
+  censoFin: number
+}
+
+/** Balance del turno: movimiento de recién nacidos y registros del Libro. */
+export type ShiftBalance = {
+  unit: ShiftUnitFilter
+  total: ShiftBalanceUnit
+  byUnit: { uci: ShiftBalanceUnit; nursery: ShiftBalanceUnit }
+  /** Recién nacidos que están hoy en la unidad (sin egreso confirmado), sin importar el turno que se mira. */
+  censoActual: { uci: number; nursery: number; total: number }
+  /** Registros del Libro de Partos y Abortos creados y editados durante el turno. */
+  libro: { creados: number; editados: number }
+}
+
 export type ShiftPayload = {
   shift: {
     key: string
@@ -165,6 +188,7 @@ export type ShiftPayload = {
     episodeCount: number
     pendingCount: number
   }[]
+  balance?: ShiftBalance
 }
 
 export type Stat = { label: string; n: number; median: number | null; p90: number | null }

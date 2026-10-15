@@ -7,7 +7,9 @@ import { ApiError, fetcher, send } from '@/lib/fetcher'
 import { useMe } from '@/lib/hooks'
 import { cn } from '@/lib/utils'
 import { addDaysYmd, fmtDateTime, shiftFromKey, todayYmd } from '@/lib/time'
-import type { EpisodeDetail, ShiftPayload } from '@/lib/types'
+import { usePref } from '@/lib/use-pref'
+import type { EpisodeDetail, ShiftBalance, ShiftBalanceUnit, ShiftPayload, ShiftUnitFilter } from '@/lib/types'
+import { SegmentSwitch } from '@/components/cuna/segment-switch'
 import { EpisodeToolbar, rowKeyNav, useEpisodeFilters } from '@/components/cuna/episode-filters'
 import { EpisodeGroup, EpisodeRow } from '@/components/cuna/episode-row'
 import { PinPad } from '@/components/cuna/pin-pad'
@@ -94,6 +96,93 @@ function ScopeTile({
       </span>
       <span className="text-xs text-muted-foreground text-pretty">{hint}</span>
     </button>
+  )
+}
+
+const UNIT_LABEL: Record<ShiftUnitFilter, string> = {
+  uci: 'UCI Neonatal',
+  nursery: 'Nursery',
+  todos: 'UCI Neonatal + Nursery',
+}
+
+function BalanceStat({
+  label,
+  value,
+  sign,
+  tone,
+  emphasis,
+}: {
+  label: string
+  value: number
+  sign?: '+' | '−'
+  tone?: 'success' | 'danger'
+  emphasis?: boolean
+}) {
+  return (
+    <div className={cn('flex flex-col gap-1 rounded-xl p-3', emphasis ? 'bg-secondary' : 'bg-muted/50')}>
+      <span className="text-xs font-semibold text-muted-foreground">{label}</span>
+      <span
+        className={cn(
+          'text-3xl font-bold tabular-nums',
+          tone === 'success' ? 'text-success' : tone === 'danger' ? 'text-destructive' : 'text-navy',
+        )}
+      >
+        {sign && value > 0 ? sign : ''}
+        {value}
+      </span>
+    </div>
+  )
+}
+
+function BalancePanel({ balance, isCurrent }: { balance: ShiftBalance; isCurrent: boolean }) {
+  const t = balance.total
+  const net = t.ingresos - t.egresos
+  const unitRow = (name: string, u: ShiftBalanceUnit) => (
+    <li key={name} className="flex flex-wrap items-baseline justify-between gap-x-3 text-sm">
+      <span className="font-semibold text-foreground">{name}</span>
+      <span className="tabular-nums text-muted-foreground">
+        {u.censoInicio} al inicio · +{u.ingresos} · −{u.egresos} · {u.censoFin} {isCurrent ? 'ahora' : 'al terminar'}
+      </span>
+    </li>
+  )
+  return (
+    <section aria-label="Balance del turno" className="rounded-2xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <h2 className="text-base font-bold text-navy">Balance del turno · {UNIT_LABEL[balance.unit]}</h2>
+        <p className="text-sm text-muted-foreground">
+          Variación neta:{' '}
+          <span className="font-semibold tabular-nums text-foreground">
+            {net > 0 ? `+${net}` : net} recién nacidos
+          </span>
+        </p>
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <BalanceStat label="Al comenzar el turno" value={t.censoInicio} />
+        <BalanceStat label="Ingresos" value={t.ingresos} sign="+" tone="success" />
+        <BalanceStat label="Egresos" value={t.egresos} sign="−" tone="danger" />
+        <BalanceStat label={isCurrent ? 'En la unidad ahora' : 'Al terminar el turno'} value={t.censoFin} emphasis />
+      </div>
+      {balance.unit === 'todos' ? (
+        <ul className="mt-4 flex flex-col gap-1.5 border-t border-border/70 pt-3">
+          {unitRow('UCI Neonatal', balance.byUnit.uci)}
+          {unitRow('Nursery', balance.byUnit.nursery)}
+        </ul>
+      ) : null}
+      <p className="mt-4 border-t border-border/70 pt-3 text-sm text-muted-foreground text-pretty">
+        <span className="font-semibold text-foreground">Libro de Partos y Abortos:</span>{' '}
+        <span className="tabular-nums">
+          {balance.libro.creados} {balance.libro.creados === 1 ? 'registro creado' : 'registros creados'} y{' '}
+          {balance.libro.editados} {balance.libro.editados === 1 ? 'editado' : 'editados'} en este turno.
+        </span>
+        {!isCurrent ? (
+          <>
+            {' '}
+            Hoy hay <span className="font-semibold tabular-nums text-foreground">{balance.censoActual.total}</span>{' '}
+            hospitalizados en {UNIT_LABEL[balance.unit]}.
+          </>
+        ) : null}
+      </p>
+    </section>
   )
 }
 
@@ -244,15 +333,19 @@ function ShiftJump({
 function ShiftDetail({
   shiftKey: key,
   onShiftKey: setKey,
+  unit,
+  ready,
 }: {
   shiftKey: string | null
   onShiftKey: (key: string | null) => void
+  unit: ShiftUnitFilter
+  ready: boolean
 }) {
   const { data: me } = useMe()
   const { data, error, isLoading, mutate } = useSWR<ShiftPayload>(
-    `/api/shift${key ? `?key=${encodeURIComponent(key)}` : ''}`,
+    ready ? `/api/shift?${key ? `key=${encodeURIComponent(key)}&` : ''}unidad=${unit}` : null,
     fetcher,
-    { refreshInterval: 60000 },
+    { refreshInterval: 60000, keepPreviousData: true },
   )
   const f = useEpisodeFilters(data?.episodes)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -308,6 +401,7 @@ function ShiftDetail({
             entry={f.index.get(e.id)}
             showIdentity={!!me?.canIdentity}
             allMissing
+            showUnit={unit === 'todos'}
             badges={<OriginBadges e={e} own={own} />}
           />
         </li>
@@ -358,6 +452,8 @@ function ShiftDetail({
       ) : null}
       {done ? <Notice tone="success" title={done} /> : null}
       {isLoading ? <p className="py-10 text-center text-muted-foreground">Cargando turno…</p> : null}
+
+      {data?.balance ? <BalancePanel balance={data.balance} isCurrent={data.shift.isCurrent} /> : null}
 
       {data && data.episodes.length > 0 ? (
         <div className="grid gap-3 sm:grid-cols-2" role="group" aria-label="Segmentar por origen del ingreso">
@@ -464,20 +560,24 @@ function ShiftDetail({
 export function ShiftView() {
   const [mode, setMode] = useState<'turno' | 'historial'>('turno')
   const [key, setKey] = useState<string | null>(null)
+  const [unit, setUnit, ready] = usePref<ShiftUnitFilter>('shift.unit', 'uci')
+  const where = UNIT_LABEL[unit]
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-col gap-2">
           <ScopePill scope="uci" />
-          <h1 className="text-2xl font-bold text-navy text-balance sm:text-3xl">Mi turno en UCI</h1>
+          <h1 className="text-2xl font-bold text-navy text-balance sm:text-3xl">
+            {unit === 'uci' ? 'Mi turno en UCI' : unit === 'nursery' ? 'Mi turno en Nursery' : 'Mi turno en Neonatología'}
+          </h1>
           <p className="text-sm text-muted-foreground text-pretty">
             {mode === 'turno'
-              ? 'Los recién nacidos hospitalizados que ingresaste o modificaste durante el turno. Cambia de fecha o de turno cuando quieras.'
-              : 'Quién hizo qué en cada turno de día y de noche en UCI: ingresos, egresos y ediciones.'}
+              ? `Los recién nacidos de ${where} que ingresaste o modificaste durante el turno, con el balance de ingresos y egresos. Cambia de fecha o de turno cuando quieras.`
+              : `Quién hizo qué en cada turno de día y de noche en ${where}: ingresos, egresos y ediciones.`}
           </p>
           <p className="text-xs text-muted-foreground text-pretty">
-            Las filas del Libro de Partos y Abortos (Nursery y Maternidad) no se muestran aquí.
+            Las filas del Libro de Partos y Abortos no se listan aquí; su actividad del turno se resume en el balance.
           </p>
         </div>
         <div role="group" aria-label="Vista de turnos" className="inline-flex self-start rounded-xl bg-muted p-1 sm:self-auto">
@@ -508,10 +608,14 @@ export function ShiftView() {
         </div>
       </div>
 
+      <SegmentSwitch value={unit} onChange={setUnit} />
+
       {mode === 'turno' ? (
-        <ShiftDetail shiftKey={key} onShiftKey={setKey} />
+        <ShiftDetail shiftKey={key} onShiftKey={setKey} unit={unit} ready={ready} />
       ) : (
         <ShiftHistory
+          unit={unit}
+          ready={ready}
           onOpenShift={(k) => {
             setKey(k)
             setMode('turno')
