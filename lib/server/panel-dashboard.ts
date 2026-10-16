@@ -84,6 +84,12 @@ export type DashboardPayload = {
     series: { key: string; label: string; nursery: number; uci: number }[]
     granularity: 'dia' | 'mes'
     average: number
+    balance: {
+      series: { key: string; label: string; in: number; out: number }[]
+      totalIn: number
+      totalOut: number
+      current: { label: string; n: number; note?: string }[]
+    }
     deliveryType: { label: string; n: number; pct: number }[]
     robson: { rows: RobsonRow[]; classified: number; unclassified: number; cesareaRate: number | null }
     upcByGa: GaRow[] | null
@@ -302,6 +308,53 @@ export async function computeDashboard(scope: DashScope, periodKey: PanelPeriod)
   const series = [...buckets.values()].sort((a, b) => a.key.localeCompare(b.key))
   const totalBirths = series.reduce((a, s) => a + s.nursery + s.uci, 0)
 
+  // Balance: ingresos y egresos de la unidad. UPC sale de la Pizarra; Nursery, del Libro
+  // (ingreso = nacimiento en Nursery, egreso = fecha de alta del recién nacido).
+  const bucketOf = (ymd: string) => (granularity === 'dia' ? ymd : ymd.slice(0, 7))
+  const flows = new Map<string, { key: string; label: string; in: number; out: number }>()
+  const flowAt = (key: string) => {
+    let f = flows.get(key)
+    if (!f) {
+      const label =
+        granularity === 'dia'
+          ? `${key.slice(8, 10)}/${key.slice(5, 7)}`
+          : `${MONTHS[Number(key.slice(5, 7)) - 1]} ${key.slice(2, 4)}`
+      f = { key, label, in: 0, out: 0 }
+      flows.set(key, f)
+    }
+    return f
+  }
+  for (const s of series) flowAt(s.key)
+  if (needsPizarra) {
+    const flowStart = startOfDay(seriesFrom)!
+    const [adm, dis] = await Promise.all([
+      db.select({ at: episode.createdAt }).from(episode).where(and(eq(episode.unit, 'uci'), gte(episode.createdAt, flowStart))),
+      db.select({ at: episode.dischargeAt }).from(episode).where(and(eq(episode.unit, 'uci'), gte(episode.dischargeAt, flowStart))),
+    ])
+    for (const e of adm) if (e.at) flowAt(bucketOf(ymdInSantiago(e.at))).in++
+    for (const e of dis) if (e.at) flowAt(bucketOf(ymdInSantiago(e.at))).out++
+  }
+  if (scope !== 'uci') {
+    for (const x of items) {
+      if (x.seg !== 'nursery') continue
+      const born = dateOf(x.r)
+      if (born >= seriesFrom && born <= period.to) flowAt(bucketOf(born)).in++
+      const alta = x.r.values.fecha_alta_rn
+      if (alta && alta >= seriesFrom && alta <= period.to) flowAt(bucketOf(alta)).out++
+    }
+  }
+  const balanceSeries = [...flows.values()].filter((f) => f.key <= bucketOf(period.to)).sort((a, b) => a.key.localeCompare(b.key))
+  const balanceCurrent: { label: string; n: number; note?: string }[] = []
+  if (census) balanceCurrent.push({ label: 'Hospitalizados en UPC', n: census.total })
+  if (scope !== 'uci') {
+    const since = addDaysYmd(today, -7)
+    balanceCurrent.push({
+      label: 'En Nursery sin alta registrada',
+      n: items.filter((x) => x.seg === 'nursery' && !x.r.values.fecha_alta_rn && dateOf(x.r) >= since).length,
+      note: 'Nacidos en los últimos 7 días',
+    })
+  }
+
   const tipos = new Map<string, number>()
   for (const x of periodMothers) {
     const t = x.r.values.tipo_parto
@@ -384,6 +437,12 @@ export async function computeDashboard(scope: DashScope, periodKey: PanelPeriod)
       series,
       granularity,
       average: Math.round((totalBirths / Math.max(1, series.length)) * 10) / 10,
+      balance: {
+        series: balanceSeries,
+        totalIn: balanceSeries.reduce((a, f) => a + f.in, 0),
+        totalOut: balanceSeries.reduce((a, f) => a + f.out, 0),
+        current: balanceCurrent,
+      },
       deliveryType,
       robson: {
         rows: robsonRows,
