@@ -115,7 +115,7 @@ export const bmiBin = (v: string | undefined) => {
   return n < 18.5 ? BMI_ORDER[0] : n < 25 ? BMI_ORDER[1] : n < 30 ? BMI_ORDER[2] : BMI_ORDER[3]
 }
 
-type Item = { r: BookRecordOut; seg: BookSegment }
+export type Item = { r: BookRecordOut; seg: BookSegment }
 
 /** `hit` devuelve null cuando el dato no permite evaluar el resultado: esa fila no cuenta. */
 function cross(
@@ -142,7 +142,7 @@ function cross(
 const yn = (v: string | undefined) => (v === 'SI' ? true : v === 'NO' ? false : null)
 const isCesarea = (r: BookRecordOut) => (r.values.tipo_parto ?? '').toUpperCase().includes('CESÁREA')
 
-function computeBinomio(fields: Awaited<ReturnType<typeof getBookFields>>, items: Item[], segment: StatsSegment): Binomio {
+export function computeBinomio(fields: Awaited<ReturnType<typeof getBookFields>>, items: Item[], segment: StatsSegment): Binomio {
   const complete = items.filter(
     (x) =>
       sectionProgress(fields, x.r.values, 'materno').state === 'completo' &&
@@ -250,23 +250,23 @@ function computeBinomio(fields: Awaited<ReturnType<typeof getBookFields>>, items
     {
       label: 'Madre con SGB positivo',
       mothers: count((r) => v(r, 'sgb_res') === 'POSITIVO'),
-      follow: 'Madres con profilaxis SGB',
-      followN: count((r) => v(r, 'sgb_res') === 'POSITIVO' && v(r, 'prof_sgb') === 'SI'),
+      follow: 'Madres con profilaxis SGB completa',
+      followN: count((r) => v(r, 'sgb_res') === 'POSITIVO' && v(r, 'prof_sgb') === 'COMPLETA'),
       expect: 'todos',
     },
     {
       label: 'Rotura prematura de membranas',
       mothers: count((r) => v(r, 'rpm') === 'SI'),
-      follow: 'Madres con profilaxis de RPM',
-      followN: count((r) => v(r, 'rpm') === 'SI' && v(r, 'profilaxis_rpm') === 'SI'),
+      follow: 'Madres con profilaxis de RPM completa',
+      followN: count((r) => v(r, 'rpm') === 'SI' && v(r, 'profilaxis_rpm') === 'COMPLETA'),
       expect: 'todos',
     },
     {
       label: 'Madre con VDRL reactivo',
       mothers: count((r) => v(r, 'vdrl_res') === 'REACTIVO'),
-      follow: 'RN hospitalizados en UPC',
+      follow: 'RN hospitalizados en UPC (informativo, no todos lo requieren)',
       followN: items.filter((x) => x.r.values.vdrl_res === 'REACTIVO' && x.seg === 'uci').length,
-      expect: 'todos',
+      expect: 'ninguno',
     },
     {
       label: 'Madre con Chagas positivo',

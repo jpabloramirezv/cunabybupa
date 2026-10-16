@@ -18,7 +18,8 @@ import {
   type BookSegment,
   type SectionProgress,
 } from '@/lib/book-flow'
-import { todayYmd } from '@/lib/time'
+import { todayYmd, ymdInSantiago } from '@/lib/time'
+import { ALERTS, inScope, type DashScope } from '@/lib/panel-indicators'
 import type { BookFieldRow, BookRecordOut } from '@/lib/server/book'
 import { cn } from '@/lib/utils'
 import { Notice, PrimaryButton } from '@/components/cuna/ui'
@@ -105,6 +106,19 @@ export function BookView() {
   const [query, setQuery] = useState(() => params.get('q') ?? '')
   const [year, setYear] = useState<string | null>(() => params.get('anio'))
   const [view, setView] = useState<'libro' | 'tarjetas'>(() => (params.get('vista') === 'tarjetas' ? 'tarjetas' : 'libro'))
+  const [alertFilter, setAlertFilter] = useState<{ id: string; from: string | null; to: string | null; scope: DashScope } | null>(
+    () => {
+      const id = params.get('alerta')
+      if (!id || !ALERTS.some((a) => a.id === id)) return null
+      const unidad = params.get('unidad')
+      return {
+        id,
+        from: params.get('desde'),
+        to: params.get('hasta'),
+        scope: unidad === 'uci' || unidad === 'nursery' ? unidad : 'todos',
+      }
+    },
+  )
   const [confirmClose, setConfirmClose] = useState(false)
   const [facets, setFacets] = useState<BookFacets>(emptyFacets)
   const [saving, setSaving] = useState(false)
@@ -141,16 +155,31 @@ export function BookView() {
   const inYear = useMemo(() => rows.filter((x) => !year || yearOf(x.r) === year), [rows, year])
 
   const terms = parseQuery(query)
+  const alertDef = alertFilter ? ALERTS.find((a) => a.id === alertFilter.id) ?? null : null
   const visible = useMemo(
     () =>
       [...inYear].reverse().filter((x) => {
+        if (alertFilter && alertDef) {
+          if (!inScope(x.seg, alertFilter.scope)) return false
+          const d = x.r.values.fecha || ymdInSantiago(x.r.createdAt)
+          if (alertFilter.from && d < alertFilter.from) return false
+          if (alertFilter.to && d > alertFilter.to) return false
+          const hit = alertDef.match({
+            values: x.r.values,
+            isAbortion: x.seg === 'aborto',
+            createdAt: x.r.createdAt,
+            matDone: x.mat.state === 'completo',
+            neoDone: x.neo.state === 'completo',
+          })
+          if (!hit) return false
+        }
         if (!matchesFacets(x.r.values, facets)) return false
         return matchesAll(
           haystackOf(`${Object.values(x.r.values).join(' ')} ${x.r.episodeCode ?? ''} ${linkCode(x.r.seq)}`),
           terms,
         )
       }),
-    [inYear, terms, facets],
+    [inYear, terms, facets, alertFilter, alertDef],
   )
 
   const dirty = useMemo(() => {
@@ -181,11 +210,12 @@ export function BookView() {
       set('anio', year)
       set('seg', null)
       set('vista', view === 'tarjetas' ? 'tarjetas' : null)
+      if (!alertFilter) for (const k of ['alerta', 'desde', 'hasta', 'unidad']) p.delete(k)
       const next = p.toString()
       if (next !== before) router.replace(next ? `/libro?${next}` : '/libro', { scroll: false })
     }, 300)
     return () => clearTimeout(t)
-  }, [query, year, view, router])
+  }, [query, year, view, router, alertFilter])
 
   function scrollToForm() {
     requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
@@ -730,6 +760,24 @@ export function BookView() {
             />
           </div>
         </div>
+
+        {alertDef && alertFilter ? (
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-primary/40 bg-secondary p-3 text-sm text-secondary-foreground">
+            <span className="min-w-0 flex-1 text-pretty">
+              <span className="font-semibold">Filtrado desde el Panel:</span> {alertDef.label}
+              {alertFilter.from ? ` (${alertFilter.from.split('-').reverse().join('/')} al ${(alertFilter.to ?? alertFilter.from).split('-').reverse().join('/')})` : ''}
+              {data ? ` · ${visible.length} registros` : ''}
+            </span>
+            <button
+              type="button"
+              onClick={() => setAlertFilter(null)}
+              className="inline-flex h-10 items-center gap-1 rounded-lg border border-border bg-card px-3 font-semibold text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+            >
+              <X className="size-4" aria-hidden />
+              Quitar filtro
+            </button>
+          </div>
+        ) : null}
 
         {!data ? <RowsSkeleton rows={8} label="Cargando el libro" /> : null}
 
