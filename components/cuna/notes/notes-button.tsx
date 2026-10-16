@@ -296,7 +296,7 @@ export function NotesButton() {
   const all = data?.notes ?? []
   const visible = onlyOpen ? all.filter((n) => isActionable(n.kind) && !n.resolvedAt) : all
   const pendingCount = all.filter((n) => isActionable(n.kind) && !n.resolvedAt).length
-  const label = unread > 0 ? `Mural del turno, ${unread} mensajes sin leer` : 'Mural del turno'
+  const label = unread > 0 ? `Mural de la unidad, ${unread} mensajes sin leer` : 'Mural de la unidad'
 
   return (
     <div ref={rootRef} className="relative">
@@ -309,16 +309,17 @@ export function NotesButton() {
         aria-label={label}
         title={label}
         className={cn(
-          'relative flex size-11 items-center justify-center rounded-lg text-sm font-semibold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40',
+          'relative flex h-11 items-center justify-center gap-2 rounded-lg px-4 text-base font-bold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40',
           unread > 0
             ? 'bg-magenta text-magenta-foreground hover:opacity-90 motion-safe:animate-note-ring'
-            : 'border border-navy-foreground/40 hover:bg-navy-foreground/10',
+            : 'bg-navy-foreground text-navy hover:opacity-90',
         )}
       >
         <MessageSquareText
-          className={cn('size-5', unread > 0 && 'motion-safe:origin-top motion-safe:animate-note-wiggle')}
+          className={cn('size-5 shrink-0', unread > 0 && 'motion-safe:origin-top motion-safe:animate-note-wiggle')}
           aria-hidden
         />
+        <span className="whitespace-nowrap">Mural de la unidad</span>
         {unread > 0 ? (
           <span className="absolute -right-1.5 -top-1.5 flex min-w-5 items-center justify-center rounded-full border border-magenta bg-background px-1 text-[11px] font-bold leading-5 text-magenta">
             {unread > 99 ? '99+' : unread}
@@ -330,12 +331,12 @@ export function NotesButton() {
         <div
           id={panelId}
           role="dialog"
-          aria-label="Mural del turno"
+          aria-label="Mural de la unidad"
           className="fixed inset-x-2 top-24 z-50 flex max-h-[calc(100dvh-7rem)] flex-col overflow-hidden rounded-2xl border border-border bg-background text-foreground shadow-2xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[28rem] sm:max-h-[min(40rem,calc(100dvh-10rem))]"
         >
           <div className="flex items-start justify-between gap-3 border-b border-border p-4">
             <div>
-              <h2 className="text-lg font-bold leading-tight">Mural del turno</h2>
+              <h2 className="text-lg font-bold leading-tight">Mural de la unidad</h2>
               <p className="text-sm text-muted-foreground">
                 Mensajes para el equipo que viene, como las anotaciones de un libro.
               </p>
