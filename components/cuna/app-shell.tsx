@@ -12,6 +12,8 @@ import { Brand } from '@/components/cuna/brand'
 import { SyncStatus } from '@/components/cuna/sync-status'
 import { SyncManager } from '@/components/cuna/sync-manager'
 import { NotesButton } from '@/components/cuna/notes/notes-button'
+import { GuidedTour } from '@/components/cuna/tour/guided-tour'
+import type { TourId } from '@/lib/tour-steps'
 
 type Props = {
   name: string
@@ -21,10 +23,23 @@ type Props = {
   canReports: boolean
   canAdmin: boolean
   canBook?: boolean
+  tour?: TourId | null
+  personKey?: number | string
   children: ReactNode
 }
 
-export function AppShell({ name, roleLabel, canClinical, canPanel, canReports, canAdmin, canBook = false, children }: Props) {
+export function AppShell({
+  name,
+  roleLabel,
+  canClinical,
+  canPanel,
+  canReports,
+  canAdmin,
+  canBook = false,
+  tour = null,
+  personKey = '',
+  children,
+}: Props) {
   const pathname = usePathname()
   const router = useRouter()
   const [leaving, setLeaving] = useState(false)
@@ -97,6 +112,7 @@ export function AppShell({ name, roleLabel, canClinical, canPanel, canReports, c
               <p className="text-xs text-navy-foreground/80">{roleLabel}</p>
             </div>
             {canClinical ? <NotesButton /> : null}
+            {tour ? <GuidedTour key={`${tour}-${personKey}`} tourId={tour} personKey={personKey} /> : null}
             {confirmingExit ? (
               <div
                 role="alertdialog"
