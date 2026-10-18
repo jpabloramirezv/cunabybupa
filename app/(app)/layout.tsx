@@ -23,6 +23,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       canReports={ctx.canReports}
       canAdmin={ctx.canAdmin}
       canBook={ctx.canBook}
+      tour={ctx.canEditNeonatal ? 'neonatal' : ctx.canEditMaternity ? 'maternidad' : null}
+      personKey={ctx.staffId}
     >
       {children}
     </AppShell>

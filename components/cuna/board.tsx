@@ -387,7 +387,7 @@ export function Board() {
           {me?.canBook && (me.canEditMaternity || me.canEditNeonatal) ? (
             <NewEntryButton canNeonatal={me.canWrite} canMaternity={me.canEditMaternity} onNeonatal={newEpisode} />
           ) : me?.canWrite ? (
-            <PrimaryButton variant="accent" onClick={newEpisode}>
+            <PrimaryButton variant="accent" data-tour="board-new" onClick={newEpisode}>
               <Plus className="size-5" aria-hidden />
               Nuevo ingreso
             </PrimaryButton>

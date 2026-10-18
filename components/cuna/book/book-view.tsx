@@ -471,7 +471,7 @@ export function BookView() {
             </>
           ) : null}
           {canCreate ? (
-            <PrimaryButton variant="accent" className="h-10 px-4 text-sm" onClick={() => create(me?.canEditMaternity ? 'materno' : 'neonatal')}>
+            <PrimaryButton variant="accent" data-tour="book-new" className="h-10 px-4 text-sm" onClick={() => create(me?.canEditMaternity ? 'materno' : 'neonatal')}>
               <Plus className="size-5" aria-hidden />
               Nuevo Registro
             </PrimaryButton>

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState, type ReactNode } from 'react'
-import { LogOut } from 'lucide-react'
+import { ArrowLeftRight, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { send } from '@/lib/fetcher'
 import { clearOutbox } from '@/lib/outbox'
@@ -12,6 +12,8 @@ import { Brand } from '@/components/cuna/brand'
 import { SyncStatus } from '@/components/cuna/sync-status'
 import { SyncManager } from '@/components/cuna/sync-manager'
 import { NotesButton } from '@/components/cuna/notes/notes-button'
+import { GuidedTour } from '@/components/cuna/tour/guided-tour'
+import type { TourId } from '@/lib/tour-steps'
 
 type Props = {
   name: string
@@ -21,10 +23,23 @@ type Props = {
   canReports: boolean
   canAdmin: boolean
   canBook?: boolean
+  tour?: TourId | null
+  personKey?: number | string
   children: ReactNode
 }
 
-export function AppShell({ name, roleLabel, canClinical, canPanel, canReports, canAdmin, canBook = false, children }: Props) {
+export function AppShell({
+  name,
+  roleLabel,
+  canClinical,
+  canPanel,
+  canReports,
+  canAdmin,
+  canBook = false,
+  tour = null,
+  personKey = '',
+  children,
+}: Props) {
   const pathname = usePathname()
   const router = useRouter()
   const [leaving, setLeaving] = useState(false)
@@ -91,12 +106,13 @@ export function AppShell({ name, roleLabel, canClinical, canPanel, canReports, c
       <header className="bg-navy text-navy-foreground">
         <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 py-3">
           <Brand inverted />
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <div className="hidden text-right leading-tight sm:block">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-2 sm:gap-x-3">
+            <div className="hidden text-right leading-tight sm:mr-1 sm:block">
               <p className="text-sm font-semibold">{name}</p>
               <p className="text-xs text-navy-foreground/80">{roleLabel}</p>
             </div>
             {canClinical ? <NotesButton /> : null}
+            {tour ? <GuidedTour key={`${tour}-${personKey}`} tourId={tour} personKey={personKey} /> : null}
             {confirmingExit ? (
               <div
                 role="alertdialog"
@@ -129,17 +145,22 @@ export function AppShell({ name, roleLabel, canClinical, canPanel, canReports, c
                   type="button"
                   onClick={leave}
                   disabled={leaving}
-                  className="flex h-11 items-center gap-2 rounded-lg border border-navy-foreground/40 px-4 text-sm font-semibold hover:bg-navy-foreground/10 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40 disabled:opacity-60"
+                  aria-label="Cambiar persona"
+                  title="Cambiar persona"
+                  className="flex h-9 items-center gap-2 rounded-lg border border-navy-foreground/40 px-2.5 text-sm font-semibold hover:bg-navy-foreground/10 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40 disabled:opacity-60 lg:px-3"
                 >
-                  <LogOut className="size-4" aria-hidden />
-                  Cambiar persona
+                  <ArrowLeftRight className="size-4" aria-hidden />
+                  <span className="hidden lg:inline">Cambiar persona</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setConfirmingExit(true)}
-                  className="flex h-11 items-center gap-2 rounded-lg bg-navy-foreground/10 px-4 text-sm font-semibold hover:bg-navy-foreground/20 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40"
+                  aria-label="Cerrar sesión"
+                  title="Cerrar sesión"
+                  className="flex h-9 items-center gap-2 rounded-lg bg-navy-foreground/10 px-2.5 text-sm font-semibold hover:bg-navy-foreground/20 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40 lg:px-3"
                 >
-                  Cerrar sesión
+                  <LogOut className="size-4" aria-hidden />
+                  <span className="hidden lg:inline">Cerrar sesión</span>
                 </button>
               </>
             )}

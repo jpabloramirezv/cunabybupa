@@ -93,6 +93,7 @@ export function NewEntryButton({
     <div ref={ref} className="relative w-full sm:w-auto">
       <PrimaryButton
         variant="accent"
+        data-tour="new-entry"
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
