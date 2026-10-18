@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState, type ReactNode } from 'react'
-import { LogOut } from 'lucide-react'
+import { ArrowLeftRight, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { send } from '@/lib/fetcher'
 import { clearOutbox } from '@/lib/outbox'
@@ -106,8 +106,8 @@ export function AppShell({
       <header className="bg-navy text-navy-foreground">
         <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 py-3">
           <Brand inverted />
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <div className="hidden text-right leading-tight sm:block">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-2 sm:gap-x-3">
+            <div className="hidden text-right leading-tight sm:mr-1 sm:block">
               <p className="text-sm font-semibold">{name}</p>
               <p className="text-xs text-navy-foreground/80">{roleLabel}</p>
             </div>
@@ -145,17 +145,22 @@ export function AppShell({
                   type="button"
                   onClick={leave}
                   disabled={leaving}
-                  className="flex h-11 items-center gap-2 rounded-lg border border-navy-foreground/40 px-4 text-sm font-semibold hover:bg-navy-foreground/10 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40 disabled:opacity-60"
+                  aria-label="Cambiar persona"
+                  title="Cambiar persona"
+                  className="flex h-9 items-center gap-2 rounded-lg border border-navy-foreground/40 px-2.5 text-sm font-semibold hover:bg-navy-foreground/10 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40 disabled:opacity-60 lg:px-3"
                 >
-                  <LogOut className="size-4" aria-hidden />
-                  Cambiar persona
+                  <ArrowLeftRight className="size-4" aria-hidden />
+                  <span className="hidden lg:inline">Cambiar persona</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setConfirmingExit(true)}
-                  className="flex h-11 items-center gap-2 rounded-lg bg-navy-foreground/10 px-4 text-sm font-semibold hover:bg-navy-foreground/20 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40"
+                  aria-label="Cerrar sesión"
+                  title="Cerrar sesión"
+                  className="flex h-9 items-center gap-2 rounded-lg bg-navy-foreground/10 px-2.5 text-sm font-semibold hover:bg-navy-foreground/20 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40 lg:px-3"
                 >
-                  Cerrar sesión
+                  <LogOut className="size-4" aria-hidden />
+                  <span className="hidden lg:inline">Cerrar sesión</span>
                 </button>
               </>
             )}

@@ -198,10 +198,12 @@ export function GuidedTour({ tourId, personKey }: Props) {
         type="button"
         data-tour="launcher"
         onClick={start}
-        className="flex h-11 items-center gap-2 rounded-lg border border-navy-foreground/40 px-4 text-sm font-semibold hover:bg-navy-foreground/10 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40"
+        aria-label="Ver guía"
+        title="Ver guía"
+        className="flex h-9 items-center gap-2 rounded-lg border border-navy-foreground/40 px-2.5 text-sm font-semibold hover:bg-navy-foreground/10 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40 lg:px-3"
       >
         <CircleHelp className="size-4" aria-hidden />
-        Ver guía
+        <span className="hidden lg:inline">Ver guía</span>
       </button>
 
       {open
