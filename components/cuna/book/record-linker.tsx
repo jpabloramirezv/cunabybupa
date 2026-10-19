@@ -170,6 +170,7 @@ export function RecordLinker({
   const [q, setQ] = useState('')
   const [expanded, setExpanded] = useState(false)
   const other = section === 'neonatal' ? 'Maternidad' : 'Neonatología'
+  const isMaternity = section === 'materno'
   const terms = parseQuery(q)
 
   const pendingEpisodes = onPickEpisode ? episodes : []
@@ -228,12 +229,16 @@ export function RecordLinker({
             Antes de empezar · {BOOK_SECTION_LABEL[section]}
           </p>
           <h2 className="mt-1 text-xl font-bold text-navy text-balance">
-            ¿Este recién nacido ya tiene un registro iniciado?
+            {isMaternity ? '¿Rellenas un registro del libro o creas uno nuevo?' : '¿Este recién nacido ya tiene un registro iniciado?'}
           </h2>
-          <p className="mt-1 text-sm leading-relaxed text-muted-foreground text-pretty">
-            Un registro corresponde a un recién nacido y puede abrirlo cualquiera de las dos unidades, en el orden que
-            corresponda. Revisa los registros incompletos: si ya existe, elígelo y continúa donde quedó. Si no aparece,
-            crea uno nuevo; {other} podrá completarlo después.
+          <PrimaryButton variant="accent" className="mt-3" onClick={onNew}>
+            <FilePlus2 className="size-5" aria-hidden />
+            Es un registro nuevo
+          </PrimaryButton>
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground text-pretty">
+            {isMaternity
+              ? `O elige abajo una fila que ya está en el libro y completa sus datos maternos. Si no aparece, crea un registro nuevo; ${other} podrá completar su parte después.`
+              : `Un registro corresponde a un recién nacido y puede abrirlo cualquiera de las dos unidades, en el orden que corresponda. Revisa los registros incompletos: si ya existe, elígelo y continúa donde quedó. Si no aparece, crea uno nuevo; ${other} podrá completarlo después.`}
           </p>
           {onSwitch ? (
             <div role="group" aria-label="Quién registra" className="mt-3 inline-flex gap-1 rounded-xl bg-muted p-1">
@@ -267,7 +272,9 @@ export function RecordLinker({
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl bg-secondary px-4 py-3" role="status">
         <p className="text-base font-semibold text-secondary-foreground">
-          {total} {total === 1 ? 'registro incompleto' : 'registros incompletos'}
+          {isMaternity
+            ? `${total} ${total === 1 ? 'registro del libro espera' : 'registros del libro esperan'} tus datos maternos`
+            : `${total} ${total === 1 ? 'registro incompleto' : 'registros incompletos'}`}
         </p>
         <p className="text-sm text-muted-foreground">
           {waitingMine} {waitingMine === 1 ? 'fila espera' : 'filas esperan'} la parte de {BOOK_SECTION_LABEL[section]}
@@ -289,7 +296,7 @@ export function RecordLinker({
       <ul className="flex flex-col gap-2">
         {matching.length === 0 ? (
           <li className="rounded-lg bg-muted p-4 text-sm text-muted-foreground">
-            {q ? 'Ninguna fila incompleta coincide. Prueba con otro dato o crea una fila nueva.' : 'No hay filas esperando.'}
+            {q ? 'Ninguna fila coincide. Prueba con otro dato o crea una fila nueva.' : 'No hay filas esperando.'}
           </li>
         ) : null}
         {first.map(renderItem)}
@@ -316,10 +323,6 @@ export function RecordLinker({
       ) : null}
 
       <div className="flex flex-wrap gap-2 border-t border-border pt-4">
-        <PrimaryButton variant="accent" onClick={onNew}>
-          <FilePlus2 className="size-5" aria-hidden />
-          Es un registro nuevo
-        </PrimaryButton>
         <PrimaryButton variant="ghost" onClick={onCancel}>
           Cancelar
         </PrimaryButton>

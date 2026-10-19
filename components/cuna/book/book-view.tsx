@@ -97,7 +97,7 @@ export function BookView() {
   const [draft, setDraft] = useState<Draft | null>(null)
   const [linking, setLinking] = useState<BookSection | null>(null)
   const { data: pendingEpisodes } = useSWR<PendingEpisode[]>(
-    me?.canBook && linking ? '/api/book/episodes?sinFila=1' : null,
+    me?.canBook && linking === 'neonatal' ? '/api/book/episodes?sinFila=1' : null,
     fetcher,
     { revalidateOnFocus: true },
   )
@@ -425,6 +425,7 @@ export function BookView() {
     ? rows
         .filter((x) => {
           const pending = (p: { total: number; state: string }) => p.total > 0 && p.state !== 'completo'
+          if (linking === 'materno') return pending(x.mat)
           return pending(x.mat) || (x.seg !== 'aborto' && pending(x.neo))
         })
         .map((x) => ({
@@ -515,8 +516,8 @@ export function BookView() {
           <RecordLinker
             section={linking}
             candidates={linkCandidates}
-            episodes={pendingEpisodes ?? []}
-            onPickEpisode={(e) => startFromEpisode(linking, e)}
+  episodes={linking === 'neonatal' ? (pendingEpisodes ?? []) : []}
+  onPickEpisode={linking === 'neonatal' ? (e) => startFromEpisode(linking, e) : undefined}
             onPick={(r) => open(r, linking)}
             onNew={() => startBlank(linking)}
             onCancel={() => setLinking(null)}

@@ -1,6 +1,6 @@
 'use client'
 
-import { Check } from 'lucide-react'
+import { BookOpenCheck, Check } from 'lucide-react'
 import { ADMISSION_DOCUMENTS, CARE_LEVEL_OPTIONS, DELIVERY_OPTIONS, SEX_OPTIONS } from '@/lib/config'
 import { apgar10Error, apgar5Error, episodeWarnings } from '@/lib/rules'
 import { cn } from '@/lib/utils'
@@ -14,6 +14,7 @@ import {
   MultiSelectField,
   Notice,
   NumField,
+  PrimaryButton,
   ScoreRow,
   Section,
   SelectField,
@@ -31,13 +32,23 @@ export function IngresoSection({
   cat,
   readOnly,
   setIngreso,
+  nursery,
 }: {
   form: EpisodeForm
   cat: CatalogsPayload | undefined
   readOnly: boolean
   setIngreso: (patch: Record<string, unknown>) => void
+  /** Solo en Nursery: la Admisión depende de si el recién nacido se hospitalizó. */
+  nursery?: {
+    hospitalized: 'SI' | 'NO' | ''
+    onChange: (v: 'SI' | 'NO') => void
+    onSend?: () => void
+    canSend: boolean
+    sent: boolean
+  }
 }) {
   const g = form.get
+  const showAdmission = !nursery || nursery.hospitalized === 'SI'
   const warnings = episodeWarnings({
     gaWeeks: g('gaWeeks'),
     gaDays: g('gaDays'),
@@ -158,6 +169,55 @@ export function IngresoSection({
         ) : null}
       </Section>
 
+      {nursery ? (
+        <Section title="Hospitalización" hint="La Admisión y los documentos de ingreso solo se completan si el recién nacido se hospitalizó.">
+          <Choice
+            label="¿El recién nacido se hospitalizó?"
+            required
+            disabled={readOnly}
+            options={[
+              { value: 'NO', label: 'No, estadía normal en Nursery' },
+              { value: 'SI', label: 'Sí, se hospitalizó' },
+            ]}
+            value={nursery.hospitalized || null}
+            onChange={(v) => {
+              if (v === 'SI' || v === 'NO') nursery.onChange(v)
+            }}
+            columns={2}
+          />
+          {nursery.hospitalized === '' ? (
+            <p className="text-sm text-muted-foreground">Responde para continuar con el registro.</p>
+          ) : null}
+          {nursery.hospitalized === 'NO' ? (
+            nursery.sent ? (
+              <Notice tone="success" title="Este registro ya está en el Libro de Partos y Abortos">
+                No hay nada más que completar aquí. Puedes seguir editándolo desde el libro.
+              </Notice>
+            ) : (
+              <div className="flex flex-col gap-3 rounded-lg border border-primary/30 bg-secondary p-4 text-secondary-foreground">
+                <p className="text-base font-semibold text-navy">Sin hospitalización, solo falta enviarlo al libro</p>
+                <p className="text-sm leading-relaxed">
+                  Con los datos del nacimiento ya está todo lo que Neonatología debe registrar. Envíalo al Libro de
+                  Partos y Abortos para que Maternidad complete su parte.
+                </p>
+                {nursery.canSend ? (
+                  <PrimaryButton variant="accent" className="self-start" onClick={nursery.onSend}>
+                    <BookOpenCheck className="size-5" aria-hidden />
+                    Enviar al libro de partos y abortos
+                  </PrimaryButton>
+                ) : (
+                  <p className="text-sm font-semibold">
+                    El envío se habilita al guardar el primer dato del registro.
+                  </p>
+                )}
+              </div>
+            )
+          ) : null}
+        </Section>
+      ) : null}
+
+      {showAdmission ? (
+      <>
       <Section title="Admisión" hint="Se completan con los valores habituales de la unidad la primera vez.">
         <div className="grid gap-6 sm:grid-cols-2">
           <SelectField
@@ -269,6 +329,8 @@ export function IngresoSection({
           />
         ) : null}
       </Section>
+      </>
+      ) : null}
     </div>
   )
 }
