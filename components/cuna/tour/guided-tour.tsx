@@ -213,7 +213,10 @@ export function GuidedTour({ tourId, personKey }: Props) {
               {rect ? (
                 <div
                   aria-hidden
-                  className="pointer-events-none absolute rounded-xl border-2 border-magenta shadow-[0_0_0_100vmax_color-mix(in_oklab,var(--foreground)_60%,transparent)] motion-safe:transition-[top,left,width,height] motion-safe:duration-200"
+                  className={cn(
+                    'pointer-events-none absolute rounded-xl border-2 shadow-[0_0_0_100vmax_color-mix(in_oklab,var(--foreground)_60%,transparent)] motion-safe:transition-[top,left,width,height] motion-safe:duration-200',
+                    step.alert ? 'border-red-600' : 'border-magenta',
+                  )}
                   style={{ top: rect.top, left: rect.left, width: rect.width, height: rect.height }}
                 />
               ) : (

@@ -14,6 +14,9 @@ import { cn } from '@/lib/utils'
 import { fmtDateTime } from '@/lib/time'
 import { uiStatus } from '@/lib/rules'
 import { Notice, StatusBadge } from '@/components/cuna/ui'
+import { usePref } from '@/lib/use-pref'
+import { BookSendDialog } from '@/components/cuna/book/book-send-dialog'
+import { useBookSend } from '@/components/cuna/book/use-book-send'
 import { IngresoSection } from '@/components/cuna/sections/ingreso-section'
 import { ScreeningSection } from '@/components/cuna/sections/screening-section'
 import { IdentitySection } from '@/components/cuna/sections/identity-section'
@@ -39,6 +42,13 @@ export function EpisodeEditor({ id }: { id: string }) {
   const requestedUnit = useSearchParams().get('unidad') === 'nursery' ? 'nursery' : 'uci'
   const unit: 'uci' | 'nursery' = detail?.unit ?? requestedUnit
   const isNursery = unit === 'nursery'
+  const bookSend = useBookSend()
+  const [hospPref, setHospPref] = usePref<'SI' | 'NO' | ''>(`hosp.${id}`, '')
+  const hasAdmissionData =
+    form.get('careLevel') != null ||
+    form.get('transferOrigin') != null ||
+    (form.get<number[]>('dxIngresoIds')?.length ?? 0) > 0
+  const hospitalized: 'SI' | 'NO' | '' = hospPref || (hasAdmissionData ? 'SI' : '')
 
   useEffect(() => {
     if (!detail) setNewEpisodeUnit(id, requestedUnit)
@@ -225,7 +235,26 @@ export function EpisodeEditor({ id }: { id: string }) {
       ) : (
         <div role="tabpanel">
           {tab === 'ingreso' && !gated ? (
-            <IngresoSection form={form} cat={cat} readOnly={readOnly} setIngreso={setIngreso} />
+            <IngresoSection
+              form={form}
+              cat={cat}
+              readOnly={readOnly}
+              setIngreso={setIngreso}
+              nursery={
+                isNursery
+                  ? {
+                      hospitalized,
+                      onChange: (v) => {
+                        setHospPref(v)
+                        if (v === 'NO' && detail && bookSend && !bookSend.sent[id]) bookSend.open(id)
+                      },
+                      onSend: () => bookSend?.open(id),
+                      canSend: !!detail && !!bookSend,
+                      sent: !!bookSend?.sent[id],
+                    }
+                  : undefined
+              }
+            />
           ) : null}
           {tab === 'tamizajes' && !gated ? (
             <ScreeningSection form={form} readOnly={readOnly} exists={!!detail} setIngreso={setIngreso} />
@@ -247,6 +276,7 @@ export function EpisodeEditor({ id }: { id: string }) {
           ) : null}
         </div>
       )}
+      <BookSendDialog book={bookSend} />
     </div>
   )
 }

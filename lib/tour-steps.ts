@@ -6,6 +6,8 @@ export type TourStep = {
   route: string
   /** Selector CSS del elemento a resaltar. Si no existe en pantalla, el paso se muestra centrado. */
   target?: string
+  /** Enmarca el elemento en rojo para llamar la atención sobre un control clave. */
+  alert?: boolean
   title: string
   body: string
 }
@@ -88,8 +90,10 @@ const MATERNIDAD_STEPS: TourStep[] = [
   {
     id: 'sections',
     route: '/libro',
-    title: '2. Completa tus datos',
-    body: 'Cada fila tiene dos pestañas: Maternidad (Datos Maternos), que completas tú, y Neonatología (Datos Neonatales). En cada pestaña ves el avance, por ejemplo 12/20, y un ✓ cuando está completa. Puedes guardar y volver después.',
+    target: '[aria-label="Vista de columnas"]',
+    alert: true,
+    title: '2. Elige qué datos ver',
+    body: 'Este filtro cambia las columnas del libro: Datos neonatales, Datos maternales o Todo el Libro. Usa Datos maternales para ver y completar tu parte; Neonatología completa la suya en la misma fila. Al abrir una fila, sus pestañas muestran tu avance, por ejemplo 12/20, y un ✓ cuando está completa.',
   },
   {
     id: 'search',
