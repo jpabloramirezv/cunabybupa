@@ -32,7 +32,7 @@ import { BookForm } from '@/components/cuna/book/book-form'
 import { BookLedger } from '@/components/cuna/book/book-ledger'
 import { BookFilters, emptyFacets, matchesFacets, type BookFacets } from '@/components/cuna/book/book-filters'
 import { EpisodeLinker } from '@/components/cuna/book/episode-linker'
-import { RecordLinker, type PendingEpisode } from '@/components/cuna/book/record-linker'
+import { RecordLinker } from '@/components/cuna/book/record-linker'
 
 type BookPayload = { fields: BookFieldRow[]; records: BookRecordOut[] }
 
@@ -96,11 +96,6 @@ export function BookView() {
   })
   const [draft, setDraft] = useState<Draft | null>(null)
   const [linking, setLinking] = useState<BookSection | null>(null)
-  const { data: pendingEpisodes } = useSWR<PendingEpisode[]>(
-    me?.canBook && linking === 'neonatal' ? '/api/book/episodes?sinFila=1' : null,
-    fetcher,
-    { revalidateOnFocus: true },
-  )
   const [dupes, setDupes] = useState<BookRecordOut[] | null>(null)
   const [section, setSection] = useState<BookSection>('materno')
   const [query, setQuery] = useState(() => params.get('q') ?? '')
@@ -250,19 +245,6 @@ export function BookView() {
     setDupes(null)
     setLinking(null)
     setDraft(emptyDraft())
-    scrollToForm()
-  }
-
-  /** Abre una fila nueva ya vinculada a un ingreso de la Pizarra que aún no tenía fila en el libro. */
-  function startFromEpisode(kind: BookSection, e: PendingEpisode) {
-    original.current = {}
-    originalEpisode.current = null
-    setSection(kind)
-    setConfirmDelete(false)
-    setMessage(null)
-    setDupes(null)
-    setLinking(null)
-    setDraft({ ...emptyDraft(), episodeId: e.id, episodeCode: e.code })
     scrollToForm()
   }
 
@@ -516,8 +498,6 @@ export function BookView() {
           <RecordLinker
             section={linking}
             candidates={linkCandidates}
-  episodes={linking === 'neonatal' ? (pendingEpisodes ?? []) : []}
-  onPickEpisode={linking === 'neonatal' ? (e) => startFromEpisode(linking, e) : undefined}
             onPick={(r) => open(r, linking)}
             onNew={() => startBlank(linking)}
             onCancel={() => setLinking(null)}

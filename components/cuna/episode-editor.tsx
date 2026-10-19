@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils'
 import { fmtDateTime } from '@/lib/time'
 import { uiStatus } from '@/lib/rules'
 import { Notice, StatusBadge } from '@/components/cuna/ui'
+import { StepNav } from '@/components/cuna/step-nav'
 import { usePref } from '@/lib/use-pref'
 import { BookSendDialog } from '@/components/cuna/book/book-send-dialog'
 import { useBookSend } from '@/components/cuna/book/use-book-send'
@@ -68,11 +69,14 @@ export function EpisodeEditor({ id }: { id: string }) {
     if (startedNew === null && !form.loading && me) setStartedNew(!detail)
   }, [startedNew, form.loading, me, detail])
 
-  const identityGap = identityMissing({
-    patientName: identity.get<string>('patientName'),
-    rut: identity.get<string>('rut'),
-    admissionNumber: identity.get<string>('admissionNumber'),
-  })
+  const identityGap = identityMissing(
+    {
+      patientName: identity.get<string>('patientName'),
+      rut: identity.get<string>('rut'),
+      admissionNumber: identity.get<string>('admissionNumber'),
+    },
+    { requireAdmission: !isNursery },
+  )
   const gated = startedNew === true && !!me?.canIdentity && identityGap.length > 0
 
   useEffect(() => {
@@ -96,6 +100,17 @@ export function EpisodeEditor({ id }: { id: string }) {
     if (me?.canWrite || me?.canAdmin) t.push({ key: 'historial', label: 'Historial' })
     return t
   }, [me?.canIdentity, me?.canWrite, me?.canAdmin])
+
+  const flow = tabs.filter((t) => t.key !== 'historial')
+  const flowIndex = flow.findIndex((t) => t.key === tab)
+  const nextTab = flowIndex >= 0 ? (flow[flowIndex + 1] ?? null) : null
+  const nextBlocked = gated && tab === 'identificacion' ? `Falta: ${identityGap.join(', ')}.` : null
+  const goNext = () => {
+    if (!nextTab) return
+    tabTouched.current = true
+    setTab(nextTab.key)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   /** Al primer cambio de un registro nuevo se aplican los valores habituales de la unidad. */
   const setIngreso = (patch: Record<string, unknown>) => {
@@ -233,7 +248,10 @@ export function EpisodeEditor({ id }: { id: string }) {
       {form.loading || !me ? (
         <p className="py-10 text-center text-muted-foreground">Cargando registro…</p>
       ) : (
-        <div role="tabpanel">
+        <div role="tabpanel" className="flex flex-col gap-6">
+          {nextTab ? (
+            <StepNav position="top" nextLabel={nextTab.label} blockedReason={nextBlocked} onNext={goNext} />
+          ) : null}
           {tab === 'ingreso' && !gated ? (
             <IngresoSection
               form={form}
@@ -260,7 +278,12 @@ export function EpisodeEditor({ id }: { id: string }) {
             <ScreeningSection form={form} readOnly={readOnly} exists={!!detail} setIngreso={setIngreso} />
           ) : null}
           {tab === 'identificacion' ? (
-            <IdentitySection identity={identity} readOnly={readOnly} missing={gated ? identityGap : []} />
+            <IdentitySection
+              identity={identity}
+              readOnly={readOnly}
+              missing={gated ? identityGap : []}
+              admissionRequired={!isNursery}
+            />
           ) : null}
           {tab === 'alta' && !gated ? (
             <AltaSection id={id} form={form} cat={cat} readOnly={readOnly} exists={!!detail} />
@@ -273,6 +296,9 @@ export function EpisodeEditor({ id }: { id: string }) {
                 El historial aparecerá cuando el registro tenga su primer dato.
               </p>
             )
+          ) : null}
+          {nextTab ? (
+            <StepNav position="bottom" nextLabel={nextTab.label} blockedReason={nextBlocked} onNext={goNext} />
           ) : null}
         </div>
       )}
