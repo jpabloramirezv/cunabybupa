@@ -10,11 +10,14 @@ export function IdentitySection({
   identity,
   readOnly,
   missing = [],
+  admissionRequired = true,
 }: {
   identity: IdentityForm
   readOnly: boolean
   /** Datos obligatorios que faltan en un registro nuevo (vacío si ya está completo). */
   missing?: string[]
+  /** En Nursery el número de admisión es opcional: solo existe si el recién nacido se hospitaliza. */
+  admissionRequired?: boolean
 }) {
   const g = identity.get
   const rut = g<string>('rut')
@@ -52,8 +55,9 @@ export function IdentitySection({
           onChange={(v) => identity.set({ rut: v ? formatRut(v) : '' })}
         />
         <TextField
-          label="Número de admisión (obligatorio)"
+          label={admissionRequired ? 'Número de admisión (obligatorio)' : 'Número de admisión'}
           disabled={disabled}
+          hint={admissionRequired ? undefined : 'Opcional en Nursery: solo si el recién nacido se hospitaliza.'}
           error={admissionMissing ? 'Escribe el número de admisión para continuar con el ingreso.' : null}
           inputMode="numeric"
           maxLength={20}
