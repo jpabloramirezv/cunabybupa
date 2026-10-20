@@ -2,6 +2,7 @@ import { eq, sql } from 'drizzle-orm'
 import { assertEpisodeId, handle, HttpError, readJson } from '@/lib/api'
 import { audit } from '@/lib/audit'
 import { explainChange } from '@/lib/audit-text'
+import { pushEpisodeToBook } from '@/lib/server/birth-sync'
 import { ensureEpisode, parseUnit } from '@/lib/server/create-episode'
 import { requireCtx } from '@/lib/ctx'
 import { db } from '@/lib/db'
@@ -97,6 +98,7 @@ export const PATCH = handle<Params>(async (req, { params }) => {
     ])
   }
   await recordChanges(ctx, id, changes, reason)
+  if (block === 'ingreso' && changes.length > 0) await pushEpisodeToBook(id, values)
 
   const [fresh] = await db.select().from(episode).where(eq(episode.id, id)).limit(1)
   const [detail] = await buildDetails([fresh])

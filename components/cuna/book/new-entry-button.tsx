@@ -3,16 +3,18 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
-import { Baby, BookOpen, HeartPulse, Plus, Stethoscope } from 'lucide-react'
+import { Baby, HeartPulse, Plus, Stethoscope } from 'lucide-react'
 import { PrimaryButton } from '@/components/cuna/ui'
 
 /** Pregunta primero si el registro es de Maternidad o de Neonatología; Neonatología sigue el flujo de siempre. */
 export function NewEntryButton({
   canNeonatal,
+  canNursery,
   canMaternity,
   onNeonatal,
 }: {
   canNeonatal: boolean
+  canNursery: boolean
   canMaternity: boolean
   onNeonatal: () => void
 }) {
@@ -57,19 +59,19 @@ export function NewEntryButton({
   const items = [
     {
       key: 'neo',
-      title: 'Ingreso / Egreso de RN en UPC',
-      hint: 'RN hospitalizado en la unidad. Va a la Pizarra y al Libro de Partos y Abortos.',
+      title: 'Nuevo ingreso a UPC',
+      hint: 'RN hospitalizado en la unidad. Parte desde su fila del Libro de Partos o por traslado, y va a la Pizarra.',
       Icon: Baby,
       enabled: canNeonatal,
       run: onNeonatal,
     },
     {
       key: 'nursery',
-      title: 'Ingreso / Egreso de RN en Nursery',
-      hint: 'RN con estadía normal, sin hospitalización. Mismo formulario que UPC; pasa al Libro de Partos y Abortos.',
+      title: 'Nuevo ingreso a Nursery',
+      hint: 'RN con estadía normal. Elige su fila del Libro de Partos y completa los datos neonatales en el mismo formulario del libro.',
       Icon: Stethoscope,
-      enabled: canNeonatal,
-      run: () => router.push(`/registro/${crypto.randomUUID()}?unidad=nursery`),
+      enabled: canNursery,
+      run: () => router.push('/libro?nuevo=neo'),
     },
     {
       key: 'mat',
@@ -78,14 +80,6 @@ export function NewEntryButton({
       Icon: HeartPulse,
       enabled: canMaternity,
       run: () => router.push('/libro?nuevo=1'),
-    },
-    {
-      key: 'libro-neo',
-      title: 'Fila del Libro desde Neonatología',
-      hint: 'Completa los datos del RN en el Libro de Partos y Abortos. Si Maternidad ya empezó la fila, podrás continuarla.',
-      Icon: BookOpen,
-      enabled: canNeonatal,
-      run: () => router.push('/libro?nuevo=neo'),
     },
   ]
 

@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { BookOpenCheck, Check } from 'lucide-react'
 import { ADMISSION_DOCUMENTS, CARE_LEVEL_OPTIONS, DELIVERY_OPTIONS, SEX_OPTIONS } from '@/lib/config'
 import { apgar10Error, apgar5Error, episodeWarnings } from '@/lib/rules'
@@ -33,6 +34,7 @@ export function IngresoSection({
   readOnly,
   setIngreso,
   nursery,
+  fromBook,
 }: {
   form: EpisodeForm
   cat: CatalogsPayload | undefined
@@ -46,8 +48,12 @@ export function IngresoSection({
     canSend: boolean
     sent: boolean
   }
+  /** El ingreso está vinculado a una fila del Libro: si el Apgar ya está, no se vuelve a preguntar. */
+  fromBook?: boolean
 }) {
   const g = form.get
+  const [editApgar, setEditApgar] = useState(false)
+  const apgarFromBook = Boolean(fromBook) && g<number>('apgar1') != null && g<number>('apgar5') != null
   const showAdmission = !nursery || nursery.hospitalized === 'SI'
   const warnings = episodeWarnings({
     gaWeeks: g('gaWeeks'),
@@ -118,6 +124,22 @@ export function IngresoSection({
             />
           </div>
         </fieldset>
+        {apgarFromBook && !editApgar ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/40 px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-base font-semibold text-navy">APGAR ya registrado en el Libro de Partos</p>
+              <p className="text-sm text-muted-foreground">
+                {`Al minuto: ${g<number>('apgar1')} · A los 5 minutos: ${g<number>('apgar5')}`}
+                {g<number>('apgar10') != null ? ` · A los 10 minutos: ${g<number>('apgar10')}` : ''}
+              </p>
+            </div>
+            {readOnly ? null : (
+              <PrimaryButton variant="ghost" onClick={() => setEditApgar(true)}>
+                Corregir
+              </PrimaryButton>
+            )}
+          </div>
+        ) : (
         <div className="flex flex-col gap-5">
           <ScoreRow
             label="APGAR al minuto"
@@ -142,6 +164,7 @@ export function IngresoSection({
             onChange={(v) => setIngreso({ apgar10: v })}
           />
         </div>
+        )}
         <Choice
           label="Sexo"
           required

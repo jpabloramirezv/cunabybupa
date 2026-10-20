@@ -35,6 +35,7 @@ import { EpisodeGroup, EpisodeRow } from '@/components/cuna/episode-row'
 import { Ledger } from '@/components/cuna/ledger'
 import { NewEntryButton } from '@/components/cuna/book/new-entry-button'
 import { BookSendDialog } from '@/components/cuna/book/book-send-dialog'
+import { UpcIntakeDialog } from '@/components/cuna/book/upc-intake-dialog'
 import { useBookSend } from '@/components/cuna/book/use-book-send'
 import { useSlashFocus } from '@/components/cuna/search-field'
 import { UnitBanner } from '@/components/cuna/unit-banner'
@@ -267,6 +268,7 @@ export function Board() {
   const f = useEpisodeFilters(data, initialFilters)
   const [grouped, setGrouped] = useState(true)
   const [showGuide, setShowGuide] = useState(false)
+  const [upcOpen, setUpcOpen] = useState(false)
   const [density, setDensity] = usePref<'comoda' | 'compacta'>('board.density', 'comoda')
   const [sort, setSort] = usePref<SortKey>('board.sort', 'urgencia')
   const [bannerOff, setBannerOff, prefsReady] = usePref<boolean>('board.banner', true)
@@ -303,6 +305,8 @@ export function Board() {
   function newEpisode() {
     router.push(`/registro/${crypto.randomUUID()}`)
   }
+
+  const closeUpc = useCallback(() => setUpcOpen(false), [])
 
   function setView(next: 'tarjetas' | 'libro') {
     replaceParams((p) => {
@@ -385,7 +389,15 @@ export function Board() {
             onRefresh={() => void mutate()}
           />
           {me?.canBook && (me.canEditMaternity || me.canEditNeonatal) ? (
-            <NewEntryButton canNeonatal={me.canWrite} canMaternity={me.canEditMaternity} onNeonatal={newEpisode} />
+            <>
+              <NewEntryButton
+                canNeonatal={me.canWrite}
+                canNursery={me.canEditNeonatal}
+                canMaternity={me.canEditMaternity}
+                onNeonatal={() => setUpcOpen(true)}
+              />
+              <UpcIntakeDialog open={upcOpen} canBook={me.canBook} onClose={closeUpc} />
+            </>
           ) : me?.canWrite ? (
             <PrimaryButton variant="accent" data-tour="board-new" onClick={newEpisode}>
               <Plus className="size-5" aria-hidden />

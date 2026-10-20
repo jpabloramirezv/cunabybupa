@@ -34,7 +34,7 @@ const NEONATAL_STEPS: TourStep[] = [
     route: '/pizarra',
     target: '[data-tour="new-entry"], [data-tour="board-new"]',
     title: '1. Crea el registro neonatal',
-    body: 'Con Nuevo registro abres el ingreso de un RN de UPC o Nursery. Puedes guardarlo y seguir completándolo durante toda la estadía.',
+    body: 'Con Nuevo registro eliges: ingreso a UPC (desde su fila del Libro de Partos, ya precargada, o por traslado) o ingreso a Nursery (se completa en el formulario neonatal del libro).',
   },
   {
     id: 'complete',

@@ -4,6 +4,7 @@ import { audit } from '@/lib/audit'
 import { requireCtx } from '@/lib/ctx'
 import { db } from '@/lib/db'
 import { birthRecord, episode } from '@/lib/db/schema'
+import { pushBookToEpisode, SHARED_BIRTH_FIELDS } from '@/lib/server/birth-sync'
 import { canonicalizeBookDoctors, canonicalizeBookPrevision, getBookFields, sanitizeData } from '@/lib/server/book'
 import { activeRecord, getRecord, withDefaults } from '@/lib/server/book-records'
 
@@ -65,6 +66,14 @@ export const PATCH = handle<Ctx>(async (req, { params }) => {
   const changedLabels = Object.keys(data)
     .filter((k) => JSON.stringify(before[k] ?? null) !== JSON.stringify(merged[k] ?? null))
     .map((k) => fields.find((f) => f.key === k)?.label ?? k)
+  const linkedEpisode = set.episodeId !== undefined ? set.episodeId : current.episodeId
+  if (linkedEpisode) {
+    const changedShared: Record<string, string> = {}
+    for (const k of Object.keys(SHARED_BIRTH_FIELDS)) {
+      if (k in data && (before[k] ?? '') !== (merged[k] ?? '')) changedShared[k] = String(merged[k] ?? '')
+    }
+    await pushBookToEpisode(ctx, linkedEpisode, changedShared)
+  }
   const linkChanged = set.episodeId !== undefined && set.episodeId !== current.episodeId
   if (changedLabels.length > 0 || linkChanged) {
     const parts = [

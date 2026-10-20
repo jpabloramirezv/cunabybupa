@@ -258,6 +258,7 @@ export function EpisodeEditor({ id }: { id: string }) {
               cat={cat}
               readOnly={readOnly}
               setIngreso={setIngreso}
+              fromBook={!!bookSend?.sent[id]}
               nursery={
                 isNursery
                   ? {
