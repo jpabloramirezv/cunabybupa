@@ -229,7 +229,7 @@ export function RecordLinker({
             Antes de empezar · {BOOK_SECTION_LABEL[section]}
           </p>
           <h2 className="mt-1 text-xl font-bold text-navy text-balance">
-            {isMaternity ? '¿Rellenas un registro del libro o creas uno nuevo?' : '¿Este recién nacido ya tiene un registro iniciado?'}
+            {isMaternity ? '¿Rellenas un registro del libro o creas uno nuevo?' : '¿El recién nacido ya está en el Libro de Partos?'}
           </h2>
           <PrimaryButton variant="accent" className="mt-3" onClick={onNew}>
             <FilePlus2 className="size-5" aria-hidden />
@@ -238,7 +238,7 @@ export function RecordLinker({
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground text-pretty">
             {isMaternity
               ? `O elige abajo una fila que ya está en el libro y completa sus datos maternos. Si no aparece, crea un registro nuevo; ${other} podrá completar su parte después.`
-              : `Un registro corresponde a un recién nacido y puede abrirlo cualquiera de las dos unidades, en el orden que corresponda. Revisa los registros incompletos: si ya existe, elígelo y continúa donde quedó. Si no aparece, crea uno nuevo; ${other} podrá completarlo después.`}
+              : `Elige abajo la fila del libro que aún no tiene los datos neonatales y completa la parte del recién nacido. Si no aparece, crea un registro nuevo; ${other} podrá completar su parte después.`}
           </p>
           {onSwitch ? (
             <div role="group" aria-label="Quién registra" className="mt-3 inline-flex gap-1 rounded-xl bg-muted p-1">
@@ -274,7 +274,7 @@ export function RecordLinker({
         <p className="text-base font-semibold text-secondary-foreground">
           {isMaternity
             ? `${total} ${total === 1 ? 'registro del libro espera' : 'registros del libro esperan'} tus datos maternos`
-            : `${total} ${total === 1 ? 'registro incompleto' : 'registros incompletos'}`}
+            : `${total} ${total === 1 ? 'registro del libro espera' : 'registros del libro esperan'} los datos neonatales`}
         </p>
         <p className="text-sm text-muted-foreground">
           {waitingMine} {waitingMine === 1 ? 'fila espera' : 'filas esperan'} la parte de {BOOK_SECTION_LABEL[section]}

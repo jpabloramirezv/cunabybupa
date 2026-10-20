@@ -445,7 +445,7 @@ export function BookView() {
         .filter((x) => {
           const pending = (p: { total: number; state: string }) => p.total > 0 && p.state !== 'completo'
           if (linking === 'materno') return pending(x.mat)
-          return pending(x.mat) || (x.seg !== 'aborto' && pending(x.neo))
+          return x.seg !== 'aborto' && pending(x.neo)
         })
         .map((x) => ({
           record: x.r,
