@@ -7,6 +7,7 @@ import { ArrowLeftRight, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { send } from '@/lib/fetcher'
 import { clearOutbox } from '@/lib/outbox'
+import { clearBookDraft } from '@/lib/book-draft'
 import { authClient } from '@/lib/auth-client'
 import { Brand } from '@/components/cuna/brand'
 import { SyncStatus } from '@/components/cuna/sync-status'
@@ -80,6 +81,7 @@ export function AppShell({
       await send('/api/session/logout', 'POST')
     } finally {
       clearOutbox()
+      clearBookDraft()
       router.replace('/personal')
       router.refresh()
     }
@@ -96,6 +98,7 @@ export function AppShell({
       await authClient.signOut()
     } finally {
       clearOutbox()
+      clearBookDraft()
       window.location.replace('/acceso')
     }
   }

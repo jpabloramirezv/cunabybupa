@@ -39,6 +39,7 @@ export async function send<T = unknown>(
   url: string,
   method: 'POST' | 'PATCH' | 'PUT' | 'DELETE',
   body?: unknown,
+  options?: { keepalive?: boolean },
 ): Promise<T> {
   // Con red lenta una petición colgada bloquearía toda la cola de guardado: se corta y se reintenta.
   const controller = new AbortController()
@@ -51,6 +52,8 @@ export async function send<T = unknown>(
       headers: { 'Content-Type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: controller.signal,
+      // Permite que la petición termine aunque la pestaña se cierre en ese instante.
+      keepalive: options?.keepalive ?? false,
     })
   } finally {
     clearTimeout(timer)

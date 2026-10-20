@@ -7,6 +7,7 @@ import useSWR from 'swr'
 import { ArrowRight, Copy, Download, Info, LayoutList, Plus, Table2, X } from 'lucide-react'
 import { ApiError, fetcher, send } from '@/lib/fetcher'
 import { useMe } from '@/lib/hooks'
+import { clearBookDraft, loadBookDraft, saveBookDraft } from '@/lib/book-draft'
 import { haystackOf, matchesAll, parseQuery } from '@/lib/search'
 import { BOOK_SECTION_LABEL, type BookSection } from '@/lib/book-fields'
 import {
@@ -123,6 +124,8 @@ export function BookView() {
   const formRef = useRef<HTMLDivElement>(null)
   const original = useRef<Record<string, string>>({})
   const originalEpisode = useRef<string | null>(null)
+  const draftHydrated = useRef(false)
+  const [recovered, setRecovered] = useState(false)
   useSlashFocus(inputRef)
 
   const fields = data?.fields ?? []
@@ -195,6 +198,40 @@ export function BookView() {
     window.addEventListener('beforeunload', warn)
     return () => window.removeEventListener('beforeunload', warn)
   }, [dirty])
+
+  // Recupera el registro que quedó a medias por un corte de luz, una recarga o una pestaña cerrada.
+  useEffect(() => {
+    if (!me || draftHydrated.current) return
+    const stored = loadBookDraft<Draft>(me.staffId)
+    if (!stored) {
+      draftHydrated.current = true
+      return
+    }
+    draftHydrated.current = true
+    original.current = stored.original
+    originalEpisode.current = stored.originalEpisode
+    setSection(stored.section as BookSection)
+    setDraft(stored.draft)
+    setRecovered(true)
+  }, [me])
+
+  // Respalda en el equipo cada cambio del registro abierto; se borra al guardarlo o descartarlo.
+  useEffect(() => {
+    if (!me) return
+    if (draft && dirty) {
+      draftHydrated.current = true
+      saveBookDraft<Draft>({
+        staffId: me.staffId,
+        section,
+        original: original.current,
+        originalEpisode: originalEpisode.current,
+        draft,
+      })
+    } else if (draftHydrated.current) {
+      clearBookDraft()
+      setRecovered(false)
+    }
+  }, [draft, dirty, section, me])
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -492,6 +529,12 @@ export function BookView() {
       </details>
 
       {message && !draft ? <Notice tone={message.tone} title={message.text} /> : null}
+
+      {recovered && draft ? (
+        <Notice tone="success" title="Recuperamos tu registro sin guardar">
+          Se interrumpió antes de agregarlo al libro. Revísalo y guárdalo, o ciérralo para descartarlo.
+        </Notice>
+      ) : null}
 
       {linking && !draft ? (
         <div ref={formRef} className="scroll-mt-4">
