@@ -750,7 +750,7 @@ export function BookView() {
 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 print:hidden">
           {years.length > 1 ? (
-            <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filtrar por año">
+            <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filtrar por a��o">
               {years.map((y) => (
                 <ChipToggle key={y} pressed={year === y} onClick={() => setYear(year === y ? null : y)}>
                   {y}
@@ -840,13 +840,17 @@ export function BookView() {
                   className="flex min-w-0 flex-1 flex-col gap-1 p-4 text-left hover:bg-muted focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-primary/30"
                 >
                   <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <span className="text-sm font-semibold text-muted-foreground">N° {r.n}</span>
-                    <span className="text-xs font-bold tabular-nums text-muted-foreground">{linkCode(r.seq)}</span>
+                    <span className="text-base font-bold tabular-nums text-navy">
+                      {[v.fecha ? v.fecha.split('-').reverse().join('-') : ymdInSantiago(r.createdAt).split('-').reverse().join('-'), v.hora]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </span>
                     <span className="text-base font-semibold text-foreground">{motherName(v)}</span>
                     {v.rut ? <span className="text-sm text-muted-foreground">{v.rut}</span> : null}
                   </span>
                   <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                    <span>{[v.fecha, v.hora].filter(Boolean).join(' ')}</span>
+                    <span className="text-xs font-semibold tabular-nums">N° {r.n}</span>
+                    <span className="text-xs font-bold tabular-nums">{linkCode(r.seq)}</span>
                     {v.tipo_parto ? <span>{v.tipo_parto}</span> : null}
                     {v.sexo_rn ? <span>{v.sexo_rn}</span> : null}
                     {v.eg ? <span>{v.eg} sem</span> : null}
