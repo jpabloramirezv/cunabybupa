@@ -7,6 +7,7 @@ import { Highlight } from '@/components/cuna/highlight'
 import { ColumnResizer, ResetWidthsButton, SizedCell, useColumnWidths, widthStyle } from '@/components/cuna/column-resize'
 import { linkCode, SEGMENT_LABEL, type BookSegment, type SectionProgress } from '@/lib/book-flow'
 import { BOOK_SECTION_LABEL, type BookSection } from '@/lib/book-fields'
+import { ymdInSantiago } from '@/lib/time'
 import type { BookFieldRow, BookRecordOut } from '@/lib/server/book'
 
 export type LedgerRow = {
@@ -37,6 +38,8 @@ const NAME_LEFT = 'left-[7.5rem]'
 
 /** Las tres columnas de nombre de la madre se funden en la columna fija "Madre". */
 const NAME_FIELDS = new Set(['nombre', 'ap_paterno', 'ap_materno'])
+/** Fecha y hora se funden en la primera columna fija: es lo primero que se busca ("¿cuándo fue el parto?"). */
+const MOMENT_FIELDS = new Set(['fecha', 'hora'])
 const FLAGGED = new Set(['POSITIVO', 'REACTIVO', 'REFIERE'])
 
 export type LedgerPreset = 'neonatal' | 'materno' | 'todo'
@@ -82,6 +85,25 @@ function shown(f: BookFieldRow, v: string) {
     if (m) return `${m[3]}-${m[2]}-${m[1]}`
   }
   return v
+}
+
+const WEEKDAYS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb']
+
+/** Fecha y hora del parto o aborto. Sin fecha digitada se usa la de creación, igual que la numeración del libro. */
+function birthMoment(r: BookRecordOut) {
+  const own = r.values.fecha ?? ''
+  const hasDate = YMD.test(own)
+  const t = /^(\d{1,2}):(\d{2})/.exec(r.values.hora ?? '')
+  return {
+    ymd: hasDate ? own : ymdInSantiago(r.createdAt),
+    hora: t ? `${t[1].padStart(2, '0')}:${t[2]}` : '',
+    derived: !hasDate,
+  }
+}
+
+const momentKey = (r: BookRecordOut) => {
+  const m = birthMoment(r)
+  return `${m.ymd} ${m.hora || '00:00'}`
 }
 
 function Empty() {
@@ -207,13 +229,16 @@ export function BookLedger({
 }) {
   const [picked, setPicked] = useState<Set<string> | null>(null)
   const [showStatus, setShowStatus] = useState(true)
-  const [sort, setSort] = useState<{ id: string; dir: 'asc' | 'desc' }>({ id: 'seq', dir: 'desc' })
+  const [sort, setSort] = useState<{ id: string; dir: 'asc' | 'desc' }>({ id: 'fecha', dir: 'desc' })
   const [limit, setLimit] = useState(PAGE)
   const [chooser, setChooser] = useState(false)
   const colW = useColumnWidths('libro-partos')
 
   const displayFields = useMemo(
-    () => fields.filter((f) => f.active && !NAME_FIELDS.has(f.key)).sort((a, b) => a.position - b.position),
+    () =>
+      fields
+        .filter((f) => f.active && !NAME_FIELDS.has(f.key) && !MOMENT_FIELDS.has(f.key))
+        .sort((a, b) => a.position - b.position),
     [fields],
   )
 
@@ -250,27 +275,40 @@ export function BookLedger({
   const columns = useMemo<Col[]>(() => {
     const head: Col[] = [
       {
-        id: 'seq',
+        id: 'fecha',
         group: 'Fila',
         section: null,
-        label: 'N°',
-        title: 'Número correlativo y código del registro',
+        label: 'Fecha y hora',
+        title: 'Fecha y hora del parto o aborto',
         sticky: 'num',
-        sort: (x) => x.r.seq,
-        cell: (x) => (
-          <span className="flex flex-col leading-tight">
+        sort: (x) => momentKey(x.r),
+        cell: (x) => {
+          const m = birthMoment(x.r)
+          const [y, mo, d] = m.ymd.split('-')
+          const weekday = WEEKDAYS[new Date(Date.UTC(+y, +mo - 1, +d)).getUTCDay()]
+          return (
             <button
               type="button"
               data-row
-              className="w-fit rounded-md text-left font-bold tabular-nums text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              onClick={() => onOpen(x.r)}
+              title={m.derived ? 'Sin fecha de parto digitada: se muestra la fecha de creación del registro' : undefined}
+              className="flex w-fit flex-col rounded-md text-left leading-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
-              N° {x.r.n}
+              <span className={cn('text-sm font-bold tabular-nums', m.derived ? 'italic text-muted-foreground' : 'text-navy')}>
+                <Highlight text={`${d}-${mo}-${y}`} terms={terms} ignorePunct />
+                {m.derived ? <span className="sr-only"> (fecha de creación del registro)</span> : null}
+              </span>
+              <span className="flex items-baseline gap-1.5 text-xs tabular-nums">
+                <span className="font-semibold uppercase text-muted-foreground">{weekday}</span>
+                {m.hora ? (
+                  <span className="font-bold text-foreground">{m.hora}</span>
+                ) : (
+                  <span className="text-muted-foreground/70">sin hora</span>
+                )}
+              </span>
             </button>
-            <span className="text-[11px] font-semibold tabular-nums text-muted-foreground">
-              <Highlight text={linkCode(x.r.seq)} terms={terms} ignorePunct />
-            </span>
-          </span>
-        ),
+          )
+        },
       },
       {
         id: 'madre',
@@ -291,6 +329,23 @@ export function BookLedger({
             <span className="text-muted-foreground">Sin nombre</span>
           )
         },
+      },
+      {
+        id: 'seq',
+        group: 'Fila',
+        section: null,
+        label: 'N°',
+        title: 'Número correlativo del año y código del registro',
+        min: 'min-w-[6rem]',
+        sort: (x) => x.r.seq,
+        cell: (x) => (
+          <span className="flex flex-col leading-tight text-muted-foreground">
+            <span className="text-xs font-semibold tabular-nums">N° {x.r.n}</span>
+            <span className="text-[11px] tabular-nums">
+              <Highlight text={linkCode(x.r.seq)} terms={terms} ignorePunct />
+            </span>
+          </span>
+        ),
       },
     ]
     const status: Col[] = showStatus
@@ -366,7 +421,7 @@ export function BookLedger({
         ]
       : []
     return [...head, ...status, ...dynamic, ...actions]
-  }, [displayFields, effective, showStatus, terms, onTwin])
+  }, [displayFields, effective, showStatus, terms, onTwin, onOpen])
 
   const sorted = useMemo(() => {
     const col = columns.find((c) => c.id === sort.id)
@@ -394,7 +449,7 @@ export function BookLedger({
   }, [columns])
 
   function sortBy(id: string) {
-    setSort((s) => (s.id === id ? { id, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { id, dir: id === 'seq' ? 'desc' : 'asc' }))
+    setSort((s) => (s.id === id ? { id, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { id, dir: id === 'seq' || id === 'fecha' ? 'desc' : 'asc' }))
   }
 
   function rowKeyNav(e: KeyboardEvent<HTMLElement>) {
