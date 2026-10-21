@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { BookOpenCheck, Check } from 'lucide-react'
 import { ADMISSION_DOCUMENTS, CARE_LEVEL_OPTIONS, DELIVERY_OPTIONS, SEX_OPTIONS } from '@/lib/config'
+import { LIMITS } from '@/lib/clinical-limits'
 import { apgar10Error, apgar5Error, episodeWarnings } from '@/lib/rules'
 import { cn } from '@/lib/utils'
 import type { EpisodeForm } from '@/lib/hooks'
@@ -87,7 +88,8 @@ export function IngresoSection({
         <NumField
           label="Edad gestacional"
           unit="semanas"
-          max={60}
+          min={LIMITS.gaWeeks.min}
+          max={LIMITS.gaWeeks.max}
           required
           disabled={readOnly}
           value={g<number>('gaWeeks')}
@@ -100,7 +102,8 @@ export function IngresoSection({
             <NumField
               label="Peso"
               unit="g"
-              max={9999}
+              min={LIMITS.birthWeightG.min}
+              max={LIMITS.birthWeightG.max}
               required
               disabled={readOnly}
               value={g<number>('birthWeightG')}
@@ -109,7 +112,8 @@ export function IngresoSection({
             <DecField
               label="Talla"
               unit="cm"
-              max={80}
+              min={LIMITS.birthLengthCm.min}
+              max={LIMITS.birthLengthCm.max}
               disabled={readOnly}
               value={g<number>('birthLengthCm')}
               onChange={(v) => setIngreso({ birthLengthCm: v })}

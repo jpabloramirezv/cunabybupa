@@ -14,6 +14,7 @@ import {
 import { db } from '@/lib/db'
 import { appSetting, bookField, catalogItem, episode } from '@/lib/db/schema'
 import { HttpError } from '@/lib/api'
+import { bookLimitError } from '@/lib/clinical-limits'
 import { matchNames } from '@/lib/name-match'
 import { listBookDoctors } from '@/lib/server/doctors'
 import { attachIdentity, buildDetails } from '@/lib/server/episodes'
@@ -307,7 +308,12 @@ export function sanitizeData(
     else if (f.type === 'date' && (!DATE_RE.test(s) || Number.isNaN(new Date(s).getTime())))
       errors.push(`${f.label} no es una fecha válida.`)
     else if (f.type === 'time' && !TIME_RE.test(s)) errors.push(`${f.label} no es una hora válida.`)
-    else data[f.key] = f.type === 'decimal' ? s.replace(',', '.') : s
+    else {
+      const rangeErr =
+        f.type === 'number' || f.type === 'decimal' ? bookLimitError(f.key, Number(s.replace(',', '.'))) : null
+      if (rangeErr) errors.push(rangeErr)
+      else data[f.key] = f.type === 'decimal' ? s.replace(',', '.') : s
+    }
   }
   return { data, errors }
 }

@@ -10,6 +10,7 @@ import {
   Hourglass,
   BookOpen,
   CheckCircle2,
+  ChevronDown,
   ClipboardList,
   HelpCircle,
   LayoutList,
@@ -269,6 +270,7 @@ export function Board() {
   const [grouped, setGrouped] = useState(true)
   const [showGuide, setShowGuide] = useState(false)
   const [upcOpen, setUpcOpen] = useState(false)
+  const [closedOpen, setClosedOpen] = useState(false)
   const [density, setDensity] = usePref<'comoda' | 'compacta'>('board.density', 'comoda')
   const [sort, setSort] = usePref<SortKey>('board.sort', 'urgencia')
   const [bannerOff, setBannerOff, prefsReady] = usePref<boolean>('board.banner', true)
@@ -325,15 +327,20 @@ export function Board() {
   const unitCopy = UNIT_OPTIONS.find((o) => o.value === unit) ?? UNIT_OPTIONS[0]
   const pageHint = libro
     ? `Historial completo de ingresos y egresos: ${unitCopy.label}.`
-    : `${unitCopy.label}: registros abiertos y los cerrados en los últimos 7 días.`
+    : `${unitCopy.label}: registros activos. Los dados de alta de los últimos 7 días quedan aparte, al final.`
   const sorted = useMemo(() => (libro ? f.list : sortEpisodes(f.list, sort)), [libro, f.list, sort])
+
+  const splitClosed = !libro && f.status === 'todos'
+  const activeItems = splitClosed ? sorted.filter((e) => uiStatus(e) !== 'cerrado') : sorted
+  const closedItems = splitClosed ? sorted.filter((e) => uiStatus(e) === 'cerrado') : []
+  const closedExpanded = closedOpen || f.terms.length > 0
 
   const sections =
     grouped && f.status === 'todos'
-      ? GROUPS.map((g) => ({ ...g, items: sorted.filter((e) => uiStatus(e) === g.key) })).filter(
-          (g) => g.items.length > 0,
-        )
-      : [{ key: 'all', label: undefined, hint: undefined, icon: undefined, items: sorted }]
+      ? GROUPS.filter((g) => !splitClosed || g.key !== 'cerrado')
+          .map((g) => ({ ...g, items: activeItems.filter((e) => uiStatus(e) === g.key) }))
+          .filter((g) => g.items.length > 0)
+      : [{ key: 'all', label: undefined, hint: undefined, icon: undefined, items: activeItems }]
 
   const searchHint = 'Buscar por nombre, RUT, madre, código o cualquier dato'
   const overdueCount = f.all.filter((e) => e.overdueKinds.length > 0).length
@@ -587,6 +594,58 @@ export function Board() {
             ))}
           </EpisodeGroup>
         ))}
+
+        {!libro && !isLoading && !showError && splitClosed && activeItems.length === 0 && closedItems.length > 0 ? (
+          <p className="rounded-2xl border border-dashed border-border bg-card px-6 py-6 text-center text-sm text-muted-foreground">
+            No hay RN activos con este criterio. Abajo están los dados de alta.
+          </p>
+        ) : null}
+
+        {!libro && !showError && closedItems.length > 0 ? (
+          <section aria-label="RN dados de alta" className="flex flex-col gap-3 border-t border-border/70 pt-4">
+            <button
+              type="button"
+              aria-expanded={closedExpanded}
+              aria-controls="pizarra-altas"
+              onClick={() => setClosedOpen((v) => !v)}
+              className="flex h-11 w-fit items-center gap-2 rounded-lg px-2 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+            >
+              <ChevronDown
+                className={cn('size-4 transition-transform', closedExpanded ? 'rotate-0' : '-rotate-90')}
+                aria-hidden
+              />
+              <LockKeyhole className="size-4" aria-hidden />
+              Dados de alta (últimos 7 días)
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums text-foreground">
+                {closedItems.length}
+              </span>
+            </button>
+            {closedExpanded ? (
+              <div id="pizarra-altas">
+                <EpisodeGroup
+                  label="Cerrados"
+                  count={closedItems.length}
+                  hint="Alta confirmada. Se muestran los últimos 7 días."
+                  icon={<LockKeyhole className="size-4" aria-hidden />}
+                >
+                  {closedItems.map((e) => (
+                    <li key={e.id}>
+                      <EpisodeRow
+                        e={e}
+                        cat={f.cat}
+                        terms={f.terms}
+                        entry={f.index.get(e.id)}
+                        showIdentity={!!me?.canIdentity}
+                        showUnit={unit === 'todos'}
+                        compact={density === 'compacta'}
+                      />
+                    </li>
+                  ))}
+                </EpisodeGroup>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
       </div>
       <BookSendDialog book={bookSend} />
     </div>

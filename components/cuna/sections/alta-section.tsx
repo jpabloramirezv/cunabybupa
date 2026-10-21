@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { LIMITS } from '@/lib/clinical-limits'
 import { FEEDING_OPTIONS, SCREENING_KINDS } from '@/lib/config'
 import { ApiError, send } from '@/lib/fetcher'
 import { flush } from '@/lib/outbox'
@@ -99,7 +100,8 @@ export function AltaSection({
         <NumField
           label="Peso al alta"
           unit="g"
-          max={9999}
+          min={LIMITS.dischargeWeightG.min}
+          max={LIMITS.dischargeWeightG.max}
           required
           disabled={disabled}
           value={g<number>('dischargeWeightG')}
