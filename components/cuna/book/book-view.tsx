@@ -126,6 +126,7 @@ export function BookView() {
   const originalEpisode = useRef<string | null>(null)
   const draftHydrated = useRef(false)
   const [recovered, setRecovered] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
   useSlashFocus(inputRef)
 
   const fields = data?.fields ?? []
@@ -455,11 +456,52 @@ export function BookView() {
     : []
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-xl font-bold text-navy text-balance sm:text-2xl">Libro de Partos y Abortos</h1>
-          <ScopePill scope="libro" />
+        <div className="flex min-w-0 flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h1 className="text-xl font-bold text-navy text-balance sm:text-2xl">Libro de Partos y Abortos</h1>
+            <ScopePill scope="libro" />
+            <button
+              type="button"
+              aria-expanded={helpOpen}
+              aria-controls="book-help"
+              title="¿Cómo se llena este libro?"
+              onClick={() => setHelpOpen((v) => !v)}
+              className={cn(
+                'inline-flex h-9 items-center gap-1.5 rounded-lg px-2 text-sm font-medium transition-colors print:hidden',
+                'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30',
+                helpOpen ? 'bg-secondary text-secondary-foreground' : 'text-primary hover:bg-secondary',
+              )}
+            >
+              <Info className="size-4" aria-hidden />
+              <span className="sr-only xl:not-sr-only">¿Cómo se llena?</span>
+            </button>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 print:hidden">
+            <p className="text-sm text-muted-foreground" aria-live="polite">
+              {data ? `${visible.length} de ${records.length} registros` : 'Cargando…'}
+              {year || query.trim() ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setYear(null)
+                    setQuery('')
+                  }}
+                  className="ml-2 inline-flex items-center gap-1 rounded px-1 font-semibold text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+                >
+                  <X className="size-3.5" aria-hidden />
+                  Quitar filtros
+                </button>
+              ) : null}
+            </p>
+            <FreshnessIndicator
+              updatedAt={updatedAt}
+              validating={isValidating}
+              failed={!!error}
+              onRefresh={() => void mutate()}
+            />
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 print:hidden">
           {me?.canClinical ? (
@@ -499,12 +541,10 @@ export function BookView() {
         </div>
       </div>
 
-      <details className="group rounded-lg border border-border bg-card px-3 py-2 print:hidden">
-        <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium text-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30 [&::-webkit-details-marker]:hidden">
-          <Info className="size-4" aria-hidden />
-          ¿Cómo se llena este libro?
-        </summary>
-        <ul className="mt-3 flex flex-col gap-2 text-sm leading-relaxed text-muted-foreground">
+      {helpOpen ? (
+      <div id="book-help" className="rounded-lg border border-border bg-card px-3 py-3 print:hidden">
+        <p className="text-sm font-semibold text-foreground">¿Cómo se llena este libro?</p>
+        <ul className="mt-2 flex flex-col gap-2 text-sm leading-relaxed text-muted-foreground">
           <li>
             <strong className="text-foreground">Un registro por RN.</strong> Maternidad y Neonatología trabajan sobre
             el mismo registro, en el orden que corresponda y en varias veces si hace falta. Cada una ve el avance de su
@@ -526,7 +566,8 @@ export function BookView() {
             como Nursery. Los gemelos van en registros separados con los datos de la madre copiados.
           </li>
         </ul>
-      </details>
+      </div>
+      ) : null}
 
       {message && !draft ? <Notice tone={message.tone} title={message.text} /> : null}
 
@@ -711,8 +752,8 @@ export function BookView() {
       />
 
       <section aria-label="Registros del libro" className="flex flex-col gap-2">
-        <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
-          <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="min-w-[15rem] flex-1">
             <SearchField
               ref={inputRef}
               id="book-search"
@@ -723,7 +764,17 @@ export function BookView() {
               showShortcut
             />
           </div>
-          <div role="group" aria-label="Forma de ver el libro" className="inline-flex gap-1 self-start rounded-xl bg-muted p-1 print:hidden">
+          {data ? <BookFilters inline fields={fields} records={records} value={facets} onChange={setFacets} /> : null}
+          {years.length > 1 ? (
+            <div className="flex flex-wrap items-center gap-1.5 print:hidden" role="group" aria-label="Filtrar por año">
+              {years.map((y) => (
+                <ChipToggle key={y} pressed={year === y} onClick={() => setYear(year === y ? null : y)}>
+                  {y}
+                </ChipToggle>
+              ))}
+            </div>
+          ) : null}
+          <div role="group" aria-label="Forma de ver el libro" className="inline-flex gap-1 rounded-xl bg-muted p-1 print:hidden">
             {(
               [
                 { id: 'libro', label: 'Libro', Icon: Table2 },
@@ -745,43 +796,6 @@ export function BookView() {
                 {label}
               </button>
             ))}
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 print:hidden">
-          {years.length > 1 ? (
-            <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filtrar por a��o">
-              {years.map((y) => (
-                <ChipToggle key={y} pressed={year === y} onClick={() => setYear(year === y ? null : y)}>
-                  {y}
-                </ChipToggle>
-              ))}
-            </div>
-          ) : null}
-          {data ? <BookFilters fields={fields} records={records} value={facets} onChange={setFacets} /> : null}
-          <div className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-1">
-            <p className="text-sm text-muted-foreground" aria-live="polite">
-              {data ? `${visible.length} de ${records.length} registros` : 'Cargando…'}
-              {year || query.trim() ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setYear(null)
-                    setQuery('')
-                  }}
-                  className="ml-2 inline-flex items-center gap-1 rounded px-1 font-semibold text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
-                >
-                  <X className="size-3.5" aria-hidden />
-                  Quitar filtros
-                </button>
-              ) : null}
-            </p>
-            <FreshnessIndicator
-              updatedAt={updatedAt}
-              validating={isValidating}
-              failed={!!error}
-              onRefresh={() => void mutate()}
-            />
           </div>
         </div>
 
