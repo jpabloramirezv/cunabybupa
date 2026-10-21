@@ -9,6 +9,7 @@ import { ApiError, fetcher, send } from '@/lib/fetcher'
 import { useMe } from '@/lib/hooks'
 import { clearBookDraft, loadBookDraft, saveBookDraft } from '@/lib/book-draft'
 import { haystackOf, matchesAll, parseQuery } from '@/lib/search'
+import { bookRowSearchText } from '@/lib/book-search'
 import { BOOK_SECTION_LABEL, type BookSection } from '@/lib/book-fields'
 import {
   findPossibleMatches,
@@ -150,6 +151,12 @@ export function BookView() {
     [data],
   )
 
+  const searchIndex = useMemo(
+    () => new Map(rows.map((x) => [x.r.id, haystackOf(bookRowSearchText(x.r, fields, x.seg, x.mat, x.neo))])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rows, data],
+  )
+
   const years = useMemo(() => [...new Set(records.map(yearOf))].sort().reverse(), [records])
   const inYear = useMemo(() => rows.filter((x) => !year || yearOf(x.r) === year), [rows, year])
 
@@ -173,12 +180,9 @@ export function BookView() {
           if (!hit) return false
         }
         if (!matchesFacets(x.r.values, facets)) return false
-        return matchesAll(
-          haystackOf(`${Object.values(x.r.values).join(' ')} ${x.r.episodeCode ?? ''} ${linkCode(x.r.seq)}`),
-          terms,
-        )
+        return matchesAll(searchIndex.get(x.r.id) ?? '', terms)
       }),
-    [inYear, terms, facets, alertFilter, alertDef],
+    [inYear, terms, facets, alertFilter, alertDef, searchIndex],
   )
 
   const dirty = useMemo(() => {

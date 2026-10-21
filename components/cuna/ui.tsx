@@ -3,6 +3,7 @@
 import { useId, useState, type ReactNode } from 'react'
 import { AlertTriangle, Check, Info, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { rangeMessage } from '@/lib/clinical-limits'
 import { fromInputValue, toInputValue } from '@/lib/time'
 import { haystackOf, matchesAll, parseQuery } from '@/lib/search'
 import type { DiagnosisItem } from '@/lib/types'
@@ -79,6 +80,7 @@ export function NumField({
   warn,
   error,
   disabled,
+  min,
   max = 99999,
   className,
 }: {
@@ -91,10 +93,14 @@ export function NumField({
   warn?: string | null
   error?: string | null
   disabled?: boolean
+  min?: number
   max?: number
   className?: string
 }) {
   const id = useId()
+  const [touched, setTouched] = useState(false)
+  const outOfRange = min != null && value != null && (value > max || (touched && value < min))
+  const shownError = error ?? (outOfRange ? rangeMessage(min, max, unit) : null)
   return (
     <div className={className}>
       <FieldLabel htmlFor={id} required={required}>
@@ -108,12 +114,14 @@ export function NumField({
           autoComplete="off"
           disabled={disabled}
           value={value ?? ''}
-          aria-invalid={error ? true : undefined}
+          aria-invalid={shownError ? true : undefined}
           onChange={(e) => {
             const digits = e.target.value.replace(/\D/g, '').slice(0, String(max).length)
-            onChange(digits === '' ? null : Math.min(Number(digits), max))
+            if (digits === '') return onChange(null)
+            onChange(min != null ? Number(digits) : Math.min(Number(digits), max))
           }}
-          className={cn(inputBase, unit && 'pr-16', error && 'border-destructive')}
+          onBlur={() => setTouched(true)}
+          className={cn(inputBase, unit && 'pr-16', shownError && 'border-destructive')}
         />
         {unit ? (
           <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-base text-muted-foreground">
@@ -121,9 +129,9 @@ export function NumField({
           </span>
         ) : null}
       </div>
-      {error ? (
+      {shownError ? (
         <p role="alert" className="mt-2 text-sm font-semibold text-destructive">
-          {error}
+          {shownError}
         </p>
       ) : warn ? (
         <Hint tone="warn">{warn}</Hint>
@@ -270,6 +278,7 @@ export function DecField({
   hint,
   warn,
   disabled,
+  min,
   max = 999,
 }: {
   label: string
@@ -280,11 +289,15 @@ export function DecField({
   hint?: string
   warn?: string | null
   disabled?: boolean
+  min?: number
   max?: number
 }) {
   const id = useId()
   const [draft, setDraft] = useState<string | null>(null)
+  const [touched, setTouched] = useState(false)
   const shown = draft ?? (value == null ? '' : String(value).replace('.', ','))
+  const outOfRange = min != null && value != null && (value > max || (touched && value < min))
+  const rangeError = outOfRange ? rangeMessage(min, max, unit) : null
   return (
     <div>
       <FieldLabel htmlFor={id} required={required}>
@@ -305,10 +318,15 @@ export function DecField({
             setDraft(cleaned)
             if (cleaned === '' || cleaned === ',') return onChange(null)
             const n = Number(cleaned.replace(',', '.'))
-            onChange(Number.isFinite(n) ? Math.min(n, max) : null)
+            if (!Number.isFinite(n)) return onChange(null)
+            onChange(min != null ? n : Math.min(n, max))
           }}
-          onBlur={() => setDraft(null)}
-          className={cn(inputBase, unit && 'pr-16')}
+          onBlur={() => {
+            setDraft(null)
+            setTouched(true)
+          }}
+          aria-invalid={rangeError ? true : undefined}
+          className={cn(inputBase, unit && 'pr-16', rangeError && 'border-destructive')}
         />
         {unit ? (
           <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-base text-muted-foreground">
@@ -316,7 +334,15 @@ export function DecField({
           </span>
         ) : null}
       </div>
-      {warn ? <Hint tone="warn">{warn}</Hint> : hint ? <Hint>{hint}</Hint> : null}
+      {rangeError ? (
+        <p role="alert" className="mt-2 text-sm font-semibold text-destructive">
+          {rangeError}
+        </p>
+      ) : warn ? (
+        <Hint tone="warn">{warn}</Hint>
+      ) : hint ? (
+        <Hint>{hint}</Hint>
+      ) : null}
     </div>
   )
 }

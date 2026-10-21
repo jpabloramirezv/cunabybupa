@@ -6,6 +6,7 @@ import {
   HIV_RESULTS,
   SEX_OPTIONS,
 } from '@/lib/config'
+import { limitError, type LimitKey } from '@/lib/clinical-limits'
 import { apgar10Error, apgar5Error } from '@/lib/rules'
 
 export type Block = 'ingreso' | 'seguimiento' | 'alta'
@@ -149,6 +150,18 @@ export function parsePatch(block: Block, raw: unknown): Record<string, unknown> 
   }
   if ('apgar10' in out) {
     const err = apgar10Error(out.apgar10 as number | null)
+    if (err) throw new HttpError(422, err)
+  }
+  const limitedFields: Array<[string, LimitKey]> = [
+    ['gaWeeks', 'gaWeeks'],
+    ['birthWeightG', 'birthWeightG'],
+    ['birthLengthCm', 'birthLengthCm'],
+    ['dischargeWeightG', 'dischargeWeightG'],
+  ]
+  for (const [field, limitKey] of limitedFields) {
+    if (!(field in out)) continue
+    const raw = out[field]
+    const err = limitError(limitKey, raw == null ? null : Number(raw))
     if (err) throw new HttpError(422, err)
   }
   if (out.maternalHivAt instanceof Date && out.maternalHivAt.getTime() > Date.now() + 24 * 3600_000) {

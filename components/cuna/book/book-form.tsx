@@ -4,6 +4,7 @@ import { useId, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, ArrowRight, Check, Rows3 } from 'lucide-react'
 import { BOOK_SECTION_LABEL, type BookSection } from '@/lib/book-fields'
 import { GROUP_HINTS, isFieldVisible } from '@/lib/book-flow'
+import { bookLimit, rangeMessage } from '@/lib/clinical-limits'
 import { COMUNAS, COUNTRIES } from '@/lib/geo-data'
 import { useBookValues, useCatalogs } from '@/lib/hooks'
 import type { BookFieldRow } from '@/lib/server/book'
@@ -56,6 +57,7 @@ function BookInput({
   onChange: (v: string) => void
 }) {
   const id = useId()
+  const [touched, setTouched] = useState(false)
   if (field.source === 'user') {
     const who = value || userName || ''
     return (
@@ -220,6 +222,13 @@ function BookInput({
     )
   }
 
+  const limit = bookLimit(field.key)
+  const typed = value === '' ? null : Number(value.replace(',', '.'))
+  const rangeError =
+    limit && typed != null && Number.isFinite(typed) && (typed > limit.max || (touched && typed < limit.min))
+      ? rangeMessage(limit.min, limit.max, limit.unit)
+      : null
+
   return (
     <div>
       <FieldLabel htmlFor={id} required={field.required}>
@@ -257,10 +266,18 @@ function BookInput({
             else if (field.type === 'decimal') onChange(v.replace(/[^\d.,-]/g, ''))
             else onChange(v)
           }}
-          className={inputClass}
+          onBlur={() => setTouched(true)}
+          aria-invalid={rangeError ? true : undefined}
+          className={cn(inputClass, rangeError && 'border-destructive')}
         />
       )}
-      {hint ? <Hint>{hint}</Hint> : null}
+      {rangeError ? (
+        <p role="alert" className="mt-2 text-sm font-semibold text-destructive">
+          {rangeError}
+        </p>
+      ) : hint ? (
+        <Hint>{hint}</Hint>
+      ) : null}
     </div>
   )
 }
