@@ -5,7 +5,8 @@ import { Check, ChevronDown, ChevronUp, ChevronsUpDown, Columns3, Copy, Printer,
 import { cn } from '@/lib/utils'
 import { Highlight } from '@/components/cuna/highlight'
 import { ColumnResizer, ResetWidthsButton, SizedCell, useColumnWidths, widthStyle } from '@/components/cuna/column-resize'
-import { linkCode, SEGMENT_LABEL, type BookSegment, type SectionProgress } from '@/lib/book-flow'
+import { SEGMENT_LABEL, type BookSegment, type SectionProgress } from '@/lib/book-flow'
+import { DateSearch } from '@/components/cuna/book/date-search'
 import { BOOK_SECTION_LABEL, type BookSection } from '@/lib/book-fields'
 import { ymdInSantiago } from '@/lib/time'
 import type { BookFieldRow, BookRecordOut } from '@/lib/server/book'
@@ -33,8 +34,8 @@ type Col = {
 }
 
 const PAGE = 100
-const NUM_W = 'w-[7.5rem] min-w-[7.5rem] max-w-[7.5rem]'
-const NAME_LEFT = 'left-[7.5rem]'
+const NUM_W = 'w-[8.5rem] min-w-[8.5rem] max-w-[8.5rem]'
+const NAME_LEFT = 'left-[8.5rem]'
 
 /** Las tres columnas de nombre de la madre se funden en la columna fija "Madre". */
 const NAME_FIELDS = new Set(['nombre', 'ap_paterno', 'ap_materno'])
@@ -232,6 +233,7 @@ export function BookLedger({
   const [sort, setSort] = useState<{ id: string; dir: 'asc' | 'desc' }>({ id: 'fecha', dir: 'desc' })
   const [limit, setLimit] = useState(PAGE)
   const [chooser, setChooser] = useState(false)
+  const [day, setDay] = useState('')
   const colW = useColumnWidths('libro-partos')
 
   const displayFields = useMemo(
@@ -330,23 +332,6 @@ export function BookLedger({
           )
         },
       },
-      {
-        id: 'seq',
-        group: 'Fila',
-        section: null,
-        label: 'N°',
-        title: 'Número correlativo del año y código del registro',
-        min: 'min-w-[6rem]',
-        sort: (x) => x.r.seq,
-        cell: (x) => (
-          <span className="flex flex-col leading-tight text-muted-foreground">
-            <span className="text-xs font-semibold tabular-nums">N° {x.r.n}</span>
-            <span className="text-[11px] tabular-nums">
-              <Highlight text={linkCode(x.r.seq)} terms={terms} ignorePunct />
-            </span>
-          </span>
-        ),
-      },
     ]
     const status: Col[] = showStatus
       ? [
@@ -423,12 +408,14 @@ export function BookLedger({
     return [...head, ...status, ...dynamic, ...actions]
   }, [displayFields, effective, showStatus, terms, onTwin, onOpen])
 
+  const shownRows = useMemo(() => (day ? rows.filter((x) => birthMoment(x.r).ymd === day) : rows), [rows, day])
+
   const sorted = useMemo(() => {
     const col = columns.find((c) => c.id === sort.id)
-    if (!col?.sort) return rows
+    if (!col?.sort) return shownRows
     const get = col.sort
-    return [...rows].sort((a, b) => compare(get(a), get(b), sort.dir) || b.r.seq - a.r.seq)
-  }, [rows, columns, sort])
+    return [...shownRows].sort((a, b) => compare(get(a), get(b), sort.dir) || b.r.seq - a.r.seq)
+  }, [shownRows, columns, sort])
 
   const spans = useMemo(() => {
     const out: { key: string; label: string; section: BookSection | null; span: number }[] = []
@@ -449,7 +436,7 @@ export function BookLedger({
   }, [columns])
 
   function sortBy(id: string) {
-    setSort((s) => (s.id === id ? { id, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { id, dir: id === 'seq' || id === 'fecha' ? 'desc' : 'asc' }))
+    setSort((s) => (s.id === id ? { id, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { id, dir: id === 'fecha' ? 'desc' : 'asc' }))
   }
 
   function rowKeyNav(e: KeyboardEvent<HTMLElement>) {
@@ -523,6 +510,22 @@ export function BookLedger({
         <p className="text-sm text-muted-foreground text-pretty">
           {preset ? preset.hint : 'Elegiste las columnas a mano. Vuelve a una vista rápida cuando quieras.'}
         </p>
+
+        {day ? (
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="inline-flex h-9 items-center gap-2 rounded-full bg-secondary pl-3.5 pr-1.5 font-semibold text-secondary-foreground">
+              Fecha: <span className="tabular-nums">{day.split('-').reverse().join('-')}</span>
+              <button
+                type="button"
+                onClick={() => setDay('')}
+                aria-label="Quitar filtro de fecha"
+                className="inline-flex size-6 items-center justify-center rounded-full hover:bg-background/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                <X className="size-3.5" aria-hidden />
+              </button>
+            </span>
+          </div>
+        ) : null}
 
         {chooser ? (
           <div className="flex flex-col gap-3 rounded-2xl border border-border bg-muted/40 p-4">
@@ -632,6 +635,7 @@ export function BookLedger({
                       )}
                     >
                       <SizedCell width={colW.widths[c.id]}>
+                      <div className="flex items-center gap-1">
                       {c.sort ? (
                         <button
                           type="button"
@@ -648,6 +652,8 @@ export function BookLedger({
                       ) : (
                         <span className="max-w-[9rem] text-balance">{c.label}</span>
                       )}
+                      {c.id === 'fecha' ? <DateSearch value={day} onChange={(v) => { setDay(v); setLimit(PAGE) }} /> : null}
+                      </div>
                       </SizedCell>
                       {c.sticky !== 'num' && c.id !== 'acciones' ? (
                         <ColumnResizer
@@ -692,6 +698,13 @@ export function BookLedger({
                   ))}
                 </tr>
               ))}
+              {page.length === 0 ? (
+                <tr>
+                  <td colSpan={columns.length} className="px-3 py-8 text-center text-sm text-muted-foreground">
+                    No hay partos ni abortos con la fecha {day.split('-').reverse().join('-')}.
+                  </td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>
@@ -700,15 +713,15 @@ export function BookLedger({
       {rows.length > 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground print:hidden">
           <p aria-live="polite">
-            Mostrando {page.length} de {rows.length} registros · {fieldCount} columnas del libro
+            Mostrando {page.length} de {shownRows.length} registros · {fieldCount} columnas del libro
           </p>
-          {page.length < rows.length ? (
+          {page.length < shownRows.length ? (
             <button
               type="button"
               onClick={() => setLimit((l) => l + PAGE)}
               className="h-11 rounded-lg border border-input bg-card px-4 text-sm font-semibold text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
             >
-              Mostrar {Math.min(PAGE, rows.length - page.length)} registros más
+              Mostrar {Math.min(PAGE, shownRows.length - page.length)} registros más
             </button>
           ) : null}
         </div>
