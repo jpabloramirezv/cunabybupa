@@ -108,11 +108,13 @@ export function BookFilters({
   records,
   value,
   onChange,
+  inline = false,
 }: {
   fields: BookFieldRow[]
   records: { values: Record<string, string> }[]
   value: BookFacets
   onChange: (next: BookFacets) => void
+  inline?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const count = activeFacetCount(value)
@@ -162,8 +164,8 @@ export function BookFilters({
   ]
 
   return (
-    <div className="flex flex-col gap-3 print:hidden">
-      <div className="flex flex-wrap items-center gap-2">
+    <div className={cn('print:hidden', inline ? 'contents' : 'flex flex-col gap-3')}>
+      <div className={inline ? 'contents' : 'flex flex-wrap items-center gap-2'}>
         <button
           type="button"
           aria-expanded={open}
@@ -208,7 +210,12 @@ export function BookFilters({
       </div>
 
       {open ? (
-        <div className="flex flex-col gap-5 rounded-2xl border border-border bg-muted/40 p-4 sm:p-5">
+        <div
+          className={cn(
+            'flex flex-col gap-5 rounded-2xl border border-border bg-muted/40 p-4 sm:p-5',
+            inline && 'order-last basis-full',
+          )}
+        >
           <p className="text-sm text-muted-foreground text-pretty">
             Combina filtros para acotar el libro. Dentro de un mismo grupo basta cumplir una opción; entre grupos deben
             cumplirse todos. Usan los mismos datos que ves en las columnas.
