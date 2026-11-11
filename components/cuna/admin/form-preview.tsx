@@ -65,8 +65,8 @@ export function FormPreview({
     <div className="flex flex-col gap-4">
       {scope === 'ficha' ? (
         <Notice tone="info">
-          Estas preguntas aparecen al final de la ficha de cada recién nacido, junto a los apartados fijos (identificación,
-          ingreso, alta y tamizajes).
+          Estas preguntas adicionales aparecen en la pestaña «Datos adicionales» del ingreso a UPC y Nursery, junto a los
+          apartados fijos.
         </Notice>
       ) : null}
       {selectedHidden && selected ? (
@@ -130,7 +130,7 @@ const SAMPLES: Record<string, string[]> = {
   suggest: ['Texto de ejemplo', '–', 'Texto de ejemplo'],
 }
 
-function sample(f: PField, row: number): string {
+export function sample(f: PField, row: number): string {
   if (f.type === 'select') return f.options.length ? f.options[row % f.options.length] : '–'
   if (f.type === 'number') {
     const n = [2, 1, 3][row]
