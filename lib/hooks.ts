@@ -42,6 +42,14 @@ export type FichaField = {
 export const useFichaFields = () =>
   useSWR<{ fields: FichaField[] }>('/api/ficha-fields', fetcher, { revalidateOnFocus: true })
 
+export const INGRESO_CONFIG_KEY = '/api/ingreso-config'
+
+/** Nombres, ayudas y preguntas ocultas del Ingreso que Jefatura configuró en Administración. */
+export const useIngresoConfig = () =>
+  useSWR<{ overrides: import('@/lib/ingreso-fields').IngresoOverrides }>(INGRESO_CONFIG_KEY, fetcher, {
+    revalidateOnFocus: true,
+  })
+
 export const useBookValues = (key: string | null) =>
   useSWR<{ values: string[] }>(key ? `/api/book/values?key=${encodeURIComponent(key)}` : null, fetcher, {
     revalidateOnFocus: false,

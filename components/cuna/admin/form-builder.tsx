@@ -13,6 +13,7 @@ import { Notice, PrimaryButton } from '@/components/cuna/ui'
 import { ChipToggle } from '@/components/cuna/search-field'
 import { BookFieldsAdmin } from '@/components/cuna/admin/book-fields-admin'
 import { FormPreview, TablePreview, type PField } from '@/components/cuna/admin/form-preview'
+import { IngresoBuilder } from '@/components/cuna/admin/ingreso-builder'
 import {
   QuestionEditor,
   blankDraft,
@@ -61,6 +62,7 @@ export function FormBuilder() {
   const { data, mutate } = useSWR<BookFieldRow[]>('/api/admin/book-fields', fetcher)
   const [mode, setMode] = useState<'builder' | 'classic'>('builder')
   const [scope, setScope] = useState<FieldScope>('libro')
+  const [ingreso, setIngreso] = useState(false)
   const [section, setSection] = useState<BookSection>('materno')
   const [preview, setPreview] = useState<'form' | 'table'>('form')
   const [draft, setDraft] = useState<Draft | null>(null)
@@ -179,9 +181,16 @@ export function FormBuilder() {
   }
 
   function switchScope(s: FieldScope) {
-    if (s === scope || !confirmDiscard()) return
+    if ((s === scope && !ingreso) || !confirmDiscard()) return
+    setIngreso(false)
     setScope(s)
     openDraft(null)
+  }
+
+  function openIngreso() {
+    if (ingreso || !confirmDiscard()) return
+    openDraft(null)
+    setIngreso(true)
   }
 
   if (mode === 'classic') {
@@ -195,6 +204,28 @@ export function FormBuilder() {
 
   const sectionCount = (s: BookSection) => inScope.filter((f) => f.section === s && f.active).length
 
+  const formChips = (
+    <div role="group" aria-label="Formulario" className="flex flex-wrap gap-2">
+      {(['libro', 'ficha'] as const).map((s) => (
+        <ChipToggle key={s} pressed={!ingreso && scope === s} onClick={() => switchScope(s)}>
+          {SCOPE_LABEL[s]} ({all.filter((f) => f.scope === s && f.active).length})
+        </ChipToggle>
+      ))}
+      <ChipToggle pressed={ingreso} onClick={openIngreso}>
+        Ingreso UPC y Nursery
+      </ChipToggle>
+    </div>
+  )
+
+  if (ingreso) {
+    return (
+      <div className="flex flex-col gap-4">
+        {formChips}
+        <IngresoBuilder />
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <datalist id="qe-groups">
@@ -204,13 +235,7 @@ export function FormBuilder() {
       </datalist>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div role="group" aria-label="Formulario" className="flex flex-wrap gap-2">
-          {(['libro', 'ficha'] as const).map((s) => (
-            <ChipToggle key={s} pressed={scope === s} onClick={() => switchScope(s)}>
-              {SCOPE_LABEL[s]} ({all.filter((f) => f.scope === s && f.active).length})
-            </ChipToggle>
-          ))}
-        </div>
+        {formChips}
         <ModeToggle mode={mode} onChange={setMode} />
       </div>
 

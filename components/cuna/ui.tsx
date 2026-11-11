@@ -354,6 +354,7 @@ export function ScoreRow({
   required,
   disabled,
   error,
+  hint,
 }: {
   label: string
   value: number | null
@@ -361,6 +362,7 @@ export function ScoreRow({
   required?: boolean
   disabled?: boolean
   error?: string | null
+  hint?: string
 }) {
   const id = useId()
   return (
@@ -368,6 +370,7 @@ export function ScoreRow({
       <FieldLabel id={id} required={required}>
         {label}
       </FieldLabel>
+      {hint ? <p className="mb-2 text-sm text-muted-foreground">{hint}</p> : null}
       <div className="grid grid-cols-6 gap-2 sm:grid-cols-11">
         {Array.from({ length: 11 }, (_, n) => {
           const active = value === n
