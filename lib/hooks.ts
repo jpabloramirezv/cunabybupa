@@ -26,6 +26,22 @@ export const useMe = () =>
 export const useCatalogs = () =>
   useSWR<CatalogsPayload>('/api/catalogs', fetcher, { revalidateOnFocus: false })
 
+export type FichaField = {
+  key: string
+  label: string
+  group: string
+  type: string
+  options: string[]
+  required: boolean
+  help: string
+  min: number | null
+  max: number | null
+  showIf: import('@/lib/form-engine').Condition[]
+}
+
+export const useFichaFields = () =>
+  useSWR<{ fields: FichaField[] }>('/api/ficha-fields', fetcher, { revalidateOnFocus: true })
+
 export const useBookValues = (key: string | null) =>
   useSWR<{ values: string[] }>(key ? `/api/book/values?key=${encodeURIComponent(key)}` : null, fetcher, {
     revalidateOnFocus: false,

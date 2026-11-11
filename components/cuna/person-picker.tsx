@@ -9,7 +9,7 @@ import { normalizeText, roleLabelFor, type Role } from '@/lib/rules'
 import { PinPad } from '@/components/cuna/pin-pad'
 import { Notice } from '@/components/cuna/ui'
 
-type StaffRow = { id: number; name: string; role: Role; isAdmin?: boolean; pinLength: number }
+type StaffRow = { id: number; name: string; role: Role; isAdmin?: boolean; isLeader?: boolean; pinLength: number }
 
 export function PersonPicker({ demoPins }: { demoPins?: Record<string, string> }) {
   const router = useRouter()
@@ -26,7 +26,7 @@ export function PersonPicker({ demoPins }: { demoPins?: Record<string, string> }
     const tokens = normalizeText(query).split(/\s+/).filter(Boolean)
     if (tokens.length === 0) return data
     return data.filter((s) => {
-      const haystack = normalizeText(`${s.name} ${roleLabelFor(s.role, s.isAdmin)}`)
+      const haystack = normalizeText(`${s.name} ${roleLabelFor(s.role, s.isAdmin, s.isLeader)}`)
       return tokens.every((t) => haystack.includes(t))
     })
   }, [data, query])
@@ -159,7 +159,7 @@ export function PersonPicker({ demoPins }: { demoPins?: Record<string, string> }
               ) : null}
             </span>
             <span className="shrink-0 rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-secondary-foreground">
-              {roleLabelFor(s.role, s.isAdmin)}
+              {roleLabelFor(s.role, s.isAdmin, s.isLeader)}
             </span>
           </button>
         ))}

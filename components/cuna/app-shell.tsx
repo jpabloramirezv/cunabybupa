@@ -24,6 +24,7 @@ type Props = {
   canReports: boolean
   canAdmin: boolean
   canBook?: boolean
+  canLog?: boolean
   tour?: TourId | null
   personKey?: number | string
   children: ReactNode
@@ -37,6 +38,7 @@ export function AppShell({
   canReports,
   canAdmin,
   canBook = false,
+  canLog = false,
   tour = null,
   personKey = '',
   children,
@@ -59,6 +61,10 @@ export function AppShell({
     {
       caption: 'Todos los nacimientos',
       links: [canBook ? { href: '/libro', label: 'Libro de Partos' } : null],
+    },
+    {
+      caption: 'Líderes de turno',
+      links: [canLog ? { href: '/bitacora', label: 'Bitácora' } : null],
     },
     {
       caption: 'Análisis',

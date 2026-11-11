@@ -80,6 +80,7 @@ const ddl = [
   `CREATE INDEX IF NOT EXISTS audit_at_idx ON audit_log (at DESC)`,
   `ALTER TABLE staff ADD COLUMN IF NOT EXISTS unit text NOT NULL DEFAULT 'neonatologia'`,
   `ALTER TABLE staff ADD COLUMN IF NOT EXISTS specialty text`,
+  `ALTER TABLE staff ADD COLUMN IF NOT EXISTS is_leader boolean NOT NULL DEFAULT false`,
   `CREATE TABLE IF NOT EXISTS book_field (
     id serial PRIMARY KEY, key text NOT NULL UNIQUE, label text NOT NULL,
     section text NOT NULL, group_name text NOT NULL DEFAULT '', type text NOT NULL DEFAULT 'text',
@@ -137,6 +138,12 @@ async function main() {
   // Datos del libro en papel: ingreso, nivel de cuidado, procedencia, GES y varios médicos.
   for (const stmt of [
     `ALTER TABLE episode ADD COLUMN IF NOT EXISTS unit text NOT NULL DEFAULT 'uci'`,
+    `ALTER TABLE episode ADD COLUMN IF NOT EXISTS custom jsonb NOT NULL DEFAULT '{}'::jsonb`,
+    `ALTER TABLE book_field ADD COLUMN IF NOT EXISTS help text NOT NULL DEFAULT ''`,
+    `ALTER TABLE book_field ADD COLUMN IF NOT EXISTS min_value real`,
+    `ALTER TABLE book_field ADD COLUMN IF NOT EXISTS max_value real`,
+    `ALTER TABLE book_field ADD COLUMN IF NOT EXISTS show_if jsonb NOT NULL DEFAULT '[]'::jsonb`,
+    `ALTER TABLE book_field ADD COLUMN IF NOT EXISTS scope text NOT NULL DEFAULT 'libro'`,
     `ALTER TABLE episode ADD COLUMN IF NOT EXISTS admission_at timestamptz`,
     `ALTER TABLE episode ADD COLUMN IF NOT EXISTS care_level text`,
     `ALTER TABLE episode ADD COLUMN IF NOT EXISTS transfer_origin text`,

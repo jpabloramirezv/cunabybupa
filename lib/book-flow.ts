@@ -1,4 +1,5 @@
 import type { BookSection } from '@/lib/book-fields'
+import { conditionsMet, type Condition } from '@/lib/form-engine'
 
 type Values = Record<string, string>
 
@@ -51,6 +52,16 @@ export function isFieldVisible(key: string, values: Values): boolean {
   return !!values[key] || rule(values)
 }
 
+/**
+ * Visibilidad con las condiciones que Jefatura edita en el constructor. Nunca se oculta algo ya escrito.
+ * Si la columna no trae condiciones definidas (`showIf` ausente) se usan las reglas originales.
+ */
+export function fieldVisible(f: { key: string; showIf?: Condition[] }, values: Values): boolean {
+  if (!f.showIf) return isFieldVisible(f.key, values)
+  if (values[f.key]) return true
+  return conditionsMet(f.showIf, values)
+}
+
 /** Texto de apoyo breve por grupo; solo para los grupos originales. */
 export const GROUP_HINTS: Record<string, string> = {
   Admisión: 'Cuándo y cómo ingresó la madre.',
@@ -73,13 +84,13 @@ export type SectionState = 'pendiente' | 'en_curso' | 'completo'
 
 export type SectionProgress = { filled: number; total: number; state: SectionState }
 
-type FieldLite = { key: string; section: BookSection }
+type FieldLite = { key: string; section: BookSection; showIf?: Condition[] }
 
 export function sectionProgress(fields: FieldLite[], values: Values, section: BookSection): SectionProgress {
   let total = 0
   let filled = 0
   for (const f of fields) {
-    if (f.section !== section || NOT_COUNTED.has(f.key) || !isFieldVisible(f.key, values)) continue
+    if (f.section !== section || NOT_COUNTED.has(f.key) || !fieldVisible(f, values)) continue
     total++
     if (values[f.key]) filled++
   }

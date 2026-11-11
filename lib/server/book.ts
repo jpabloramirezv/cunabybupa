@@ -15,6 +15,7 @@ import { db } from '@/lib/db'
 import { appSetting, bookField, catalogItem, episode } from '@/lib/db/schema'
 import { HttpError } from '@/lib/api'
 import { bookLimitError } from '@/lib/clinical-limits'
+import { isCondition, LEGACY_CONDITIONS, type Condition, type FieldScope } from '@/lib/form-engine'
 import { matchNames } from '@/lib/name-match'
 import { listBookDoctors } from '@/lib/server/doctors'
 import { attachIdentity, buildDetails } from '@/lib/server/episodes'
@@ -32,6 +33,15 @@ export type BookFieldRow = {
   required: boolean
   active: boolean
   source: string | null
+  /** Texto de ayuda para quien completa la columna. */
+  help: string
+  /** Límites propios de la columna (solo numéricas). Si faltan, rigen los límites clínicos de siempre. */
+  min: number | null
+  max: number | null
+  /** La columna se muestra solo si se cumplen todas estas condiciones. */
+  showIf: Condition[]
+  /** libro: Libro de Partos y Abortos. ficha: datos adicionales de la ficha de Neonatología. */
+  scope: FieldScope
 }
 
 const toField = (r: typeof bookField.$inferSelect): BookFieldRow => ({
@@ -46,6 +56,11 @@ const toField = (r: typeof bookField.$inferSelect): BookFieldRow => ({
   required: r.required,
   active: r.active,
   source: r.source,
+  help: r.help ?? '',
+  min: r.minValue ?? null,
+  max: r.maxValue ?? null,
+  showIf: Array.isArray(r.showIf) ? r.showIf.filter(isCondition) : [],
+  scope: r.scope === 'ficha' ? 'ficha' : 'libro',
 })
 
 let seeded = false
@@ -74,7 +89,20 @@ export async function ensureBookFields() {
   await migrateDoctorFields()
   await migrateLinkSources()
   await migrateFieldRevision()
+  await migrateLegacyConditions()
   seeded = true
+}
+
+const CONDITIONS_MIGRATION = 'book_field_conditions_v1'
+
+/** Una sola vez: las reglas que el Libro traía fijas pasan a ser condiciones que Jefatura puede editar. */
+async function migrateLegacyConditions() {
+  const [done] = await db.select().from(appSetting).where(eq(appSetting.key, CONDITIONS_MIGRATION)).limit(1)
+  if (done) return
+  for (const [key, showIf] of Object.entries(LEGACY_CONDITIONS)) {
+    await db.update(bookField).set({ showIf }).where(eq(bookField.key, key))
+  }
+  await db.insert(appSetting).values({ key: CONDITIONS_MIGRATION, value: '1' }).onConflictDoNothing()
 }
 
 const REVISION_MIGRATION = 'book_field_revision_v2'
@@ -154,10 +182,14 @@ async function migrateDoctorFields() {
   await db.insert(appSetting).values({ key: DOCTOR_MIGRATION, value: '1' }).onConflictDoNothing()
 }
 
-export async function getBookFields(includeInactive = false): Promise<BookFieldRow[]> {
+/** Por defecto solo las columnas del Libro; las de la ficha de Neonatología se piden con `scope`. */
+export async function getBookFields(
+  includeInactive = false,
+  scope: FieldScope | 'all' = 'libro',
+): Promise<BookFieldRow[]> {
   await ensureBookFields()
   const rows = await db.select().from(bookField).orderBy(asc(bookField.position), asc(bookField.id))
-  return rows.map(toField).filter((f) => includeInactive || f.active)
+  return rows.map(toField).filter((f) => (includeInactive || f.active) && (scope === 'all' || f.scope === scope))
 }
 
 const ymdInTz = (iso: string | Date | null | undefined) => {
@@ -309,13 +341,44 @@ export function sanitizeData(
       errors.push(`${f.label} no es una fecha válida.`)
     else if (f.type === 'time' && !TIME_RE.test(s)) errors.push(`${f.label} no es una hora válida.`)
     else {
+      const n = Number(s.replace(',', '.'))
+      const custom = f.min != null || f.max != null
       const rangeErr =
-        f.type === 'number' || f.type === 'decimal' ? bookLimitError(f.key, Number(s.replace(',', '.'))) : null
+        f.type !== 'number' && f.type !== 'decimal'
+          ? null
+          : custom
+            ? (f.min != null && n < f.min) || (f.max != null && n > f.max)
+              ? `${f.label} debe estar entre ${f.min ?? '−∞'} y ${f.max ?? '∞'}.`
+              : null
+            : bookLimitError(f.key, n)
       if (rangeErr) errors.push(rangeErr)
       else data[f.key] = f.type === 'decimal' ? s.replace(',', '.') : s
     }
   }
   return { data, errors }
+}
+
+/**
+ * Valida las respuestas a las columnas adicionales de la ficha y devuelve el conjunto completo ya fusionado
+ * con lo guardado, más los cambios por columna para el historial.
+ */
+export async function applyFichaCustom(input: unknown, previous: Record<string, string>) {
+  const fields = await getBookFields(false, 'ficha')
+  const { data, errors } = sanitizeData(input, fields, { materno: true, neonatal: true }, previous)
+  if (errors.length > 0) throw new HttpError(422, errors[0])
+  const next: Record<string, string> = { ...previous }
+  for (const [k, v] of Object.entries(data)) {
+    if (v === '') delete next[k]
+    else next[k] = v
+  }
+  const changes = fields
+    .filter((f) => (previous[f.key] ?? '') !== (next[f.key] ?? ''))
+    .map((f) => ({
+      field: f.label,
+      oldValue: previous[f.key] || null,
+      newValue: next[f.key] || null,
+    }))
+  return { next, changes }
 }
 
 /**

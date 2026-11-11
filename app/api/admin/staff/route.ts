@@ -26,6 +26,7 @@ export const GET = handle(async () => {
       name: staff.name,
       role: staff.role,
       isAdmin: staff.isAdmin,
+      isLeader: staff.isLeader,
       unit: staff.unit,
       specialty: staff.specialty,
       active: staff.active,
@@ -63,11 +64,13 @@ export const POST = handle(async (req) => {
     role?: unknown
     pin?: unknown
     isAdmin?: unknown
+    isLeader?: unknown
     unit?: unknown
     specialty?: unknown
     confirmDuplicate?: unknown
   }>(req)
   const unit = normalizeUnit(b.unit)
+  const isLeader = b.isLeader === true && b.role === 'matrona'
   const name = typeof b.name === 'string' ? b.name.trim().replace(/\s+/g, ' ') : ''
   const isAdmin = b.isAdmin === true && b.role === 'matrona'
   if (!name || name.length > 80) throw new HttpError(400, 'Escribe el nombre de la persona.')
@@ -77,10 +80,10 @@ export const POST = handle(async (req) => {
   const specialty = DOCTOR_ROLES.includes(b.role as Role) ? cleanSpecialty(b.specialty) : null
   const [row] = await db
     .insert(staff)
-    .values({ name, role: b.role, isAdmin, unit, specialty, pinHash: hashPin(b.pin), pinLength: b.pin.length })
+    .values({ name, role: b.role, isAdmin, isLeader, unit, specialty, pinHash: hashPin(b.pin), pinLength: b.pin.length })
     .returning({ id: staff.id })
   await syncDoctorItem({ id: row.id, name, role: b.role, active: true })
-  await audit(ctx, 'crear', 'administracion', null, `Persona: ${name} (${isAdmin ? 'matrona con permisos de jefatura' : b.role})`)
+  await audit(ctx, 'crear', 'administracion', null, `Persona: ${name} (${isAdmin ? 'matrona con permisos de jefatura' : b.role}${isLeader ? ', Matrona Líder' : ''})`)
   return Response.json({ id: row.id })
 })
 
@@ -93,13 +96,14 @@ export const PATCH = handle(async (req) => {
     active?: unknown
     pin?: unknown
     isAdmin?: unknown
+    isLeader?: unknown
     specialty?: unknown
     confirmDuplicate?: unknown
   }>(req)
   const id = Number(b.id)
   if (!Number.isInteger(id)) throw new HttpError(400, 'Persona no válida.')
   const [current] = await db
-    .select({ role: staff.role, isAdmin: staff.isAdmin, name: staff.name })
+    .select({ role: staff.role, isAdmin: staff.isAdmin, isLeader: staff.isLeader, name: staff.name })
     .from(staff)
     .where(eq(staff.id, id))
     .limit(1)
@@ -132,6 +136,9 @@ export const PATCH = handle(async (req) => {
   const nextRole = set.role ?? current.role
   const nextAdmin = nextRole === 'matrona' && (typeof b.isAdmin === 'boolean' ? b.isAdmin : current.isAdmin)
   if (nextAdmin !== current.isAdmin) set.isAdmin = nextAdmin
+  if (b.isLeader !== undefined && typeof b.isLeader !== 'boolean') throw new HttpError(400, 'Valor de Matrona Líder no válido.')
+  const nextLeader = nextRole === 'matrona' && (typeof b.isLeader === 'boolean' ? b.isLeader : current.isLeader)
+  if (nextLeader !== current.isLeader) set.isLeader = nextLeader
   const keepsJefatura = nextRole === 'jefatura' || (nextRole === 'matrona' && nextAdmin)
   if (id === ctx.staffId && !keepsJefatura) throw new HttpError(422, 'No puedes quitarte tu propio acceso de jefatura.')
   if (b.active !== undefined) {
@@ -149,6 +156,6 @@ export const PATCH = handle(async (req) => {
   if (Object.keys(set).length === 0) throw new HttpError(400, 'No hay cambios que guardar.')
   await db.update(staff).set(set).where(eq(staff.id, id))
   await syncDoctorItemById(id)
-  await audit(ctx, 'modificar', 'administracion', null, `Persona #${id}: ${Object.keys(set).filter((k) => k !== 'pinHash' && k !== 'isAdmin').join(', ')}${set.pinHash ? ', pin' : ''}${set.isAdmin !== undefined ? `, permisos de jefatura: ${set.isAdmin ? 'sí' : 'no'}` : ''}`)
+  await audit(ctx, 'modificar', 'administracion', null, `Persona #${id}: ${Object.keys(set).filter((k) => k !== 'pinHash' && k !== 'isAdmin' && k !== 'isLeader').join(', ')}${set.pinHash ? ', pin' : ''}${set.isAdmin !== undefined ? `, permisos de jefatura: ${set.isAdmin ? 'sí' : 'no'}` : ''}${set.isLeader !== undefined ? `, Matrona Líder: ${set.isLeader ? 'sí' : 'no'}` : ''}`)
   return Response.json({ ok: true })
 })

@@ -1,6 +1,6 @@
 import { getBookFields, type BookFieldRow } from '@/lib/server/book'
 import { listRecords } from '@/lib/server/book-records'
-import { isFieldVisible, segmentOf, type BookSegment } from '@/lib/book-flow'
+import { fieldVisible, segmentOf, type BookSegment } from '@/lib/book-flow'
 import { addDaysYmd, fmtYmd, ymdInSantiago } from '@/lib/time'
 import { kindOf, makeCat, type ColumnKind } from '@/lib/server/book-report'
 import {
@@ -321,7 +321,7 @@ export async function computeLibroReport(cfg: LibroConfig, generatedBy: string) 
     for (const x of pool) {
       let ok = true
       for (const f of list) {
-        if (!isFieldVisible(f.key, x.r.values)) continue
+        if (!fieldVisible(f, x.r.values)) continue
         const e = perField.get(f.key) ?? { answered: 0, total: 0 }
         e.total++
         if (val(x, f.key)) e.answered++
@@ -335,9 +335,9 @@ export async function computeLibroReport(cfg: LibroConfig, generatedBy: string) 
   const mComp = completeness(rows, mSec)
   const nComp = completeness(births, nSec)
   const completeRows = rows.filter((x) => {
-    const mOk = fields.filter((f) => f.section === mSec).every((f) => !isFieldVisible(f.key, x.r.values) || val(x, f.key))
+    const mOk = fields.filter((f) => f.section === mSec).every((f) => !fieldVisible(f, x.r.values) || val(x, f.key))
     if (x.seg === 'aborto') return mOk
-    return mOk && fields.filter((f) => f.section === nSec).every((f) => !isFieldVisible(f.key, x.r.values) || val(x, f.key))
+    return mOk && fields.filter((f) => f.section === nSec).every((f) => !fieldVisible(f, x.r.values) || val(x, f.key))
   })
 
   // --- Indicadores -----------------------------------------------------------

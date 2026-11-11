@@ -1,3 +1,4 @@
+import type { Condition } from '@/lib/form-engine'
 import {
   boolean,
   integer,
@@ -77,6 +78,8 @@ export const staff = pgTable('staff', {
   lockedUntil: timestamp('locked_until', tz),
   // Matrona Administradora: conserva rol y nombre de matrona, con los permisos de Jefatura.
   isAdmin: boolean('is_admin').notNull().default(false),
+  /** Subperfil Matrona Líder: accede a la Bitácora Clínico-Administrativa. No cambia permisos. */
+  isLeader: boolean('is_leader').notNull().default(false),
   /** Libro que registra: neonatologia | maternidad. Jefatura accede siempre a ambos. */
   unit: text('unit').notNull().default('neonatologia'),
   /** Solo médicos: especialidad (Obstetricia, Neonatología, Anestesiología...). */
@@ -146,6 +149,8 @@ export const episode = pgTable('episode', {
   dxIngresoIds: integer('dx_ingreso_ids').array().notNull().default([]),
   medicoId: integer('medico_id'),
   medicoIds: integer('medico_ids').array().notNull().default([]),
+  /** Respuestas a las columnas adicionales que Jefatura agrega a la ficha. */
+  custom: jsonb('custom').$type<Record<string, string>>().notNull().default({}),
   admissionAt: timestamp('admission_at', tz),
   careLevel: text('care_level'),
   transferOrigin: text('transfer_origin'),
@@ -234,6 +239,15 @@ export const bookField = pgTable('book_field', {
   active: boolean('active').notNull().default(true),
   /** Dato que se completa solo desde el episodio de UPC vinculado (o el usuario que crea). */
   source: text('source'),
+  /** Texto de ayuda que ve quien completa la columna. */
+  help: text('help').notNull().default(''),
+  /** Límites para columnas numéricas. */
+  minValue: real('min_value'),
+  maxValue: real('max_value'),
+  /** La columna se muestra solo si se cumplen todas estas condiciones. */
+  showIf: jsonb('show_if').$type<Condition[]>().notNull().default([]),
+  /** libro: Libro de Partos y Abortos. ficha: datos adicionales de la ficha de Neonatología. */
+  scope: text('scope').notNull().default('libro'),
 })
 
 /** Una fila por recién nacido (o aborto). Los datos maternos se repiten entre gemelos. */

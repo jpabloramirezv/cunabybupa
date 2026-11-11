@@ -10,6 +10,18 @@ import { cn } from '@/lib/utils'
 import { Choice, Notice, PrimaryButton, Section, TextField } from '@/components/cuna/ui'
 import { ChipToggle, SearchField } from '@/components/cuna/search-field'
 import { haystackOf, matchesAll, parseQuery } from '@/lib/search'
+import {
+  CONDITION_OP_LABEL,
+  OPS_WITHOUT_VALUE,
+  MAX_CONDITIONS,
+  SCOPE_LABEL,
+  type ConditionOp,
+  type FieldScope,
+} from '@/lib/form-engine'
+
+type ConditionDraft = { key: string; op: ConditionOp; value: string }
+const OP_OPTIONS = (Object.keys(CONDITION_OP_LABEL) as ConditionOp[]).map((op) => ({ value: op, label: CONDITION_OP_LABEL[op] }))
+const SCOPE_OPTIONS = (['libro', 'ficha'] as const).map((s) => ({ value: s as string, label: SCOPE_LABEL[s] }))
 
 const SECTION_OPTIONS = [
   { value: 'materno', label: BOOK_SECTION_LABEL.materno },
@@ -28,21 +40,32 @@ type Draft = {
   options: string
   source: string
   required: boolean
+  scope: FieldScope
+  help: string
+  min: string
+  max: string
+  showIf: ConditionDraft[]
 }
 
-const blank = (section: BookSection): Draft => ({
+const blank = (section: BookSection, scope: FieldScope): Draft => ({
   id: null,
   label: '',
-  section,
+  section: scope === 'ficha' ? 'neonatal' : section,
   group: '',
   type: 'text',
   options: '',
   source: '',
   required: false,
+  scope,
+  help: '',
+  min: '',
+  max: '',
+  showIf: [],
 })
 
 export function BookFieldsAdmin() {
   const { data, mutate } = useSWR<BookFieldRow[]>('/api/admin/book-fields', fetcher)
+  const [scope, setScope] = useState<FieldScope>('libro')
   const [section, setSection] = useState<BookSection>('materno')
   const [query, setQuery] = useState('')
   const [draft, setDraft] = useState<Draft | null>(null)
@@ -51,7 +74,11 @@ export function BookFieldsAdmin() {
 
   const terms = parseQuery(query)
   const all = data ?? []
-  const list = all.filter((f) => f.section === section && matchesAll(haystackOf(`${f.label} ${f.group}`), terms))
+  const inScope = all.filter((f) => f.scope === scope)
+  const list = inScope.filter(
+    (f) => (scope === 'ficha' || f.section === section) && matchesAll(haystackOf(`${f.label} ${f.group}`), terms),
+  )
+  const labelOf = (key: string) => all.find((f) => f.key === key && f.scope === scope)?.label ?? key
 
   async function run(fn: () => Promise<unknown>, ok?: string) {
     setBusy(true)
@@ -80,6 +107,11 @@ export function BookFieldsAdmin() {
       options: f.options.join('\n'),
       source: f.source ?? '',
       required: f.required,
+      scope: f.scope,
+      help: f.help,
+      min: f.min == null ? '' : String(f.min),
+      max: f.max == null ? '' : String(f.max),
+      showIf: f.showIf.map((c) => ({ key: c.key, op: c.op, value: c.values.join(', ') })),
     })
   }
 
@@ -93,6 +125,19 @@ export function BookFieldsAdmin() {
       options: draft.options.split('\n'),
       source: draft.source || null,
       required: draft.required,
+      help: draft.help,
+      min: draft.min,
+      max: draft.max,
+      showIf: draft.showIf
+        .filter((c) => c.key)
+        .map((c) => ({
+          key: c.key,
+          op: c.op,
+          values: OPS_WITHOUT_VALUE.includes(c.op)
+            ? []
+            : (c.op === 'in' ? c.value.split(',') : [c.value]).map((x) => x.trim()).filter(Boolean),
+        })),
+      ...(draft.id ? {} : { scope: draft.scope }),
     }
     const ok = await run(
       () => (draft.id ? send('/api/admin/book-fields', 'PATCH', { id: draft.id, ...body }) : send('/api/admin/book-fields', 'POST', body)),
@@ -109,15 +154,33 @@ export function BookFieldsAdmin() {
         title="Columnas del Libro de Partos y Abortos"
         hint="Agrega, renombra, reordena o desactiva columnas. Desactivar solo las oculta: los datos ya digitados no se pierden."
       >
+        <div role="group" aria-label="Formulario" className="flex flex-wrap gap-2">
+          {(['libro', 'ficha'] as const).map((s) => (
+            <ChipToggle
+              key={s}
+              pressed={scope === s}
+              onClick={() => {
+                setScope(s)
+                setDraft(null)
+              }}
+            >
+              {SCOPE_LABEL[s]} ({all.filter((f) => f.scope === s && f.active).length})
+            </ChipToggle>
+          ))}
+        </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div role="group" aria-label="Sección" className="flex flex-wrap gap-2">
-            {(['materno', 'neonatal'] as const).map((s) => (
-              <ChipToggle key={s} pressed={section === s} onClick={() => setSection(s)}>
-                {BOOK_SECTION_LABEL[s]} ({all.filter((f) => f.section === s && f.active).length})
-              </ChipToggle>
-            ))}
-          </div>
-          <PrimaryButton variant="outline" className="h-11 px-4 text-sm" onClick={() => { setMessage(null); setDraft(blank(section)) }}>
+          {scope === 'libro' ? (
+            <div role="group" aria-label="Sección" className="flex flex-wrap gap-2">
+              {(['materno', 'neonatal'] as const).map((s) => (
+                <ChipToggle key={s} pressed={section === s} onClick={() => setSection(s)}>
+                  {BOOK_SECTION_LABEL[s]} ({inScope.filter((f) => f.section === s && f.active).length})
+                </ChipToggle>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Datos adicionales que aparecen en la ficha de Neonatología.</p>
+          )}
+          <PrimaryButton variant="outline" className="h-11 px-4 text-sm" onClick={() => { setMessage(null); setDraft(blank(section, scope)) }}>
             Nueva columna
           </PrimaryButton>
         </div>
@@ -126,13 +189,22 @@ export function BookFieldsAdmin() {
         {draft ? (
           <div className="flex flex-col gap-4 rounded-lg bg-muted p-4">
             <TextField label="Nombre de la columna" required maxLength={100} value={draft.label} onChange={(v) => setDraft({ ...draft, label: v })} />
-            <Choice
-              label="Sección"
-              required
-              columns={2}
-              options={SECTION_OPTIONS}
-              value={draft.section}
-              onChange={(v) => setDraft({ ...draft, section: v })}
+            {draft.scope === 'libro' ? (
+              <Choice
+                label="Sección"
+                required
+                columns={2}
+                options={SECTION_OPTIONS}
+                value={draft.section}
+                onChange={(v) => setDraft({ ...draft, section: v })}
+              />
+            ) : null}
+            <TextField
+              label="Texto de ayuda (opcional)"
+              maxLength={300}
+              value={draft.help}
+              onChange={(v) => setDraft({ ...draft, help: v })}
+              hint="Se muestra bajo el campo para orientar a quien lo completa."
             />
             <TextField
               label="Grupo (título dentro del formulario)"
@@ -172,6 +244,106 @@ export function BookFieldsAdmin() {
                 />
               </div>
             ) : null}
+            {draft.type === 'number' || draft.type === 'decimal' ? (
+              <div className="grid grid-cols-2 gap-3">
+                <TextField
+                  label="Mínimo permitido"
+                  inputMode="text"
+                  value={draft.min}
+                  onChange={(v) => setDraft({ ...draft, min: v })}
+                  hint="Vacío: rigen los límites clínicos de siempre."
+                />
+                <TextField
+                  label="Máximo permitido"
+                  inputMode="text"
+                  value={draft.max}
+                  onChange={(v) => setDraft({ ...draft, max: v })}
+                />
+              </div>
+            ) : null}
+            <div className="flex flex-col gap-3">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Mostrar solo si…</p>
+                <p className="text-sm text-muted-foreground">
+                  Sin condiciones, la columna siempre se muestra. Con varias, deben cumplirse todas.
+                </p>
+              </div>
+              {draft.showIf.map((c, i) => {
+                const target = inScope.find((f) => f.key === c.key)
+                const noValue = OPS_WITHOUT_VALUE.includes(c.op)
+                const patch = (p: Partial<ConditionDraft>) =>
+                  setDraft({ ...draft, showIf: draft.showIf.map((x, j) => (j === i ? { ...x, ...p } : x)) })
+                return (
+                  <div key={i} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3">
+                    <select
+                      aria-label={`Condición ${i + 1}: columna`}
+                      value={c.key}
+                      onChange={(e) => patch({ key: e.target.value, value: '' })}
+                      className={selectClass}
+                    >
+                      <option value="">Elige una columna</option>
+                      {inScope
+                        .filter((f) => f.key !== (draft.id ? all.find((x) => x.id === draft.id)?.key : null))
+                        .map((f) => (
+                          <option key={f.id} value={f.key}>
+                            {f.label}
+                          </option>
+                        ))}
+                    </select>
+                    <select
+                      aria-label={`Condición ${i + 1}: operador`}
+                      value={c.op}
+                      onChange={(e) => patch({ op: e.target.value as ConditionOp })}
+                      className={selectClass}
+                    >
+                      {OP_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                    {noValue ? null : target?.type === 'select' && c.op !== 'in' ? (
+                      <select
+                        aria-label={`Condición ${i + 1}: valor`}
+                        value={c.value}
+                        onChange={(e) => patch({ value: e.target.value })}
+                        className={selectClass}
+                      >
+                        <option value="">Elige un valor</option>
+                        {target.options.map((o) => (
+                          <option key={o} value={o}>
+                            {o}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <TextField
+                        label={c.op === 'in' ? 'Valores (separados por coma)' : 'Valor'}
+                        value={c.value}
+                        onChange={(v) => patch({ value: v })}
+                      />
+                    )}
+                    <PrimaryButton
+                      variant="ghost"
+                      className="h-10 self-start px-3 text-sm"
+                      onClick={() => setDraft({ ...draft, showIf: draft.showIf.filter((_, j) => j !== i) })}
+                    >
+                      Quitar condición
+                    </PrimaryButton>
+                  </div>
+                )
+              })}
+              {draft.showIf.length < MAX_CONDITIONS ? (
+                <PrimaryButton
+                  variant="outline"
+                  className="h-11 self-start px-4 text-sm"
+                  onClick={() => setDraft({ ...draft, showIf: [...draft.showIf, { key: '', op: 'eq', value: '' }] })}
+                >
+                  Agregar condición
+                </PrimaryButton>
+              ) : null}
+            </div>
+            {draft.scope === 'libro' ? (
             <div>
               <label htmlFor="bf-source" className="mb-2 block text-sm font-semibold text-foreground">
                 Dato que se completa solo desde UPC
@@ -193,6 +365,7 @@ export function BookFieldsAdmin() {
                 Si el recién nacido tiene un ingreso vinculado, esta columna toma ese dato y nadie lo escribe dos veces.
               </p>
             </div>
+            ) : null}
             <Choice
               label="¿Es obligatoria?"
               columns={2}
@@ -226,6 +399,8 @@ export function BookFieldsAdmin() {
                     BOOK_FIELD_TYPES.find((t) => t.value === f.type)?.label ?? f.type,
                     f.source && f.source !== 'user' ? 'Desde UPC' : null,
                     f.required ? 'Obligatoria' : null,
+                    f.min != null || f.max != null ? `Rango ${f.min ?? '…'}–${f.max ?? '…'}` : null,
+                    f.showIf.length > 0 ? `Condicional (${f.showIf.length})` : null,
                     f.active ? null : 'Desactivada',
                   ]
                     .filter(Boolean)

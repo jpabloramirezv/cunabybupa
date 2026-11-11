@@ -129,6 +129,7 @@ export async function buildDetails(rows: EpisodeRow[]): Promise<EpisodeDetail[]>
       status: computeStatus(core, hasAdmission),
       unit: r.unit === 'nursery' ? 'nursery' : 'uci',
       readmissionOf: r.readmissionOf,
+      custom: (r.custom ?? {}) as Record<string, string>,
       createdAt: r.createdAt.toISOString(),
       updatedAt: r.updatedAt.toISOString(),
       completedAt: iso(r.completedAt),

@@ -5,6 +5,7 @@ import { BOOK_FIELD_TYPES, BOOK_SOURCES } from '@/lib/book-fields'
 import { requireCtx } from '@/lib/ctx'
 import { db } from '@/lib/db'
 import { bookField } from '@/lib/db/schema'
+import { isCondition, MAX_CONDITIONS, OPS_WITHOUT_VALUE, type Condition } from '@/lib/form-engine'
 import { getBookFields } from '@/lib/server/book'
 
 const TYPES = BOOK_FIELD_TYPES.map((t) => t.value) as string[]
@@ -21,6 +22,28 @@ const parseOptions = (v: unknown) =>
     ? [...new Set(v.filter((x): x is string => typeof x === 'string').map((x) => x.trim()).filter(Boolean))].slice(0, 60)
     : []
 
+const parseHelp = (v: unknown) => (typeof v === 'string' ? v.trim().replace(/\s+/g, ' ').slice(0, 300) : '')
+
+const parseLimit = (v: unknown, what: string) => {
+  if (v === null || v === undefined || v === '') return null
+  const n = Number(typeof v === 'string' ? v.replace(',', '.') : v)
+  if (!Number.isFinite(n)) throw new HttpError(400, `${what} debe ser un número.`)
+  return n
+}
+
+const parseConditions = (v: unknown, ownKey: string | null, known: Set<string>): Condition[] => {
+  if (v === null || v === undefined) return []
+  if (!Array.isArray(v) || v.length > MAX_CONDITIONS) throw new HttpError(400, `Usa hasta ${MAX_CONDITIONS} condiciones.`)
+  return v.map((c) => {
+    if (!isCondition(c)) throw new HttpError(400, 'Una condición no es válida.')
+    if (c.key === ownKey) throw new HttpError(400, 'Una columna no puede depender de sí misma.')
+    if (!known.has(c.key)) throw new HttpError(400, 'Una condición usa una columna que no existe.')
+    const values = OPS_WITHOUT_VALUE.includes(c.op) ? [] : c.values.map((x) => x.trim()).filter(Boolean).slice(0, 20)
+    if (!OPS_WITHOUT_VALUE.includes(c.op) && values.length === 0) throw new HttpError(400, 'Falta el valor de una condición.')
+    return { key: c.key, op: c.op, values }
+  })
+}
+
 const slug = (label: string) =>
   label
     .normalize('NFD')
@@ -32,21 +55,26 @@ const slug = (label: string) =>
 
 export const GET = handle(async () => {
   await requireCtx('admin')
-  return Response.json(await getBookFields(true))
+  return Response.json(await getBookFields(true, 'all'))
 })
 
 export const POST = handle(async (req) => {
   const ctx = await requireCtx('admin')
   const b = await readJson<Record<string, unknown>>(req)
   const label = text(b.label, 'el nombre de la columna', 100)
-  const section = b.section === 'neonatal' ? 'neonatal' : b.section === 'materno' ? 'materno' : null
+  const scope = b.scope === 'ficha' ? 'ficha' : 'libro'
+  const section = scope === 'ficha' ? 'neonatal' : b.section === 'neonatal' ? 'neonatal' : b.section === 'materno' ? 'materno' : null
   if (!section) throw new HttpError(400, 'Elige si la columna es de Maternidad o Neonatología.')
   const type = typeof b.type === 'string' && TYPES.includes(b.type) ? b.type : 'text'
   const options = type === 'select' ? parseOptions(b.options) : []
   if (type === 'select' && options.length < 2) throw new HttpError(400, 'Agrega al menos dos opciones.')
-  const source = typeof b.source === 'string' && SOURCES.includes(b.source) ? b.source : null
+  const source = scope === 'libro' && typeof b.source === 'string' && SOURCES.includes(b.source) ? b.source : null
 
-  const existing = await getBookFields(true)
+  const existing = await getBookFields(true, 'all')
+  const showIf = parseConditions(b.showIf, null, new Set(existing.filter((f) => f.scope === scope).map((f) => f.key)))
+  const minValue = type === 'number' || type === 'decimal' ? parseLimit(b.min, 'El mínimo') : null
+  const maxValue = type === 'number' || type === 'decimal' ? parseLimit(b.max, 'El máximo') : null
+  if (minValue != null && maxValue != null && minValue > maxValue) throw new HttpError(400, 'El mínimo no puede superar al máximo.')
   let key = slug(label)
   const taken = new Set(existing.map((f) => f.key))
   for (let i = 2; taken.has(key); i++) key = `${slug(label)}_${i}`
@@ -61,8 +89,13 @@ export const POST = handle(async (req) => {
     position: (top ?? 0) + 10,
     required: b.required === true,
     source,
+    help: parseHelp(b.help),
+    minValue,
+    maxValue,
+    showIf,
+    scope,
   })
-  await audit(ctx, 'crear', 'administracion', null, `Columna del libro: ${label}`)
+  await audit(ctx, 'crear', 'administracion', null, `Columna ${scope === 'ficha' ? 'de la ficha' : 'del libro'}: ${label}`)
   return Response.json({ ok: true, key })
 })
 
@@ -76,7 +109,7 @@ export const PATCH = handle(async (req) => {
   if (!current) throw new HttpError(404, 'No encontramos la columna.')
 
   if (b.move === 'up' || b.move === 'down') {
-    const all = (await getBookFields(true)).filter((f) => f.section === current.section)
+    const all = (await getBookFields(true, 'all')).filter((f) => f.section === current.section && f.scope === current.scope)
     const i = all.findIndex((f) => f.id === id)
     const other = all[b.move === 'up' ? i - 1 : i + 1]
     if (!other) return Response.json({ ok: true })
@@ -109,6 +142,19 @@ export const PATCH = handle(async (req) => {
     set.source = typeof b.source === 'string' && SOURCES.includes(b.source) ? b.source : null
   }
   if (b.required !== undefined) set.required = b.required === true
+  if (b.help !== undefined) set.help = parseHelp(b.help)
+  if (b.min !== undefined || b.max !== undefined || set.type !== undefined) {
+    const numeric = nextType === 'number' || nextType === 'decimal'
+    const lo = numeric ? parseLimit(b.min !== undefined ? b.min : current.minValue, 'El mínimo') : null
+    const hi = numeric ? parseLimit(b.max !== undefined ? b.max : current.maxValue, 'El máximo') : null
+    if (lo != null && hi != null && lo > hi) throw new HttpError(400, 'El mínimo no puede superar al máximo.')
+    set.minValue = lo
+    set.maxValue = hi
+  }
+  if (b.showIf !== undefined) {
+    const known = new Set((await getBookFields(true, 'all')).filter((f) => f.scope === current.scope).map((f) => f.key))
+    set.showIf = parseConditions(b.showIf, current.key, known)
+  }
   if (b.active !== undefined) {
     if (typeof b.active !== 'boolean') throw new HttpError(400, 'Estado no válido.')
     set.active = b.active

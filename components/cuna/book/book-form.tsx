@@ -3,7 +3,7 @@
 import { useId, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, ArrowRight, Check, Rows3 } from 'lucide-react'
 import { BOOK_SECTION_LABEL, type BookSection } from '@/lib/book-fields'
-import { GROUP_HINTS, isFieldVisible } from '@/lib/book-flow'
+import { fieldVisible, GROUP_HINTS } from '@/lib/book-flow'
 import { bookLimit, rangeMessage } from '@/lib/clinical-limits'
 import { COMUNAS, COUNTRIES } from '@/lib/geo-data'
 import { useBookValues, useCatalogs } from '@/lib/hooks'
@@ -82,7 +82,8 @@ function BookInput({
   const { data: cat } = useCatalogs()
   const { data: known } = useBookValues(field.type === 'suggest' ? field.key : null)
   const fromUci = !value && linked ? linked : null
-  const hint = fromUci ? `Viene de UPC: ${fromUci}. Escribe para reemplazarlo.` : undefined
+  const hint =
+    [field.help, fromUci ? `Viene de UPC: ${fromUci}. Escribe para reemplazarlo.` : ''].filter(Boolean).join(' ') || undefined
 
   if (field.type === 'prevision') {
     const current = value || fromUci || ''
@@ -222,12 +223,19 @@ function BookInput({
     )
   }
 
-  const limit = bookLimit(field.key)
+  const numeric = field.type === 'number' || field.type === 'decimal'
+  const ownRange = numeric && (field.min != null || field.max != null)
+  const limit = ownRange ? null : bookLimit(field.key)
   const typed = value === '' ? null : Number(value.replace(',', '.'))
+  const finite = typed != null && Number.isFinite(typed)
   const rangeError =
-    limit && typed != null && Number.isFinite(typed) && (typed > limit.max || (touched && typed < limit.min))
-      ? rangeMessage(limit.min, limit.max, limit.unit)
-      : null
+    ownRange && finite
+      ? (field.max != null && typed > field.max) || (touched && field.min != null && typed < field.min)
+        ? `Debe estar entre ${field.min ?? '−∞'} y ${field.max ?? '∞'}.`
+        : null
+      : limit && finite && (typed > limit.max || (touched && typed < limit.min))
+        ? rangeMessage(limit.min, limit.max, limit.unit)
+        : null
 
   return (
     <div>
@@ -315,7 +323,7 @@ export function BookForm({
     const out: Group[] = []
     let hiddenCount = 0
     for (const f of fields.filter((x) => x.section === section)) {
-      if (!isFieldVisible(f.key, merged)) {
+      if (!fieldVisible(f, merged)) {
         hiddenCount++
         continue
       }
