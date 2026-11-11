@@ -80,6 +80,9 @@ export const GROUP_HINTS: Record<string, string> = {
 /** Fecha y hora vienen con valores por defecto, así que no cuentan como "avance". */
 const NOT_COUNTED = new Set(['fecha', 'hora'])
 
+/** Único criterio de conteo: lo usan la pestaña de cada unidad y el avance del formulario, para que siempre cuadren. */
+export const countsAsProgress = (key: string) => !NOT_COUNTED.has(key)
+
 export type SectionState = 'pendiente' | 'en_curso' | 'completo'
 
 export type SectionProgress = { filled: number; total: number; state: SectionState }
