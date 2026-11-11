@@ -15,9 +15,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       name={ctx.name}
       roleLabel={
         ctx.role === 'matrona' && !ctx.isAdmin
-          ? `${roleLabelFor(ctx.role, ctx.isAdmin)} · ${ctx.unit === 'maternidad' ? 'Maternidad' : 'Neonatología'}`
-          : roleLabelFor(ctx.role, ctx.isAdmin)
+          ? `${roleLabelFor(ctx.role, ctx.isAdmin, ctx.isLeader)} · ${ctx.unit === 'maternidad' ? 'Maternidad' : 'Neonatología'}`
+          : roleLabelFor(ctx.role, ctx.isAdmin, ctx.isLeader)
       }
+      canLog={ctx.canLog}
       canClinical={ctx.canClinical}
       canPanel={ctx.canPanel}
       canReports={ctx.canReports}

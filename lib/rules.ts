@@ -20,8 +20,8 @@ export const ROLE_LABEL: Record<Role, string> = {
  * Etiqueta visible del cargo. Una matrona con permisos de Jefatura sigue
  * mostrándose solo como "Matrona"; `isAdmin` cambia permisos, no el nombre.
  */
-export function roleLabelFor(role: Role, _isAdmin?: boolean): string {
-  return ROLE_LABEL[role]
+export function roleLabelFor(role: Role, _isAdmin?: boolean, isLeader?: boolean): string {
+  return role === 'matrona' && isLeader ? 'Matrona Líder' : ROLE_LABEL[role]
 }
 
 export type EpisodeStatus = 'incompleto' | 'completo' | 'cerrado'

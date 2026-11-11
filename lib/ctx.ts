@@ -45,6 +45,10 @@ export type Ctx = {
   canEditNeonatal: boolean
   /** Matrona de Maternidad: solo ve y completa el Libro de Partos y Abortos. */
   maternityOnly: boolean
+  /** Subperfil Matrona Líder (líder de turno). No cambia los permisos clínicos ni de jefatura. */
+  isLeader: boolean
+  /** Puede abrir la Bitácora Clínico-Administrativa. */
+  canLog: boolean
 }
 
 export type Unit = 'neonatologia' | 'maternidad'
@@ -114,6 +118,8 @@ export async function getCtx(): Promise<Ctx | null> {
     ...(maternityOnly ? { canWrite: false, canIdentity: false, canClinical: false } : {}),
     ...bookPermissionsFor(role, s.isAdmin, unit),
     maternityOnly,
+    isLeader: role === 'matrona' && s.isLeader,
+    canLog: role === 'matrona' && s.isLeader,
   }
 }
 

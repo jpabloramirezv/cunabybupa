@@ -12,7 +12,7 @@ import { apgar10Error, apgar5Error } from '@/lib/rules'
 export type Block = 'ingreso' | 'seguimiento' | 'alta'
 
 type Spec =
-  | { type: 'int' | 'fk' | 'ts' | 'bool' | 'text' | 'fkList' | 'dec' }
+  | { type: 'int' | 'fk' | 'ts' | 'bool' | 'text' | 'fkList' | 'dec' | 'custom' }
   | { type: 'enum'; values: string[] }
 
 const FIELD_SPECS: Record<string, Spec> = {
@@ -51,6 +51,7 @@ const FIELD_SPECS: Record<string, Spec> = {
   dxEgresoIds: { type: 'fkList' },
   destinoId: { type: 'fk' },
   feedingDischarge: { type: 'enum', values: FEEDING_OPTIONS.map((o) => o.value) },
+  custom: { type: 'custom' },
 }
 
 /** Cada lista guarda todos los valores; el campo individual es el principal (el primero). */
@@ -68,7 +69,7 @@ const BLOCK_FIELDS: Record<Block, string[]> = {
     'apgar10', 'birthLengthCm', 'birthHeadCm', 'docUrgencyLaw', 'docConsentAdmission',
     'docConsentMila', 'maternalHivResult', 'maternalHivAt',
   ],
-  seguimiento: ['hyperbili', 'phototherapyAt', 'gesNotified', 'gesNotifiedAt'],
+  seguimiento: ['hyperbili', 'phototherapyAt', 'gesNotified', 'gesNotifiedAt', 'custom'],
   alta: [
     'dischargeAt', 'dischargeWeightG', 'dxEgresoId', 'dxEgresoIds', 'destinoId', 'feedingDischarge',
     'medicoId', 'medicoIds',
@@ -99,6 +100,19 @@ export function parsePatch(block: Block, raw: unknown): Record<string, unknown> 
       if (ids.some((n) => !Number.isInteger(n) || n <= 0 || n > 1_000_000)) throw bad(key)
       out[key] = ids
       out[principal] = ids[0] ?? null
+      continue
+    }
+    if (spec.type === 'custom') {
+      if (v === null || v === '') {
+        out[key] = {}
+        continue
+      }
+      if (typeof v !== 'object' || Array.isArray(v)) throw bad(key)
+      const entries = Object.entries(v as Record<string, unknown>)
+      if (entries.length > 200) throw bad(key)
+      out[key] = Object.fromEntries(
+        entries.map(([k, val]) => [k.slice(0, 80), val === null || val === undefined ? '' : String(val)]),
+      )
       continue
     }
     if (v === null || v === '') {

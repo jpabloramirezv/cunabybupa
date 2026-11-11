@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { ChevronLeft, ShieldCheck } from 'lucide-react'
-import { useCatalogs, useEpisodeForm, useIdentityForm, useMe, useOutbox } from '@/lib/hooks'
+import { useCatalogs, useEpisodeForm, useFichaFields, useIdentityForm, useMe, useOutbox } from '@/lib/hooks'
 import { setEditReason } from '@/lib/edit-reason'
 import { identityMissing } from '@/lib/identity-gate'
 import { setNewEpisodeUnit, subscribeSaved } from '@/lib/outbox'
@@ -22,13 +22,16 @@ import { IngresoSection } from '@/components/cuna/sections/ingreso-section'
 import { ScreeningSection } from '@/components/cuna/sections/screening-section'
 import { IdentitySection } from '@/components/cuna/sections/identity-section'
 import { AltaSection } from '@/components/cuna/sections/alta-section'
+import { CustomSection } from '@/components/cuna/sections/custom-section'
 
-type TabKey = 'ingreso' | 'tamizajes' | 'identificacion' | 'alta' | 'historial'
+type TabKey = 'ingreso' | 'tamizajes' | 'adicional' | 'identificacion' | 'alta' | 'historial'
 
 export function EpisodeEditor({ id }: { id: string }) {
   const { data: me } = useMe()
   const { data: cat } = useCatalogs()
   const form = useEpisodeForm(id)
+  const { data: fichaData } = useFichaFields()
+  const fichaFields = useMemo(() => fichaData?.fields ?? [], [fichaData])
   const identity = useIdentityForm(id, !!me?.canIdentity)
   const outbox = useOutbox()
   const [tab, setTab] = useState<TabKey>('ingreso')
@@ -96,10 +99,11 @@ export function EpisodeEditor({ id }: { id: string }) {
     const t: { key: TabKey; label: string }[] = []
     if (me?.canIdentity) t.push({ key: 'identificacion', label: 'Identificación' })
     t.push({ key: 'ingreso', label: 'Ingreso' }, { key: 'tamizajes', label: 'Tamizajes y seguimiento' })
+    if (fichaFields.length > 0) t.push({ key: 'adicional', label: 'Datos adicionales' })
     t.push({ key: 'alta', label: 'Alta' })
     if (me?.canWrite || me?.canAdmin) t.push({ key: 'historial', label: 'Historial' })
     return t
-  }, [me?.canIdentity, me?.canWrite, me?.canAdmin])
+  }, [me?.canIdentity, me?.canWrite, me?.canAdmin, fichaFields.length])
 
   const flow = tabs.filter((t) => t.key !== 'historial')
   const flowIndex = flow.findIndex((t) => t.key === tab)
@@ -277,6 +281,9 @@ export function EpisodeEditor({ id }: { id: string }) {
           ) : null}
           {tab === 'tamizajes' && !gated ? (
             <ScreeningSection form={form} readOnly={readOnly} exists={!!detail} setIngreso={setIngreso} />
+          ) : null}
+          {tab === 'adicional' && !gated ? (
+            <CustomSection form={form} fields={fichaFields} readOnly={readOnly} />
           ) : null}
           {tab === 'identificacion' ? (
             <IdentitySection

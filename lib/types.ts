@@ -39,6 +39,8 @@ export type EpisodeDetail = EpisodeCore & {
   blocks: BlockInfo[]
   screenings: ScreeningRow[]
   pendingKinds: string[]
+  /** Respuestas a las columnas adicionales que Jefatura agrega a la ficha. */
+  custom: Record<string, string>
   overdueKinds: string[]
   /** Datos que faltan dentro de tamizajes e inmunizaciones y el VIH materno. */
   screeningIssues: string[]
@@ -102,6 +104,8 @@ export type MePayload = {
   canEditMaternity: boolean
   canEditNeonatal: boolean
   maternityOnly: boolean
+  isLeader: boolean
+  canLog: boolean
 }
 
 export type IdentityPayload = {

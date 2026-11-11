@@ -14,6 +14,7 @@ type StaffRow = {
   name: string
   role: string
   isAdmin: boolean
+  isLeader?: boolean
   unit?: 'neonatologia' | 'maternidad'
   specialty?: string | null
   active: boolean
@@ -31,6 +32,13 @@ const ADMIN_OPTIONS = [
   { value: 'no', label: 'No' },
   { value: 'si', label: 'Sí, con permisos de Jefatura' },
 ]
+
+const LEADER_OPTIONS = [
+  { value: 'no', label: 'No' },
+  { value: 'si', label: 'Sí, es Matrona Líder' },
+]
+const LEADER_HINT =
+  'Subperfil independiente de los permisos: da acceso a la Bitácora Clínico-Administrativa del turno y no cambia lo que la persona puede hacer en el resto de la app.'
 
 const ROLES = [
   { value: 'matrona', label: 'Matrona' },
@@ -80,6 +88,8 @@ export function StaffAdmin() {
   const [pin, setPin] = useState('')
   const [adminNew, setAdminNew] = useState<string | null>('no')
   const [editAdmin, setEditAdmin] = useState<string | null>('no')
+  const [leaderNew, setLeaderNew] = useState<string | null>('no')
+  const [editLeader, setEditLeader] = useState<string | null>('no')
   const [unitNew, setUnitNew] = useState<string | null>('neonatologia')
   const [editUnit, setEditUnit] = useState<string | null>('neonatologia')
   const [specialtyNew, setSpecialtyNew] = useState('')
@@ -203,7 +213,8 @@ export function StaffAdmin() {
                     {roleLabel(s.role)}
                     {isDoctorRole(s.role) ? ` · ${s.specialty || 'Sin especialidad'}` : ''}
                     {s.role === 'matrona' ? ` · ${unitLabel(s.unit)}` : ''}
-                    {s.role === 'matrona' && s.isAdmin ? ' · Permisos de Jefatura' : ''} · {s.active ? 'Activo' : 'Inactivo'}
+                    {s.role === 'matrona' && s.isAdmin ? ' · Permisos de Jefatura' : ''}
+                    {s.role === 'matrona' && s.isLeader ? ' · Matrona Líder' : ''} · {s.active ? 'Activo' : 'Inactivo'}
                     {s.hasPin === false ? ' · Sin PIN (inscrito desde el Libro de Partos)' : ''}
                     {s.lockedUntil && new Date(s.lockedUntil) > new Date() ? ` · Bloqueado hasta ${fmtDateTime(s.lockedUntil)}` : ''}
                   </p>
@@ -221,6 +232,7 @@ export function StaffAdmin() {
                       setEditName(s.name)
                       setEditRole(s.role)
                       setEditAdmin(s.isAdmin ? 'si' : 'no')
+                      setEditLeader(s.isLeader ? 'si' : 'no')
                       setEditUnit(s.unit ?? 'neonatologia')
                       setEditSpecialty(s.specialty ?? '')
                       setResetId(null)
@@ -275,6 +287,16 @@ export function StaffAdmin() {
                       hint="Sigue figurando solo como Matrona en sus registros, con los mismos permisos que una Jefatura."
                     />
                   ) : null}
+                  {editRole === 'matrona' ? (
+                    <Choice
+                      label="¿Es Matrona Líder (líder de turno)?"
+                      columns={2}
+                      options={LEADER_OPTIONS}
+                      value={editLeader}
+                      onChange={setEditLeader}
+                      hint={LEADER_HINT}
+                    />
+                  ) : null}
                   <p className="text-sm text-muted-foreground">
                     El cambio se aplica a todos los dispositivos. Lo ya firmado en registros anteriores conserva el nombre con que se guardó.
                   </p>
@@ -287,7 +309,9 @@ export function StaffAdmin() {
                           editRole === s.role &&
                           (!isDoctorRole(editRole) || editSpecialty.trim() === (s.specialty ?? '')) &&
                           (editRole !== 'matrona' ||
-                            ((editAdmin === 'si') === s.isAdmin && editUnit === (s.unit ?? 'neonatologia'))))
+                            ((editAdmin === 'si') === s.isAdmin &&
+                              (editLeader === 'si') === !!s.isLeader &&
+                              editUnit === (s.unit ?? 'neonatologia'))))
                       }
                       onClick={async () => {
                         const body: Record<string, unknown> = { id: s.id }
@@ -295,6 +319,7 @@ export function StaffAdmin() {
                         if (editRole !== s.role) body.role = editRole
                         if (isDoctorRole(editRole) && editSpecialty.trim() !== (s.specialty ?? '')) body.specialty = editSpecialty.trim() || null
                         if (editRole === 'matrona' && (editAdmin === 'si') !== s.isAdmin) body.isAdmin = editAdmin === 'si'
+                        if (editRole === 'matrona' && (editLeader === 'si') !== !!s.isLeader) body.isLeader = editLeader === 'si'
                         if (editRole === 'matrona' && editUnit && editUnit !== (s.unit ?? 'neonatologia')) body.unit = editUnit
                         const save = (extra: Record<string, unknown> = {}) =>
                           run(() => send('/api/admin/staff', 'PATCH', { ...body, ...extra }), 'Datos de la persona actualizados.', async () => {
@@ -366,6 +391,16 @@ export function StaffAdmin() {
             hint="Sigue figurando solo como Matrona, con los mismos permisos que una Jefatura."
           />
         ) : null}
+        {role === 'matrona' ? (
+          <Choice
+            label="¿Es Matrona Líder (líder de turno)?"
+            columns={2}
+            options={LEADER_OPTIONS}
+            value={leaderNew}
+            onChange={setLeaderNew}
+            hint={LEADER_HINT}
+          />
+        ) : null}
         <TextField
           label="PIN inicial (4 o 6 dígitos)"
           required
@@ -385,11 +420,13 @@ export function StaffAdmin() {
               pin,
               specialty: isDoctorRole(role) ? specialtyNew.trim() || null : null,
               isAdmin: role === 'matrona' && adminNew === 'si',
+              isLeader: role === 'matrona' && leaderNew === 'si',
               unit: role === 'matrona' ? unitNew : 'neonatologia',
             }
             const reset = () => {
               setName('')
               setAdminNew('no')
+              setLeaderNew('no')
               setSpecialtyNew('')
               setPin('')
             }

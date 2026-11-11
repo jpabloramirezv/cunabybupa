@@ -12,6 +12,7 @@ import { MAX_REASON_LENGTH, MIN_REASON_LENGTH } from '@/lib/revisions'
 import { diffEpisode, recordChanges } from '@/lib/server/revisions'
 import { buildDetails, rowToCore } from '@/lib/server/episodes'
 import { isBlock, parsePatch } from '@/lib/server/fields'
+import { applyFichaCustom } from '@/lib/server/book'
 import { assertDoctorIds } from '@/lib/server/doctors'
 import { shiftOf } from '@/lib/time'
 
@@ -51,10 +52,17 @@ export const PATCH = handle<Params>(async (req, { params }) => {
   } else if (row.status === 'cerrado' && reason.length < MIN_REASON_LENGTH) {
     throw new HttpError(422, 'Indica el motivo de la corrección para modificar un registro cerrado.')
   }
-  const changes = await diffEpisode(block, row as unknown as Record<string, unknown>, values)
+  const { custom: customInput, ...coreValues } = values
+  const changes = await diffEpisode(block, row as unknown as Record<string, unknown>, coreValues)
+  let customNext: Record<string, string> | null = null
+  if (customInput !== undefined) {
+    const applied = await applyFichaCustom(customInput, (row.custom ?? {}) as Record<string, string>)
+    customNext = applied.next
+    changes.push(...applied.changes.map((c) => ({ ...c, block })))
+  }
 
   const merged = { ...rowToCore(row), ...Object.fromEntries(
-    Object.entries(values).map(([k, v]) => [k, v instanceof Date ? v.toISOString() : v]),
+    Object.entries(coreValues).map(([k, v]) => [k, v instanceof Date ? v.toISOString() : v]),
   ) }
   const [ident] = await db
     .select({ a: episodeIdentity.admissionNumber })
@@ -68,7 +76,8 @@ export const PATCH = handle<Params>(async (req, { params }) => {
   await db
     .update(episode)
     .set({
-      ...values,
+      ...coreValues,
+      ...(customNext ? { custom: customNext } : {}),
       status,
       updatedAt: now,
       completedAt: ingresoComplete ? (row.completedAt ?? now) : null,
@@ -98,7 +107,7 @@ export const PATCH = handle<Params>(async (req, { params }) => {
     ])
   }
   await recordChanges(ctx, id, changes, reason)
-  if (block === 'ingreso' && changes.length > 0) await pushEpisodeToBook(id, values)
+  if (block === 'ingreso' && changes.length > 0) await pushEpisodeToBook(id, coreValues)
 
   const [fresh] = await db.select().from(episode).where(eq(episode.id, id)).limit(1)
   const [detail] = await buildDetails([fresh])
