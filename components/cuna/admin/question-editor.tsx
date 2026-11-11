@@ -113,6 +113,12 @@ export function QuestionEditor({
   onCancel,
   onDuplicate,
   onToggleActive,
+  onDelete,
+  isOriginal,
+  blockedBy = [],
+  confirmingDelete = false,
+  onAskDelete,
+  onCancelDelete,
 }: {
   draft: Draft
   onChange: (d: Draft) => void
@@ -124,6 +130,14 @@ export function QuestionEditor({
   onCancel: () => void
   onDuplicate?: () => void
   onToggleActive?: () => void
+  onDelete?: () => void
+  /** Pregunta que trae el libro: otras partes del sistema la usan, así que solo se puede desactivar. */
+  isOriginal?: boolean
+  /** Nombres de las preguntas que dependen de esta; mientras existan, no se puede eliminar. */
+  blockedBy?: string[]
+  confirmingDelete?: boolean
+  onAskDelete?: () => void
+  onCancelDelete?: () => void
 }) {
   const set = (p: Partial<Draft>) => onChange({ ...draft, ...p })
   const setOption = (i: number, v: string) => set({ options: draft.options.map((o, j) => (j === i ? v : o)) })
@@ -349,24 +363,73 @@ export function QuestionEditor({
         ) : null}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
-        <PrimaryButton disabled={busy || !draft.label.trim() || (draft.type === 'select' && draft.options.every((o) => !o.trim()))} onClick={onSave}>
-          {draft.id ? 'Guardar cambios' : 'Agregar pregunta'}
-        </PrimaryButton>
-        <PrimaryButton variant="ghost" onClick={onCancel}>
-          {dirty ? 'Descartar' : 'Cerrar'}
-        </PrimaryButton>
-        {onDuplicate ? (
-          <PrimaryButton variant="ghost" className="px-4" onClick={onDuplicate}>
-            Duplicar
-          </PrimaryButton>
-        ) : null}
-        {onToggleActive ? (
-          <PrimaryButton variant="ghost" className="px-4" disabled={busy} onClick={onToggleActive}>
-            {draft.active ? 'Desactivar' : 'Activar'}
-          </PrimaryButton>
-        ) : null}
-        {dirty ? <span className="text-sm font-semibold text-warning-foreground">Cambios sin guardar</span> : null}
+      <div className="sticky bottom-0 z-10 -mx-4 -mb-4 flex flex-col gap-2 border-t border-border bg-card px-4 py-3 shadow-sm">
+        {confirmingDelete && onDelete ? (
+          <>
+            <p role="alert" className="text-sm text-foreground">
+              <span className="font-semibold">¿Eliminar «{draft.label.trim() || 'esta pregunta'}»?</span> Dejará de verse en el
+              formulario y en la tabla. Las respuestas ya guardadas se conservan en los registros, pero no se mostrarán.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <PrimaryButton
+                className="h-12 bg-destructive px-5 text-destructive-foreground hover:bg-destructive/90"
+                disabled={busy}
+                onClick={onDelete}
+              >
+                Sí, eliminar
+              </PrimaryButton>
+              <PrimaryButton variant="ghost" className="h-12 px-5" onClick={onCancelDelete}>
+                No, conservar
+              </PrimaryButton>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              <PrimaryButton
+                className="h-12 px-5"
+                disabled={busy || !draft.label.trim() || (draft.type === 'select' && draft.options.every((o) => !o.trim()))}
+                onClick={onSave}
+              >
+                {draft.id ? 'Guardar cambios' : 'Agregar pregunta'}
+              </PrimaryButton>
+              <PrimaryButton variant="ghost" className="h-12 px-4" onClick={onCancel}>
+                {dirty ? 'Descartar' : 'Cerrar'}
+              </PrimaryButton>
+              {onDuplicate ? (
+                <PrimaryButton variant="ghost" className="h-12 px-4" onClick={onDuplicate}>
+                  Duplicar
+                </PrimaryButton>
+              ) : null}
+              {onToggleActive ? (
+                <PrimaryButton variant="ghost" className="h-12 px-4" disabled={busy} onClick={onToggleActive}>
+                  {draft.active ? 'Desactivar' : 'Activar'}
+                </PrimaryButton>
+              ) : null}
+              {onAskDelete && !isOriginal ? (
+                <PrimaryButton
+                  variant="outline"
+                  className="h-12 border-destructive px-4 text-destructive hover:bg-destructive/10"
+                  disabled={busy || blockedBy.length > 0}
+                  onClick={onAskDelete}
+                >
+                  Eliminar
+                </PrimaryButton>
+              ) : null}
+              {dirty ? <span className="text-sm font-semibold text-warning-foreground">Cambios sin guardar</span> : null}
+            </div>
+            {isOriginal ? (
+              <p className="text-sm text-muted-foreground">
+                Es una pregunta original del libro y otras partes del sistema la usan: se puede desactivar, pero no eliminar.
+              </p>
+            ) : blockedBy.length > 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No se puede eliminar mientras {blockedBy.map((n) => `«${n}»`).join(', ')} dependa de esta pregunta. Quita esa
+                condición primero.
+              </p>
+            ) : null}
+          </>
+        )}
       </div>
     </div>
   )

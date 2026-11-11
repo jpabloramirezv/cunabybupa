@@ -3,7 +3,7 @@
 import { useId, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, ArrowRight, Check, Rows3 } from 'lucide-react'
 import { BOOK_SECTION_LABEL, type BookSection } from '@/lib/book-fields'
-import { fieldVisible, GROUP_HINTS } from '@/lib/book-flow'
+import { countsAsProgress, fieldVisible, GROUP_HINTS } from '@/lib/book-flow'
 import { bookLimit, rangeMessage } from '@/lib/clinical-limits'
 import { COMUNAS, COUNTRIES } from '@/lib/geo-data'
 import { useBookValues, useCatalogs } from '@/lib/hooks'
@@ -290,7 +290,8 @@ function BookInput({
   )
 }
 
-type Group = { name: string; items: BookFieldRow[]; filled: number }
+/** `total` y `filled` cuentan igual que la pestaña de cada unidad: fecha y hora traen valor por defecto y no suman. */
+type Group = { name: string; items: BookFieldRow[]; filled: number; total: number }
 
 /**
  * Formulario por pasos: una tarjeta de grupo a la vez, con avance visible y columnas que aparecen
@@ -330,11 +331,14 @@ export function BookForm({
       const name = f.group || 'Otros datos'
       let g = out.find((x) => x.name === name)
       if (!g) {
-        g = { name, items: [], filled: 0 }
+        g = { name, items: [], filled: 0, total: 0 }
         out.push(g)
       }
       g.items.push(f)
-      if (merged[f.key]) g.filled++
+      if (countsAsProgress(f.key)) {
+        g.total++
+        if (merged[f.key]) g.filled++
+      }
     }
     return { groups: out, hidden: hiddenCount }
   }, [fields, section, merged])
@@ -344,14 +348,14 @@ export function BookForm({
   }
 
   if (initialName.current === null) {
-    initialName.current = (groups.find((g) => g.filled < g.items.length) ?? groups[0]).name
+    initialName.current = (groups.find((g) => g.filled < g.total) ?? groups[0]).name
   }
   const index = Math.max(
     0,
     groups.findIndex((g) => g.name === (activeName ?? initialName.current)),
   )
   const current = groups[index]
-  const total = groups.reduce((a, g) => a + g.items.length, 0)
+  const total = groups.reduce((a, g) => a + g.total, 0)
   const filled = groups.reduce((a, g) => a + g.filled, 0)
   const percent = total ? Math.round((filled / total) * 100) : 0
 
@@ -370,7 +374,7 @@ export function BookForm({
           {GROUP_HINTS[g.name] ? <p className="text-sm text-muted-foreground text-pretty">{GROUP_HINTS[g.name]}</p> : null}
         </div>
         <span className="text-sm font-semibold tabular-nums text-muted-foreground">
-          {g.filled} de {g.items.length}
+          {g.filled} de {g.total}
         </span>
       </div>
       <div className="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-3">
@@ -420,7 +424,7 @@ export function BookForm({
       {!showAll ? (
         <ol className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" aria-label="Pasos">
           {groups.map((g, i) => {
-            const done = g.filled >= g.items.length
+            const done = g.total > 0 && g.filled >= g.total
             const on = i === index
             return (
               <li key={g.name} className="shrink-0">
@@ -445,7 +449,7 @@ export function BookForm({
                   <span className="flex min-w-0 flex-col">
                     <span className="truncate text-sm font-semibold text-foreground">{g.name}</span>
                     <span className="text-xs tabular-nums text-muted-foreground">
-                      {g.filled}/{g.items.length}
+                      {g.filled}/{g.total}
                     </span>
                   </span>
                 </button>

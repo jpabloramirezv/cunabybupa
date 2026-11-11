@@ -1,8 +1,9 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
-import { ArrowDown, ArrowUp, EyeOff, Plus } from 'lucide-react'
+import { ArrowDown, ArrowUp, EyeOff, Pencil, Plus, Trash2 } from 'lucide-react'
+import { isProtectedBookKey } from '@/lib/book-protected'
 import { ApiError, fetcher, send } from '@/lib/fetcher'
 import { BOOK_FIELD_TYPES, BOOK_SECTION_LABEL, type BookSection } from '@/lib/book-fields'
 import { SCOPE_LABEL, type FieldScope } from '@/lib/form-engine'
@@ -66,6 +67,12 @@ export function FormBuilder() {
   const [baseline, setBaseline] = useState('')
   const [message, setMessage] = useState<{ tone: 'danger' | 'success'; text: string } | null>(null)
   const [busy, setBusy] = useState(false)
+  const [askDelete, setAskDelete] = useState(false)
+  const noticeRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (message) noticeRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [message])
 
   const all = useMemo(() => data ?? [], [data])
   const inScope = useMemo(() => all.filter((f) => f.scope === scope), [all, scope])
@@ -91,17 +98,38 @@ export function FormBuilder() {
     return !dirty || window.confirm('Hay cambios sin guardar en la pregunta que editas. ¿Descartarlos?')
   }
 
-  function openDraft(d: Draft | null) {
-    setMessage(null)
+  function openDraft(d: Draft | null, keepMessage = false) {
+    if (!keepMessage) setMessage(null)
+    setAskDelete(false)
     setDraft(d)
     setBaseline(d ? JSON.stringify(d) : '')
     if (d && d.scope === 'libro') setSection(d.section)
   }
 
+  /** Abre la pregunta para editarla; si ya estaba abierta, la cierra. */
   function openField(f: BookFieldRow) {
-    if (draft?.id === f.id) return
     if (!confirmDiscard()) return
-    openDraft(toDraft(f))
+    openDraft(draft?.id === f.id ? null : toDraft(f))
+  }
+
+  function askToDelete(f: BookFieldRow) {
+    if (draft?.id !== f.id) {
+      if (!confirmDiscard()) return
+      openDraft(toDraft(f))
+    }
+    setAskDelete(true)
+  }
+
+  const dependentsOf = (key: string) =>
+    inScope.filter((f) => f.key !== key && f.showIf.some((c) => c.key === key)).map((f) => f.label)
+
+  async function remove(f: BookFieldRow) {
+    const ok = await run(
+      () => send('/api/admin/book-fields', 'DELETE', { id: f.id }),
+      `«${f.label}» eliminada. Ya no aparece en el formulario ni en la tabla.`,
+    )
+    if (ok) openDraft(null, true)
+    else setAskDelete(false)
   }
 
   async function run(fn: () => Promise<unknown>, ok?: string) {
@@ -131,7 +159,7 @@ export function FormBuilder() {
     )
     if (!ok) return
     if (draft.id) setBaseline(JSON.stringify(draft))
-    else openDraft(null)
+    else openDraft(null, true)
   }
 
   async function toggleActive(f: BookFieldRow) {
@@ -186,7 +214,11 @@ export function FormBuilder() {
         <ModeToggle mode={mode} onChange={setMode} />
       </div>
 
-      {message ? <Notice tone={message.tone} title={message.text} /> : null}
+      {message ? (
+        <div ref={noticeRef}>
+          <Notice tone={message.tone} title={message.text} />
+        </div>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <section aria-label="Preguntas" className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 sm:p-6">
@@ -227,7 +259,7 @@ export function FormBuilder() {
                   ) : null}
                   <div
                     className={cn(
-                      'overflow-hidden rounded-lg border bg-card',
+                      'overflow-clip rounded-lg border bg-card',
                       open ? 'border-primary ring-2 ring-primary/20' : 'border-border',
                       !f.active && 'opacity-60',
                     )}
@@ -255,6 +287,30 @@ export function FormBuilder() {
                             .join(' · ')}
                         </span>
                       </button>
+                      <PrimaryButton
+                        variant="ghost"
+                        className="h-10 gap-1.5 px-2.5 text-sm"
+                        aria-label={`Editar ${f.label}`}
+                        aria-pressed={open}
+                        title="Editar"
+                        onClick={() => openField(f)}
+                      >
+                        <Pencil className="size-4" aria-hidden />
+                        <span className="hidden sm:inline">Editar</span>
+                      </PrimaryButton>
+                      {isProtectedBookKey(f.key) ? null : (
+                        <PrimaryButton
+                          variant="ghost"
+                          className="h-10 gap-1.5 px-2.5 text-sm text-destructive hover:bg-destructive/10"
+                          aria-label={`Eliminar ${f.label}`}
+                          title="Eliminar"
+                          disabled={busy}
+                          onClick={() => askToDelete(f)}
+                        >
+                          <Trash2 className="size-4" aria-hidden />
+                          <span className="hidden sm:inline">Eliminar</span>
+                        </PrimaryButton>
+                      )}
                       <PrimaryButton
                         variant="ghost"
                         className="h-10 w-10 px-0"
@@ -287,6 +343,12 @@ export function FormBuilder() {
                         }}
                         onDuplicate={duplicate}
                         onToggleActive={() => toggleActive(f)}
+                        isOriginal={isProtectedBookKey(f.key)}
+                        blockedBy={dependentsOf(f.key)}
+                        confirmingDelete={askDelete}
+                        onAskDelete={() => setAskDelete(true)}
+                        onCancelDelete={() => setAskDelete(false)}
+                        onDelete={() => remove(f)}
                       />
                     ) : null}
                   </div>
@@ -294,7 +356,7 @@ export function FormBuilder() {
               )
             })}
             {draft && draft.id == null ? (
-              <li className="overflow-hidden rounded-lg border border-primary bg-card ring-2 ring-primary/20">
+              <li className="overflow-clip rounded-lg border border-primary bg-card ring-2 ring-primary/20">
                 <p className="px-4 py-3 text-base font-semibold text-foreground">{draft.label || 'Nueva pregunta'}</p>
                 <QuestionEditor
                   draft={draft}
@@ -311,18 +373,25 @@ export function FormBuilder() {
             ) : null}
           </ul>
 
-          <PrimaryButton
-            variant="outline"
-            className="self-start"
-            onClick={() => {
-              if (draft?.id == null && draft) return
-              if (!confirmDiscard()) return
-              openDraft(blankDraft(section, scope))
-            }}
+          {/* Se fija al borde inferior solo sin editor abierto: con uno abierto, la barra del editor es la que queda fija y nunca se apilan. */}
+          <div
+            className={cn(
+              'flex',
+              !draft && 'sticky bottom-0 z-10 -mx-4 -mb-4 border-t border-border bg-card px-4 py-3 sm:-mx-6 sm:-mb-6 sm:px-6',
+            )}
           >
-            <Plus className="size-5" aria-hidden />
-            Agregar pregunta
-          </PrimaryButton>
+            <PrimaryButton
+              variant="outline"
+              onClick={() => {
+                if (draft?.id == null && draft) return
+                if (!confirmDiscard()) return
+                openDraft(blankDraft(section, scope))
+              }}
+            >
+              <Plus className="size-5" aria-hidden />
+              Agregar pregunta
+            </PrimaryButton>
+          </div>
         </section>
 
         <section

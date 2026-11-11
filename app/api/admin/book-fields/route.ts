@@ -2,6 +2,7 @@ import { eq, max } from 'drizzle-orm'
 import { handle, HttpError, readJson } from '@/lib/api'
 import { audit } from '@/lib/audit'
 import { BOOK_FIELD_TYPES, BOOK_SOURCES } from '@/lib/book-fields'
+import { isProtectedBookKey } from '@/lib/book-protected'
 import { requireCtx } from '@/lib/ctx'
 import { db } from '@/lib/db'
 import { bookField } from '@/lib/db/schema'
@@ -75,9 +76,11 @@ export const POST = handle(async (req) => {
   const minValue = type === 'number' || type === 'decimal' ? parseLimit(b.min, 'El mínimo') : null
   const maxValue = type === 'number' || type === 'decimal' ? parseLimit(b.max, 'El máximo') : null
   if (minValue != null && maxValue != null && minValue > maxValue) throw new HttpError(400, 'El mínimo no puede superar al máximo.')
-  let key = slug(label)
+  // Sufijo propio: si se elimina una pregunta y luego se crea otra igual, no reaparecen respuestas antiguas.
   const taken = new Set(existing.map((f) => f.key))
-  for (let i = 2; taken.has(key); i++) key = `${slug(label)}_${i}`
+  let key = ''
+  do key = `${slug(label)}_${Math.random().toString(36).slice(2, 6)}`
+  while (taken.has(key))
   const [{ top }] = await db.select({ top: max(bookField.position) }).from(bookField)
   await db.insert(bookField).values({
     key,
@@ -99,7 +102,33 @@ export const POST = handle(async (req) => {
   return Response.json({ ok: true, key })
 })
 
-/** Edita, reordena, activa o desactiva. Nunca borra ni cambia la clave: los datos históricos se conservan. */
+/**
+ * Elimina una pregunta creada desde Administración. Las respuestas ya guardadas quedan en los registros
+ * (no se borran datos clínicos), pero dejan de mostrarse. Las preguntas originales solo se desactivan.
+ */
+export const DELETE = handle(async (req) => {
+  const ctx = await requireCtx('admin')
+  const b = await readJson<Record<string, unknown>>(req)
+  const id = Number(b.id)
+  if (!Number.isInteger(id)) throw new HttpError(400, 'Columna no válida.')
+  const [current] = await db.select().from(bookField).where(eq(bookField.id, id)).limit(1)
+  if (!current) throw new HttpError(404, 'No encontramos la columna.')
+  if (isProtectedBookKey(current.key)) {
+    throw new HttpError(409, 'Esta pregunta viene con el libro y otras partes del sistema la usan. Desactívala para ocultarla.')
+  }
+  const dependents = (await getBookFields(true, 'all')).filter(
+    (f) => f.scope === current.scope && f.id !== id && f.showIf.some((c) => c.key === current.key),
+  )
+  if (dependents.length > 0) {
+    const names = dependents.slice(0, 3).map((f) => `«${f.label}»`).join(', ')
+    throw new HttpError(409, `No se puede eliminar: ${names} se muestra según esta pregunta. Quita esa condición primero.`)
+  }
+  await db.delete(bookField).where(eq(bookField.id, id))
+  await audit(ctx, 'eliminar', 'administracion', null, `Columna ${current.scope === 'ficha' ? 'de la ficha' : 'del libro'}: ${current.label}`)
+  return Response.json({ ok: true })
+})
+
+/** Edita, reordena, activa o desactiva. Nunca cambia la clave: los datos históricos se conservan. */
 export const PATCH = handle(async (req) => {
   const ctx = await requireCtx('admin')
   const b = await readJson<Record<string, unknown>>(req)
