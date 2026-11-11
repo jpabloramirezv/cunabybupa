@@ -13,7 +13,8 @@ import type { CatalogsPayload, EpisodeDetail } from '@/lib/types'
 import { Highlight } from '@/components/cuna/highlight'
 import { ChipToggle } from '@/components/cuna/search-field'
 import { uiStatus } from '@/lib/rules'
-import { useFichaFields, type FichaField } from '@/lib/hooks'
+import { useFichaFields, useIngresoConfig, type FichaField } from '@/lib/hooks'
+import { ingresoColumnHidden, ingresoColumnLabel } from '@/lib/ingreso-fields'
 import { StatusBadge } from '@/components/cuna/ui'
 import { ColumnResizer, ResetWidthsButton, SizedCell, useColumnWidths, widthStyle } from '@/components/cuna/column-resize'
 
@@ -531,7 +532,18 @@ export function Ledger({
   const [visible, setVisible] = useState(PAGE)
   const { data: ficha } = useFichaFields()
   const extras = useMemo(() => (ficha?.fields ?? []).map(extraColumn), [ficha])
-  const allColumns = useMemo(() => [...COLUMNS.slice(0, -1), ...extras, COLUMNS[COLUMNS.length - 1]], [extras])
+  const { data: ingresoCfg } = useIngresoConfig()
+  const baseColumns = useMemo(() => {
+    const overrides = ingresoCfg?.overrides
+    return COLUMNS.filter((c) => !ingresoColumnHidden(c.id, overrides)).map((c) => {
+      const label = ingresoColumnLabel(c.id, c.label, overrides)
+      return label === c.label ? c : { ...c, label }
+    })
+  }, [ingresoCfg])
+  const allColumns = useMemo(
+    () => [...baseColumns.slice(0, -1), ...extras, baseColumns[baseColumns.length - 1]],
+    [baseColumns, extras],
+  )
   const colW = useColumnWidths('pizarra')
 
   const ctx = useMemo<Ctx>(() => {

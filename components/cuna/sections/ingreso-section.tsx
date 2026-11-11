@@ -6,7 +6,8 @@ import { ADMISSION_DOCUMENTS, CARE_LEVEL_OPTIONS, DELIVERY_OPTIONS, SEX_OPTIONS 
 import { LIMITS } from '@/lib/clinical-limits'
 import { apgar10Error, apgar5Error, episodeWarnings } from '@/lib/rules'
 import { cn } from '@/lib/utils'
-import type { EpisodeForm } from '@/lib/hooks'
+import { useIngresoConfig, type EpisodeForm } from '@/lib/hooks'
+import { ingresoView } from '@/lib/ingreso-fields'
 import type { CatalogsPayload } from '@/lib/types'
 import {
   Choice,
@@ -53,6 +54,11 @@ export function IngresoSection({
   fromBook?: boolean
 }) {
   const g = form.get
+  const { data: cfg } = useIngresoConfig()
+  const q = (key: string) => ingresoView(key, cfg?.overrides)
+  const show = (key: string) => !q(key).hidden
+  const p = (key: string, fallbackHint?: string) => ({ label: q(key).label, hint: q(key).help || fallbackHint })
+  const docs = ADMISSION_DOCUMENTS.filter((d) => show(d.key))
   const [editApgar, setEditApgar] = useState(false)
   const apgarFromBook = Boolean(fromBook) && g<number>('apgar1') != null && g<number>('apgar5') != null
   const showAdmission = !nursery || nursery.hospitalized === 'SI'
@@ -80,13 +86,13 @@ export function IngresoSection({
     <div className="flex flex-col gap-6">
       <Section title="Datos del nacimiento" hint="Lo obligatorio está marcado. Puedes guardar con datos incompletos y volver después.">
         <DateTimeField
-          label="Fecha y hora de nacimiento"
+          {...p('birthAt')}
           disabled={readOnly}
           value={g<string>('birthAt')}
           onChange={(v) => setIngreso({ birthAt: v })}
         />
         <NumField
-          label="Edad gestacional"
+          {...p('gaWeeks')}
           unit="semanas"
           min={LIMITS.gaWeeks.min}
           max={LIMITS.gaWeeks.max}
@@ -100,7 +106,7 @@ export function IngresoSection({
           <legend className="mb-3 text-base font-semibold text-navy">Antropometría</legend>
           <div className="grid gap-6 sm:grid-cols-3">
             <NumField
-              label="Peso"
+              {...p('birthWeightG')}
               unit="g"
               min={LIMITS.birthWeightG.min}
               max={LIMITS.birthWeightG.max}
@@ -109,23 +115,27 @@ export function IngresoSection({
               value={g<number>('birthWeightG')}
               onChange={(v) => setIngreso({ birthWeightG: v })}
             />
-            <DecField
-              label="Talla"
-              unit="cm"
-              min={LIMITS.birthLengthCm.min}
-              max={LIMITS.birthLengthCm.max}
-              disabled={readOnly}
-              value={g<number>('birthLengthCm')}
-              onChange={(v) => setIngreso({ birthLengthCm: v })}
-            />
-            <DecField
-              label="Circunferencia de cráneo"
-              unit="cm"
-              max={60}
-              disabled={readOnly}
-              value={g<number>('birthHeadCm')}
-              onChange={(v) => setIngreso({ birthHeadCm: v })}
-            />
+            {show('birthLengthCm') ? (
+              <DecField
+                {...p('birthLengthCm')}
+                unit="cm"
+                min={LIMITS.birthLengthCm.min}
+                max={LIMITS.birthLengthCm.max}
+                disabled={readOnly}
+                value={g<number>('birthLengthCm')}
+                onChange={(v) => setIngreso({ birthLengthCm: v })}
+              />
+            ) : null}
+            {show('birthHeadCm') ? (
+              <DecField
+                {...p('birthHeadCm')}
+                unit="cm"
+                max={60}
+                disabled={readOnly}
+                value={g<number>('birthHeadCm')}
+                onChange={(v) => setIngreso({ birthHeadCm: v })}
+              />
+            ) : null}
           </div>
         </fieldset>
         {apgarFromBook && !editApgar ? (
@@ -146,31 +156,33 @@ export function IngresoSection({
         ) : (
         <div className="flex flex-col gap-5">
           <ScoreRow
-            label="APGAR al minuto"
+            {...p('apgar1')}
             required
             disabled={readOnly}
             value={g<number>('apgar1')}
             onChange={(v) => setIngreso({ apgar1: v })}
           />
           <ScoreRow
-            label="APGAR a los 5 minutos"
+            {...p('apgar5')}
             required
             disabled={readOnly}
             value={g<number>('apgar5')}
             error={apgar5Error(g<number>('apgar5'))}
             onChange={(v) => setIngreso({ apgar5: v })}
           />
-          <ScoreRow
-            label="APGAR a los 10 minutos"
-            disabled={readOnly}
-            value={g<number>('apgar10')}
-            error={apgar10Error(g<number>('apgar10'))}
-            onChange={(v) => setIngreso({ apgar10: v })}
-          />
+          {show('apgar10') ? (
+            <ScoreRow
+              {...p('apgar10')}
+              disabled={readOnly}
+              value={g<number>('apgar10')}
+              error={apgar10Error(g<number>('apgar10'))}
+              onChange={(v) => setIngreso({ apgar10: v })}
+            />
+          ) : null}
         </div>
         )}
         <Choice
-          label="Sexo"
+          {...p('sex')}
           required
           disabled={readOnly}
           options={SEX_OPTIONS}
@@ -178,7 +190,7 @@ export function IngresoSection({
           onChange={(v) => setIngreso({ sex: v })}
         />
         <Choice
-          label="Tipo de parto"
+          {...p('deliveryType')}
           required
           disabled={readOnly}
           options={DELIVERY_OPTIONS}
@@ -247,24 +259,28 @@ export function IngresoSection({
       <>
       <Section title="Admisión" hint="Se completan con los valores habituales de la unidad la primera vez.">
         <div className="grid gap-6 sm:grid-cols-2">
-          <SelectField
-            label="Previsión"
-            disabled={readOnly}
-            options={catalogOptions(cat, 'prevision')}
-            value={g<number>('previsionId')}
-            onChange={(v) => setIngreso({ previsionId: v })}
-          />
-          <SelectField
-            label="Procedencia"
-            disabled={readOnly}
-            options={catalogOptions(cat, 'procedimiento')}
-            value={g<number>('procedimientoId')}
-            onChange={(v) => setIngreso({ procedimientoId: v })}
-          />
+          {show('previsionId') ? (
+            <SelectField
+              {...p('previsionId')}
+              disabled={readOnly}
+              options={catalogOptions(cat, 'prevision')}
+              value={g<number>('previsionId')}
+              onChange={(v) => setIngreso({ previsionId: v })}
+            />
+          ) : null}
+          {show('procedimientoId') ? (
+            <SelectField
+              {...p('procedimientoId')}
+              disabled={readOnly}
+              options={catalogOptions(cat, 'procedimiento')}
+              value={g<number>('procedimientoId')}
+              onChange={(v) => setIngreso({ procedimientoId: v })}
+            />
+          ) : null}
         </div>
-        {isTransfer ? (
+        {isTransfer && show('transferOrigin') ? (
           <TextField
-            label="Centro de origen del traslado"
+            {...p('transferOrigin')}
             disabled={readOnly}
             maxLength={160}
             placeholder="Nombre del hospital o clínica de origen"
@@ -272,41 +288,47 @@ export function IngresoSection({
             onChange={(v) => setIngreso({ transferOrigin: v })}
           />
         ) : null}
-        <Choice
-          label="Nivel de cuidado"
-          disabled={readOnly}
-          options={[...CARE_LEVEL_OPTIONS]}
-          value={g<string>('careLevel')}
-          onChange={(v) => setIngreso({ careLevel: v })}
-        />
-        <DateTimeField
-          label="Fecha y hora de ingreso"
-          hint="Se registra sola al crear la ficha; corrígela si el ingreso fue en otro momento."
-          disabled={readOnly}
-          value={g<string>('admissionAt')}
-          onChange={(v) => setIngreso({ admissionAt: v })}
-        />
-        <DxMultiPicker
-          label="Diagnósticos de ingreso"
-          hint="Puedes agregar más de uno. El primero se considera el principal."
-          disabled={readOnly}
-          diagnoses={cat?.diagnoses ?? []}
-          value={dxIngreso}
-          onChange={(ids) => setIngreso({ dxIngresoIds: ids, dxIngresoId: ids[0] ?? null })}
-        />
-        <MultiSelectField
-          label="Médico tratante"
-          hint="Marca uno o varios médicos que participaron en la atención."
-          disabled={readOnly}
-          options={catalogOptions(cat, 'profesional')}
-          value={doctors}
-          onChange={(ids) => setIngreso({ medicoIds: ids, medicoId: ids[0] ?? null })}
-        />
+        {show('careLevel') ? (
+          <Choice
+            {...p('careLevel')}
+            disabled={readOnly}
+            options={[...CARE_LEVEL_OPTIONS]}
+            value={g<string>('careLevel')}
+            onChange={(v) => setIngreso({ careLevel: v })}
+          />
+        ) : null}
+        {show('admissionAt') ? (
+          <DateTimeField
+            {...p('admissionAt', 'Se registra sola al crear la ficha; corrígela si el ingreso fue en otro momento.')}
+            disabled={readOnly}
+            value={g<string>('admissionAt')}
+            onChange={(v) => setIngreso({ admissionAt: v })}
+          />
+        ) : null}
+        {show('dxIngresoIds') ? (
+          <DxMultiPicker
+            {...p('dxIngresoIds', 'Puedes agregar más de uno. El primero se considera el principal.')}
+            disabled={readOnly}
+            diagnoses={cat?.diagnoses ?? []}
+            value={dxIngreso}
+            onChange={(ids) => setIngreso({ dxIngresoIds: ids, dxIngresoId: ids[0] ?? null })}
+          />
+        ) : null}
+        {show('medicoIds') ? (
+          <MultiSelectField
+            {...p('medicoIds', 'Marca uno o varios médicos que participaron en la atención.')}
+            disabled={readOnly}
+            options={catalogOptions(cat, 'profesional')}
+            value={doctors}
+            onChange={(ids) => setIngreso({ medicoIds: ids, medicoId: ids[0] ?? null })}
+          />
+        ) : null}
       </Section>
 
+      {docs.length > 0 ? (
       <Section title="Documentos de ingreso" hint="Marca los documentos que ya están en la ficha.">
         <ul className="grid gap-3 sm:grid-cols-2">
-          {ADMISSION_DOCUMENTS.map((d) => {
+          {docs.map((d) => {
             const checked = Boolean(g<boolean>(d.key))
             return (
               <li key={d.key}>
@@ -341,21 +363,27 @@ export function IngresoSection({
                   >
                     {checked ? <Check className="size-4" /> : null}
                   </span>
-                  {d.label}
+                  <span>
+                    {q(d.key).label}
+                    {q(d.key).help ? (
+                      <span className="block text-sm font-normal text-muted-foreground">{q(d.key).help}</span>
+                    ) : null}
+                  </span>
                 </button>
               </li>
             )
           })}
         </ul>
-        {gesNotified ? (
+        {gesNotified && show('gesNotified') && show('gesNotifiedAt') ? (
           <DateTimeField
-            label="Fecha de notificación GES"
+            {...p('gesNotifiedAt')}
             disabled={readOnly}
             value={g<string>('gesNotifiedAt')}
             onChange={(v) => setIngreso({ gesNotifiedAt: v })}
           />
         ) : null}
       </Section>
+      ) : null}
       </>
       ) : null}
     </div>
