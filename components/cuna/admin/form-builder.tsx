@@ -13,7 +13,12 @@ import { Notice, PrimaryButton } from '@/components/cuna/ui'
 import { ChipToggle } from '@/components/cuna/search-field'
 import { BookFieldsAdmin } from '@/components/cuna/admin/book-fields-admin'
 import { FormPreview, TablePreview, type PField } from '@/components/cuna/admin/form-preview'
-import { IngresoBuilder } from '@/components/cuna/admin/ingreso-builder'
+import {
+  IngresoFixedQuestions,
+  IngresoPreview,
+  useIngresoEditor,
+  type Msg,
+} from '@/components/cuna/admin/ingreso-builder'
 import {
   QuestionEditor,
   blankDraft,
@@ -62,14 +67,15 @@ export function FormBuilder() {
   const { data, mutate } = useSWR<BookFieldRow[]>('/api/admin/book-fields', fetcher)
   const [mode, setMode] = useState<'builder' | 'classic'>('builder')
   const [scope, setScope] = useState<FieldScope>('libro')
-  const [ingreso, setIngreso] = useState(false)
+  const [part, setPart] = useState<'fijas' | 'adicionales'>('fijas')
   const [section, setSection] = useState<BookSection>('materno')
   const [preview, setPreview] = useState<'form' | 'table'>('form')
   const [draft, setDraft] = useState<Draft | null>(null)
   const [baseline, setBaseline] = useState('')
-  const [message, setMessage] = useState<{ tone: 'danger' | 'success'; text: string } | null>(null)
+  const [message, setMessage] = useState<Msg | null>(null)
   const [busy, setBusy] = useState(false)
   const [askDelete, setAskDelete] = useState(false)
+  const ingreso = useIngresoEditor(setMessage)
   const noticeRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -97,12 +103,13 @@ export function FormBuilder() {
   const selectedKey = draft ? draft.key || '__nueva' : null
 
   function confirmDiscard() {
-    return !dirty || window.confirm('Hay cambios sin guardar en la pregunta que editas. ¿Descartarlos?')
+    return (!dirty && !ingreso.dirty) || window.confirm('Hay cambios sin guardar en la pregunta que editas. ¿Descartarlos?')
   }
 
   function openDraft(d: Draft | null, keepMessage = false) {
     if (!keepMessage) setMessage(null)
     setAskDelete(false)
+    if (d) ingreso.close()
     setDraft(d)
     setBaseline(d ? JSON.stringify(d) : '')
     if (d && d.scope === 'libro') setSection(d.section)
@@ -181,16 +188,27 @@ export function FormBuilder() {
   }
 
   function switchScope(s: FieldScope) {
-    if ((s === scope && !ingreso) || !confirmDiscard()) return
-    setIngreso(false)
+    if (s === scope || !confirmDiscard()) return
+    ingreso.close()
     setScope(s)
     openDraft(null)
   }
 
-  function openIngreso() {
-    if (ingreso || !confirmDiscard()) return
+  function switchPart(p: 'fijas' | 'adicionales') {
+    if (p === part || !confirmDiscard()) return
+    ingreso.close()
     openDraft(null)
-    setIngreso(true)
+    setPart(p)
+  }
+
+  function toggleFixed(f: Parameters<typeof ingreso.toggle>[0]) {
+    if (ingreso.openKey !== f.key && !confirmDiscard()) return
+    if (draft) openDraft(null)
+    ingreso.toggle(f)
+  }
+
+  function cancelFixed() {
+    if (confirmDiscard()) ingreso.close()
   }
 
   if (mode === 'classic') {
@@ -207,24 +225,12 @@ export function FormBuilder() {
   const formChips = (
     <div role="group" aria-label="Formulario" className="flex flex-wrap gap-2">
       {(['libro', 'ficha'] as const).map((s) => (
-        <ChipToggle key={s} pressed={!ingreso && scope === s} onClick={() => switchScope(s)}>
-          {SCOPE_LABEL[s]} ({all.filter((f) => f.scope === s && f.active).length})
+        <ChipToggle key={s} pressed={scope === s} onClick={() => switchScope(s)}>
+          {SCOPE_LABEL[s]}
         </ChipToggle>
       ))}
-      <ChipToggle pressed={ingreso} onClick={openIngreso}>
-        Ingreso UPC y Nursery
-      </ChipToggle>
     </div>
   )
-
-  if (ingreso) {
-    return (
-      <div className="flex flex-col gap-4">
-        {formChips}
-        <IngresoBuilder />
-      </div>
-    )
-  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -263,8 +269,33 @@ export function FormBuilder() {
                 </ChipToggle>
               ))}
             </div>
-          ) : null}
+          ) : (
+            <>
+              <Notice tone="info" title="UPC y Nursery comparten este formulario">
+                Lo que cambies aquí se ve igual en ambos ingresos. En Nursery, la Admisión y los documentos solo aparecen si el
+                recién nacido se hospitalizó; las listas (previsión, procedencia, diagnósticos y médicos) se administran en
+                Catálogos.
+              </Notice>
+              <div role="group" aria-label="Tipo de pregunta" className="flex flex-wrap gap-2">
+                <ChipToggle pressed={part === 'fijas'} onClick={() => switchPart('fijas')}>
+                  Preguntas del ingreso
+                </ChipToggle>
+                <ChipToggle pressed={part === 'adicionales'} onClick={() => switchPart('adicionales')}>
+                  Preguntas adicionales ({inScope.filter((f) => f.active).length})
+                </ChipToggle>
+              </div>
+            </>
+          )}
 
+          {scope === 'ficha' && part === 'fijas' ? (
+            <>
+              <p className="text-sm text-muted-foreground">
+                Puedes renombrar, agregar una ayuda u ocultar las que no necesites. Las marcadas con candado son indispensables.
+                ¿Necesitas un dato nuevo? Agrégalo en «Preguntas adicionales».
+              </p>
+              <IngresoFixedQuestions editor={ingreso} onToggle={toggleFixed} onCancel={cancelFixed} />
+            </>
+          ) : (
           <ul className="flex flex-col gap-2">
             {data && list.length === 0 && !draft ? (
               <li className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
@@ -279,7 +310,7 @@ export function FormBuilder() {
                 <li key={f.id} className="flex flex-col gap-2">
                   {newGroup ? (
                     <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      {f.group || 'Sin apartado'}
+                      {f.group || (scope === 'ficha' ? 'Datos adicionales' : 'Sin apartado')}
                     </p>
                   ) : null}
                   <div
@@ -397,12 +428,15 @@ export function FormBuilder() {
               </li>
             ) : null}
           </ul>
+          )}
 
           {/* Se fija al borde inferior solo sin editor abierto: con uno abierto, la barra del editor es la que queda fija y nunca se apilan. */}
           <div
             className={cn(
               'flex',
-              !draft && 'sticky bottom-0 z-10 -mx-4 -mb-4 border-t border-border bg-card px-4 py-3 sm:-mx-6 sm:-mb-6 sm:px-6',
+              !draft &&
+                !ingreso.openKey &&
+                'sticky bottom-0 z-10 -mx-4 -mb-4 border-t border-border bg-card px-4 py-3 sm:-mx-6 sm:-mb-6 sm:px-6',
             )}
           >
             <PrimaryButton
@@ -410,6 +444,8 @@ export function FormBuilder() {
               onClick={() => {
                 if (draft?.id == null && draft) return
                 if (!confirmDiscard()) return
+                ingreso.close()
+                if (scope === 'ficha') setPart('adicionales')
                 openDraft(blankDraft(section, scope))
               }}
             >
@@ -419,6 +455,19 @@ export function FormBuilder() {
           </div>
         </section>
 
+        {scope === 'ficha' ? (
+          <IngresoPreview
+            overrides={ingreso.liveOverrides}
+            selectedKey={ingreso.openKey ?? selectedKey}
+            custom={previewFields}
+            onSelectCustom={(key) => {
+              const f = inScope.find((x) => x.key === key)
+              if (!f) return
+              setPart('adicionales')
+              openField(f)
+            }}
+          />
+        ) : (
         <section
           aria-label="Vista previa"
           className="flex flex-col gap-4 rounded-xl border border-border bg-muted/40 p-4 sm:p-6 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)] lg:overflow-y-auto"
@@ -454,6 +503,7 @@ export function FormBuilder() {
             <TablePreview fields={previewFields} scope={scope} selectedKey={selectedKey} />
           )}
         </section>
+        )}
       </div>
     </div>
   )

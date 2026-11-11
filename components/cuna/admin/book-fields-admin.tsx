@@ -178,7 +178,7 @@ export function BookFieldsAdmin() {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">Datos adicionales que aparecen en la ficha de Neonatología.</p>
+            <p className="text-sm text-muted-foreground">Datos adicionales que aparecen en el ingreso a UPC y Nursery.</p>
           )}
           <PrimaryButton variant="outline" className="h-11 px-4 text-sm" onClick={() => { setMessage(null); setDraft(blank(section, scope)) }}>
             Nueva columna

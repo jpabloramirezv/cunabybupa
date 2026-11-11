@@ -27,7 +27,7 @@ export type FieldScope = 'libro' | 'ficha'
 
 export const SCOPE_LABEL: Record<FieldScope, string> = {
   libro: 'Libro de Partos y Abortos',
-  ficha: 'Ficha de Neonatología',
+  ficha: 'Ingreso UPC y Nursery',
 }
 
 const norm = (s: string) =>
