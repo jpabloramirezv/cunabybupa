@@ -13,11 +13,12 @@ import type { CatalogsPayload, EpisodeDetail } from '@/lib/types'
 import { Highlight } from '@/components/cuna/highlight'
 import { ChipToggle } from '@/components/cuna/search-field'
 import { uiStatus } from '@/lib/rules'
+import { useFichaFields, type FichaField } from '@/lib/hooks'
 import { StatusBadge } from '@/components/cuna/ui'
 import { ColumnResizer, ResetWidthsButton, SizedCell, useColumnWidths, widthStyle } from '@/components/cuna/column-resize'
 
-type GroupKey = 'registro' | 'madre' | 'nacimiento' | 'ingreso' | 'egreso' | 'tamizajes' | 'estado'
-type ToggleGroup = Extract<GroupKey, 'madre' | 'nacimiento' | 'ingreso' | 'egreso' | 'tamizajes'>
+type GroupKey = 'registro' | 'madre' | 'nacimiento' | 'ingreso' | 'egreso' | 'tamizajes' | 'extra' | 'estado'
+type ToggleGroup = Extract<GroupKey, 'madre' | 'nacimiento' | 'ingreso' | 'egreso' | 'tamizajes' | 'extra'>
 
 const GROUP_LABEL: Record<GroupKey, string> = {
   registro: 'Registro',
@@ -26,10 +27,11 @@ const GROUP_LABEL: Record<GroupKey, string> = {
   ingreso: 'Ingreso clínico',
   egreso: 'Egreso',
   tamizajes: 'Tamizajes y vacunas',
+  extra: 'Datos adicionales',
   estado: '',
 }
 
-const TOGGLES: ToggleGroup[] = ['madre', 'nacimiento', 'ingreso', 'egreso', 'tamizajes']
+const TOGGLES: ToggleGroup[] = ['madre', 'nacimiento', 'ingreso', 'egreso', 'tamizajes', 'extra']
 const PAGE = 150
 const NUM_COL_W = 'w-[6.75rem] min-w-[6.75rem] max-w-[6.75rem]'
 const NAME_LEFT = 'left-[6.75rem]'
@@ -468,6 +470,26 @@ const COLUMNS: Col[] = [
   },
 ]
 
+const isoToDisplay = (v: string) => (/^\d{4}-\d{2}-\d{2}$/.test(v) ? v.split('-').reverse().join('-') : v)
+
+/** Una columna por cada pregunta activa que Jefatura define en Administración → Formularios. */
+const extraColumn = (f: FichaField): Col => {
+  const numeric = f.type === 'number' || f.type === 'decimal' || f.type === 'digit'
+  const read = (e: EpisodeDetail) => e.custom?.[f.key] ?? ''
+  return {
+    id: `x-${f.key}`,
+    group: 'extra',
+    label: f.label,
+    title: f.help || undefined,
+    sort: (e) => {
+      const v = read(e)
+      if (v === '') return null
+      return numeric ? Number(v.replace(',', '.')) : v
+    },
+    cell: (e, c) => <Plain v={isoToDisplay(read(e)) || null} c={c} />,
+  }
+}
+
 const monthFmt = new Intl.DateTimeFormat('es-CL', { month: 'long', year: 'numeric', timeZone: TZ })
 const monthOf = (iso: string) => {
   const s = monthFmt.format(new Date(iso))
@@ -504,8 +526,12 @@ export function Ledger({
     ingreso: true,
     egreso: true,
     tamizajes: true,
+    extra: true,
   })
   const [visible, setVisible] = useState(PAGE)
+  const { data: ficha } = useFichaFields()
+  const extras = useMemo(() => (ficha?.fields ?? []).map(extraColumn), [ficha])
+  const allColumns = useMemo(() => [...COLUMNS.slice(0, -1), ...extras, COLUMNS[COLUMNS.length - 1]], [extras])
   const colW = useColumnWidths('pizarra')
 
   const ctx = useMemo<Ctx>(() => {
@@ -521,22 +547,22 @@ export function Ledger({
 
   const columns = useMemo(
     () =>
-      COLUMNS.filter(
+      allColumns.filter(
         (c) =>
           (showIdentity || !c.identity) &&
           (c.id !== 'book' || !!book) &&
           (!(c.group in shown) || shown[c.group as ToggleGroup]),
       ),
-    [showIdentity, shown, book],
+    [allColumns, showIdentity, shown, book],
   )
-  const toggles = TOGGLES.filter((g) => showIdentity || g !== 'madre')
+  const toggles = TOGGLES.filter((g) => (showIdentity || g !== 'madre') && (g !== 'extra' || extras.length > 0))
 
   const sorted = useMemo(() => {
-    const col = COLUMNS.find((c) => c.id === sort.id)
+    const col = allColumns.find((c) => c.id === sort.id)
     if (!col?.sort) return list
     const get = col.sort
     return [...list].sort((a, b) => compare(get(a), get(b), sort.dir) || b.seq - a.seq)
-  }, [list, sort])
+  }, [list, sort, allColumns])
 
   const byDate = sort.id === 'seq' || sort.id === 'created'
   const monthCounts = useMemo(() => {
